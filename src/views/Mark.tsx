@@ -85,11 +85,12 @@ export default function Mark() {
     };
     reader.readAsArrayBuffer(file);
   };
-
+  
   // Handle Select All toggle
   const handleChangeAll = (checked: boolean) => {
     setAllIncluded(checked);
-    setIncludeEntries(new Array(allRecords.length).fill(checked));
+    const newIncludes = [...includeEntries].map(() => checked);
+    setIncludeEntries(newIncludes);
   };
 
   // Handle individual include toggle
