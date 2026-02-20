@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -6,12 +6,15 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { PlayCircle, Loader2 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Textarea } from "@/components/ui/textarea";
+import { PlayCircle, Loader2, Bookmark, FileSignature } from 'lucide-react';
 import MarkingTags from './MarkingTags';
 import MarkingNameInput from './MarkingNameInput';
 import { cn } from '@/lib/utils';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { useBookmarks } from '@/contexts/BookmarksContext';
 
 interface MarkingCardProps {
   record: any;
@@ -27,6 +30,39 @@ export default function MarkingCard({ record, include, onIncludeChange, index, s
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+
+  const { isBookmarked, toggleBookmark, getBookmark, updateBookmarkNote } = useBookmarks();
+  
+  // Note state for popover
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  
+  // Sync note text when opening popover
+  useEffect(() => {
+    if (noteOpen) {
+      const bookmark = getBookmark(index);
+      setNoteText(bookmark?.note || '');
+    }
+  }, [noteOpen, index, getBookmark]);
+
+  const handleSaveNote = () => {
+    if (isBookmarked(index)) {
+       updateBookmarkNote(index, noteText);
+       toast.success("备注已保存");
+    } else {
+       toggleBookmark(index, record.title, noteText);
+    }
+    setNoteOpen(false);
+  };
+
+  const handleBookmarkClick = () => {
+     if (isBookmarked(index)) {
+        toggleBookmark(index, record.title);
+     } else {
+        // If adding, just add directly without note first
+        toggleBookmark(index, record.title);
+     }
+  };
 
   const handleChange = (field: string, value: any) => {
     const newRecord = { ...record, [field]: value };
@@ -89,14 +125,65 @@ export default function MarkingCard({ record, include, onIncludeChange, index, s
     ]},
   ];
 
+  const bookmarked = isBookmarked(index);
+  const bookmark = getBookmark(index);
+
   return (
     <Card 
       id={`record-${index}`}
-      className={cn("w-full transition-all duration-300 hover:shadow-lg scroll-mt-24", 
+      className={cn("w-full transition-all duration-300 hover:shadow-lg scroll-mt-24 relative", 
       record.status === 'auto' ? "bg-yellow-100/50 dark:bg-yellow-900/20" : 
       record.status === 'done' ? "bg-sky-100/50 dark:bg-sky-900/20" : ""
     )}>
       <CardContent className="p-4">
+        {/* Bookmark Controls */}
+        <div className="absolute top-2 right-2 z-10 flex gap-1">
+           {bookmarked && (
+              <Popover open={noteOpen} onOpenChange={setNoteOpen}>
+                 <PopoverTrigger asChild>
+                    <Button
+                       variant="ghost"
+                       size="icon"
+                       className={cn("text-muted-foreground hover:text-primary", bookmark?.note ? "text-primary" : "")}
+                       title={bookmark?.note ? "编辑备注" : "添加备注"}
+                    >
+                       <FileSignature className="h-5 w-5" />
+                    </Button>
+                 </PopoverTrigger>
+                 <PopoverContent className="w-80">
+                    <div className="grid gap-4">
+                       <div className="space-y-2">
+                          <h4 className="font-medium leading-none">书签备注</h4>
+                          <p className="text-sm text-muted-foreground">
+                             为这首歌添加备注信息
+                          </p>
+                       </div>
+                       <div className="grid gap-2">
+                          <Textarea 
+                             id={`note-${index}`} 
+                             value={noteText}
+                             onChange={(e) => setNoteText(e.target.value)}
+                             placeholder="输入备注..."
+                             className="h-24"
+                          />
+                          <Button size="sm" onClick={handleSaveNote}>保存备注</Button>
+                       </div>
+                    </div>
+                 </PopoverContent>
+              </Popover>
+           )}
+           
+           <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-primary"
+              onClick={handleBookmarkClick}
+              title={bookmarked ? "取消书签" : "添加书签"}
+           >
+              <Bookmark className={cn("h-5 w-5", bookmarked ? "fill-primary text-primary" : "")} />
+           </Button>
+        </div>
+
         <div className="flex flex-col md:flex-row gap-4">
           {/* Left Column: Image & Control */}
           <div className="w-full md:w-1/3 flex flex-col gap-2">
@@ -114,12 +201,6 @@ export default function MarkingCard({ record, include, onIncludeChange, index, s
                <Dialog open={isPreviewOpen} onOpenChange={(open) => {
                   setIsPreviewOpen(open);
                   if (open) loadVideoPreview();
-                  else {
-                     // Optionally clear video URL to stop playing when closed, 
-                     // or keep it to resume. Usually better to clear or pause.
-                     // But <video> inside Dialog unmounts so it stops naturally?
-                     // DialogContent unmounts its children when closed, so yes.
-                  }
                }}>
                   <DialogTrigger asChild>
                      <Button 
@@ -177,7 +258,7 @@ export default function MarkingCard({ record, include, onIncludeChange, index, s
 
           {/* Right Column: Fields */}
           <div className="w-full md:w-2/3 flex flex-col gap-3">
-            <div className="font-bold text-lg leading-tight line-clamp-1" title={record.title}>
+            <div className="font-bold text-lg leading-tight line-clamp-1 pr-16" title={record.title}>
                {record.title}
             </div>
 

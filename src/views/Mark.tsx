@@ -5,10 +5,18 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Loader2, FileDown, Search } from 'lucide-react';
+import { Loader2, FileDown, Search, Bookmark as BookmarkIcon, Trash2, Upload, Download, FileSignature } from 'lucide-react';
 import MarkingCard from '@/components/MarkingCard';
 import { exportToExcel } from '@/utils/excel';
 import { toast } from 'sonner';
+import { BookmarksProvider, useBookmarks } from '@/contexts/BookmarksContext';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Textarea } from "@/components/ui/textarea";
 
 // Define the record type based on usage
 interface RecordType {
@@ -16,7 +24,8 @@ interface RecordType {
   include?: string | boolean; // '收录' or boolean
 }
 
-export default function Mark() {
+// Inner component to access context
+function MarkContent() {
   const [allRecords, setAllRecords] = useState<RecordType[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
@@ -26,6 +35,13 @@ export default function Mark() {
   const [svmode, setSvmode] = useState(false);
   const [openSearch, setOpenSearch] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const { bookmarks, clearBookmarks, importBookmarks, exportBookmarks, updateBookmarkNote } = useBookmarks();
+  const bookmarkInputRef = useRef<HTMLInputElement>(null);
+
+  // Export options
+  const [keepExcluded, setKeepExcluded] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
   // Keyboard shortcut for search
   useEffect(() => {
@@ -143,7 +159,8 @@ export default function Mark() {
 
   // Handle export
   const handleExport = () => {
-    exportToExcel(allRecords, includeEntries, svmode);
+    exportToExcel(allRecords, includeEntries, svmode, keepExcluded);
+    setExportDialogOpen(false);
   };
 
   // Handle page change
@@ -163,10 +180,127 @@ export default function Mark() {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [allRecords]);
+  
+  // Handle bookmark import
+  const handleBookmarkImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      importBookmarks(file);
+    }
+    // Reset value to allow re-importing same file
+    if (event.target) event.target.value = '';
+  };
+  
+  // Bookmark Note component for sidebar
+  const BookmarkItem = ({ bookmark }: { bookmark: any }) => {
+     const [isNoteOpen, setIsNoteOpen] = useState(false);
+     const [noteText, setNoteText] = useState(bookmark.note || '');
+     
+     const handleSaveNote = () => {
+        updateBookmarkNote(bookmark.index, noteText);
+        setIsNoteOpen(false);
+        toast.success("备注已更新");
+     };
+
+     return (
+       <div 
+         className="flex flex-col p-3 rounded-md border hover:bg-muted/50 transition-colors group relative"
+       >
+         <div className="cursor-pointer" onClick={() => handleJumpToRecord(bookmark.index)}>
+            <span className="font-medium line-clamp-1">{bookmark.title}</span>
+            <span className="text-xs text-muted-foreground">索引: {bookmark.index + 1}</span>
+            {bookmark.note && (
+               <div className="mt-1 text-xs text-muted-foreground bg-muted p-1 rounded line-clamp-2">
+                  备注: {bookmark.note}
+               </div>
+            )}
+         </div>
+         
+         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Popover open={isNoteOpen} onOpenChange={setIsNoteOpen}>
+               <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                     <FileSignature className="h-3 w-3" />
+                  </Button>
+               </PopoverTrigger>
+               <PopoverContent className="w-80" side="left">
+                  <div className="grid gap-4">
+                     <div className="space-y-2">
+                        <h4 className="font-medium leading-none">编辑备注</h4>
+                     </div>
+                     <div className="grid gap-2">
+                        <Textarea 
+                           value={noteText}
+                           onChange={(e) => setNoteText(e.target.value)}
+                           placeholder="输入备注..."
+                           className="h-24"
+                        />
+                        <Button size="sm" onClick={handleSaveNote}>保存备注</Button>
+                     </div>
+                  </div>
+               </PopoverContent>
+            </Popover>
+         </div>
+       </div>
+     );
+  };
 
   return (
     <div className="flex flex-col items-center p-6 w-full max-w-7xl mx-auto space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">数据库STAFF打标</h1>
+      <div className="flex justify-between w-full items-center">
+        <h1 className="text-3xl font-bold tracking-tight">数据库STAFF打标</h1>
+        
+        {/* Bookmarks Drawer */}
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="outline" className="gap-2">
+              <BookmarkIcon className="h-4 w-4" />
+              书签 ({bookmarks.length})
+            </Button>
+          </SheetTrigger>
+          <SheetContent>
+            <SheetHeader>
+              <SheetTitle>书签列表</SheetTitle>
+            </SheetHeader>
+            <div className="py-4 space-y-4">
+              <div className="flex gap-2 justify-between">
+                <Button variant="outline" size="sm" onClick={exportBookmarks} title="导出书签">
+                  <Download className="h-4 w-4" />
+                </Button>
+                <div className="relative">
+                   <Button variant="outline" size="sm" className="relative" title="导入书签">
+                      <Upload className="h-4 w-4" />
+                      <input 
+                         type="file" 
+                         accept=".json" 
+                         className="absolute inset-0 opacity-0 cursor-pointer"
+                         onChange={handleBookmarkImport}
+                         ref={bookmarkInputRef}
+                      />
+                   </Button>
+                </div>
+                <Button variant="destructive" size="sm" onClick={clearBookmarks} title="清空书签">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <Separator />
+              <ScrollArea className="h-[calc(100vh-200px)]">
+                {bookmarks.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-10">
+                    暂无书签
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {bookmarks.map((bookmark) => (
+                      <BookmarkItem key={bookmark.index} bookmark={bookmark} />
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
       
       {/* Controls Area */}
       <div className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center">
@@ -203,10 +337,39 @@ export default function Mark() {
                  </kbd>
               </Button>
               
-              <Button onClick={handleExport} variant="outline" className="gap-2">
-                 <FileDown className="h-4 w-4" />
-                 导出Excel
-              </Button>
+              <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+                 <DialogTrigger asChild>
+                    <Button variant="outline" className="gap-2">
+                       <FileDown className="h-4 w-4" />
+                       导出Excel
+                    </Button>
+                 </DialogTrigger>
+                 <DialogContent>
+                    <DialogHeader>
+                       <DialogTitle>导出选项</DialogTitle>
+                       <DialogDescription>
+                          请选择导出文件的格式和内容
+                       </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex items-center space-x-2 py-4">
+                       <Checkbox 
+                          id="keepExcluded" 
+                          checked={keepExcluded} 
+                          onCheckedChange={(checked) => setKeepExcluded(checked as boolean)} 
+                       />
+                       <label
+                          htmlFor="keepExcluded"
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                       >
+                          保留未收录的歌曲（标记为"排除"）
+                       </label>
+                    </div>
+                    <DialogFooter>
+                       <Button variant="outline" onClick={() => setExportDialogOpen(false)}>取消</Button>
+                       <Button onClick={handleExport}>确认导出</Button>
+                    </DialogFooter>
+                 </DialogContent>
+              </Dialog>
            </div>
         )}
       </div>
@@ -300,4 +463,12 @@ export default function Mark() {
       )}
     </div>
   );
+}
+
+export default function Mark() {
+   return (
+      <BookmarksProvider>
+         <MarkContent />
+      </BookmarksProvider>
+   );
 }

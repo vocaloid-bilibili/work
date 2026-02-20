@@ -1,20 +1,21 @@
 import * as XLSX from "xlsx";
 
-// 导出 Excel
-export function exportToExcel(records: any[], includeEntries: boolean[], svmode: boolean) {
+export function exportToExcel(records: any[], includeEntries: boolean[], _svmode: boolean, keepExcluded: boolean = false) {
+  // _svmode argument kept for compatibility but logic unified
+  
+  const mappedRecords = records.map((item, index) => {
+    const newItem = { ...item };
+    newItem.include = includeEntries[index] ? '收录' : '排除';
+    return newItem;
+  });
+
   let outputRecords;
-  if (svmode) {
-    outputRecords = records.map((item, index) => {
-      // Create a copy to avoid mutation
-      const newItem = { ...item };
-      newItem.include = includeEntries[index] ? '收录' : '排除'
-      return newItem
-    });
+  if (keepExcluded) {
+    outputRecords = mappedRecords;
   } else {
-    outputRecords = records.filter((_, index) => includeEntries[index]);
-    // Validate records if needed (kept simple here based on user request "lightweight")
-    // validateRecords(outputRecords); 
+    outputRecords = mappedRecords.filter((item) => item.include === '收录');
   }
+
   const worksheet = XLSX.utils.json_to_sheet(outputRecords);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
