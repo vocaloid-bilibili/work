@@ -3,9 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationEllipsis, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Loader2, FileDown, Search, Bookmark as BookmarkIcon, Trash2, Upload, Download, FileSignature } from 'lucide-react';
+import { Loader2, FileDown, Search, Bookmark as BookmarkIcon, Trash2, Upload, Download, FileSignature, LayoutGrid, LayoutList } from 'lucide-react';
 import MarkingCard from '@/components/MarkingCard';
 import { exportToExcel } from '@/utils/excel';
 import { toast } from 'sonner';
@@ -34,6 +34,7 @@ function MarkContent() {
   const [status, setStatus] = useState<'waiting' | 'loading' | 'loaded'>('waiting');
   const [svmode, setSvmode] = useState(false);
   const [openSearch, setOpenSearch] = useState(false);
+  const [gridLayout, setGridLayout] = useState(false); // false: list (1 col), true: grid (2 cols)
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { bookmarks, clearBookmarks, importBookmarks, exportBookmarks, updateBookmarkNote } = useBookmarks();
@@ -245,6 +246,98 @@ function MarkContent() {
      );
   };
 
+  const renderPaginationItems = () => {
+    const items = [];
+    const maxVisiblePages = 7;
+
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        items.push(
+          <PaginationItem key={i}>
+            <PaginationLink
+              onClick={() => handlePageChange(i)}
+              isActive={currentPage === i}
+              className="cursor-pointer"
+            >
+              {i}
+            </PaginationLink>
+          </PaginationItem>
+        );
+      }
+    } else {
+      // First page is always visible
+      items.push(
+        <PaginationItem key={1}>
+          <PaginationLink
+            onClick={() => handlePageChange(1)}
+            isActive={currentPage === 1}
+            className="cursor-pointer"
+          >
+            1
+          </PaginationLink>
+        </PaginationItem>
+      );
+
+      // Determine range
+      let startPage = Math.max(2, currentPage - 2);
+      let endPage = Math.min(totalPages - 1, currentPage + 2);
+
+      if (currentPage <= 4) {
+        endPage = 5;
+      } else if (currentPage >= totalPages - 3) {
+        startPage = totalPages - 4;
+      }
+
+      // Add start ellipsis
+      if (startPage > 2) {
+        items.push(
+          <PaginationItem key="start-ellipsis">
+            <PaginationEllipsis />
+          </PaginationItem>
+        );
+      }
+
+      // Add middle pages
+      for (let i = startPage; i <= endPage; i++) {
+        items.push(
+          <PaginationItem key={i}>
+            <PaginationLink
+              onClick={() => handlePageChange(i)}
+              isActive={currentPage === i}
+              className="cursor-pointer"
+            >
+              {i}
+            </PaginationLink>
+          </PaginationItem>
+        );
+      }
+
+      // Add end ellipsis
+      if (endPage < totalPages - 1) {
+        items.push(
+          <PaginationItem key="end-ellipsis">
+            <PaginationEllipsis />
+          </PaginationItem>
+        );
+      }
+
+      // Last page is always visible
+      items.push(
+        <PaginationItem key={totalPages}>
+          <PaginationLink
+            onClick={() => handlePageChange(totalPages)}
+            isActive={currentPage === totalPages}
+            className="cursor-pointer"
+          >
+            {totalPages}
+          </PaginationLink>
+        </PaginationItem>
+      );
+    }
+
+    return items;
+  };
+
   return (
     <div className="flex flex-col items-center p-6 w-full max-w-7xl mx-auto space-y-6">
       <div className="flex justify-between w-full items-center">
@@ -323,6 +416,16 @@ function MarkContent() {
 
         {allRecords.length > 0 && (
            <div className="flex gap-2">
+              <Button 
+                 variant="outline" 
+                 size="icon"
+                 title={gridLayout ? "切换为单列列表" : "切换为双列网格"}
+                 onClick={() => setGridLayout(!gridLayout)}
+                 className="hidden md:flex"
+              >
+                 {gridLayout ? <LayoutList className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+              </Button>
+
               <Button 
                 variant="outline" 
                 className="w-full justify-between text-muted-foreground sm:w-64"
@@ -417,7 +520,7 @@ function MarkContent() {
             <Label htmlFor="select-all">全选/全不选 (共 {allRecords.length} 条)</Label>
           </div>
 
-          <div className="grid grid-cols-1 gap-6">
+          <div className={`grid gap-6 ${gridLayout ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
             {pagedData.map((record, i) => {
               const realIndex = (currentPage - 1) * pageSize + i;
               return (
@@ -445,10 +548,7 @@ function MarkContent() {
                       />
                    </PaginationItem>
                    
-                   {/* Simple pagination logic for brevity - can be enhanced */}
-                   <div className="flex items-center px-4 text-sm font-medium">
-                      Page {currentPage} of {totalPages}
-                   </div>
+                   {renderPaginationItems()}
 
                    <PaginationItem>
                       <PaginationNext 
@@ -456,6 +556,25 @@ function MarkContent() {
                          className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
                       />
                    </PaginationItem>
+                   
+                   <div className="flex items-center gap-2 ml-4">
+                      <span className="text-sm text-muted-foreground whitespace-nowrap">前往:</span>
+                      <Input
+                         type="number"
+                         min={1}
+                         max={totalPages}
+                         className="w-16 h-8 text-center px-1"
+                         onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                               const page = parseInt(e.currentTarget.value);
+                               if (!isNaN(page) && page >= 1 && page <= totalPages) {
+                                  handlePageChange(page);
+                                  e.currentTarget.value = '';
+                               }
+                            }
+                         }}
+                      />
+                   </div>
                 </PaginationContent>
              </Pagination>
           )}
