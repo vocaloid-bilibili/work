@@ -64,6 +64,17 @@ export default function MarkingCard({ record, include, onIncludeChange, index, s
      }
   };
 
+  const reqFields = svmode ? ['synthesizer', 'copyright'] : ['name', 'vocal', 'author', 'synthesizer', 'copyright', 'type'];
+
+  const isFieldEmpty = (field: string) => {
+    const val = record[field];
+    return val === undefined || val === null || String(val).trim() === '';
+  };
+
+  const showFieldError = (field: string) => {
+    return include && reqFields.includes(field) && isFieldEmpty(field);
+  };
+
   const handleChange = (field: string, value: any) => {
     const newRecord = { ...record, [field]: value };
     onUpdate(newRecord);
@@ -279,6 +290,7 @@ export default function MarkingCard({ record, include, onIncludeChange, index, s
                         <MarkingNameInput
                            value={record[field.prop]}
                            onChange={(val) => handleChange(field.prop, val)}
+                           hasError={showFieldError(field.prop)}
                         />
                      )}
 
@@ -289,7 +301,7 @@ export default function MarkingCard({ record, include, onIncludeChange, index, s
                            onInputChange={(val) => handleInputChange(field.prop, val)}
                            type={field.search || field.prop}
                            useHint={field.type === 'tags-hint'}
-                           hasError={!!record[`_unconfirmed_${field.prop}`]}
+                           hasError={showFieldError(field.prop) || !!record[`_unconfirmed_${field.prop}`]}
                         />
                      )}
 
@@ -301,7 +313,7 @@ export default function MarkingCard({ record, include, onIncludeChange, index, s
                               handleChange(field.prop, isNaN(numVal) ? val : numVal);
                            }}
                         >
-                           <SelectTrigger className="h-9">
+                           <SelectTrigger className={cn("h-9", showFieldError(field.prop) && "border-destructive focus:ring-destructive")}>
                               <SelectValue placeholder="选择..." />
                            </SelectTrigger>
                            <SelectContent>

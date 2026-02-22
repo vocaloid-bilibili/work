@@ -34,6 +34,7 @@ function MarkContent() {
   const [status, setStatus] = useState<'waiting' | 'loading' | 'loaded'>('waiting');
   const [svmode, setSvmode] = useState(false);
   const [openSearch, setOpenSearch] = useState(false);
+  const [bookmarkOpen, setBookmarkOpen] = useState(false);
   const [gridLayout, setGridLayout] = useState(false); // false: list (1 col), true: grid (2 cols)
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -54,6 +55,10 @@ function MarkContent() {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
         setOpenSearch((open) => !open)
+      }
+      if (e.key === "b" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        setBookmarkOpen((open) => !open)
       }
     }
     document.addEventListener("keydown", down)
@@ -445,14 +450,14 @@ function MarkContent() {
         <h1 className="text-3xl font-bold tracking-tight">数据库STAFF打标</h1>
         
         {/* Bookmarks Drawer */}
-        <Sheet>
+        <Sheet open={bookmarkOpen} onOpenChange={setBookmarkOpen}>
           <SheetTrigger asChild>
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className="gap-2" title="快捷键: ⌘B / Ctrl+B">
               <BookmarkIcon className="h-4 w-4" />
               书签 ({bookmarks.length})
             </Button>
           </SheetTrigger>
-          <SheetContent>
+          <SheetContent onCloseAutoFocus={(e) => e.preventDefault()}>
             <SheetHeader>
               <SheetTitle>书签列表</SheetTitle>
             </SheetHeader>

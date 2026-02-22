@@ -11,9 +11,10 @@ interface MarkingNameInputProps {
   value: string;
   onChange: (value: string) => void;
   className?: string;
+  hasError?: boolean;
 }
 
-export default function MarkingNameInput({ value, onChange, className }: MarkingNameInputProps) {
+export default function MarkingNameInput({ value, onChange, className, hasError }: MarkingNameInputProps) {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value || "");
   const [suggestions, setSuggestions] = useState<SongInfo[]>([]);
@@ -92,7 +93,7 @@ export default function MarkingNameInput({ value, onChange, className }: Marking
             }
           }}
           onFocus={() => setOpen(true)}
-          className="h-9 w-full"
+          className={cn("h-9 w-full", hasError && "border-destructive focus-visible:ring-destructive")}
           placeholder="输入歌曲名称..."
         />
         
