@@ -24,10 +24,18 @@ export default function MarkingTags({ value, onChange, onInputChange, type, useH
 
   const handleInputChange = (val: string) => {
     setInputValue(val);
-    if (onInputChange) {
-      onInputChange(val);
-    }
   };
+
+  const onInputChangeRef = useRef(onInputChange);
+  useEffect(() => {
+    onInputChangeRef.current = onInputChange;
+  }, [onInputChange]);
+
+  useEffect(() => {
+    if (onInputChangeRef.current) {
+      onInputChangeRef.current(debouncedInput);
+    }
+  }, [debouncedInput]);
 
   const tags = value ? value.split("、").filter(Boolean) : [];
 
@@ -68,7 +76,10 @@ export default function MarkingTags({ value, onChange, onInputChange, type, useH
       const newTags = [...tags, tag];
       onChange(newTags.join("、"));
     }
-    handleInputChange("");
+    setInputValue("");
+    if (onInputChangeRef.current) {
+      onInputChangeRef.current("");
+    }
     setOpen(false);
   };
 
