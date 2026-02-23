@@ -64,9 +64,27 @@ export default function MarkingCard({ record, include, onIncludeChange, index, s
      }
   };
 
+  const reqFields = svmode ? ['synthesizer', 'copyright'] : ['name', 'vocal', 'author', 'synthesizer', 'copyright', 'type'];
+
+  const isFieldEmpty = (field: string) => {
+    const val = record[field];
+    return val === undefined || val === null || String(val).trim() === '';
+  };
+
+  const showFieldError = (field: string) => {
+    return include && reqFields.includes(field) && isFieldEmpty(field);
+  };
+
   const handleChange = (field: string, value: any) => {
-    const newRecord = { ...record, [field]: value };
-    onUpdate(newRecord);
+    onUpdate((prev: any) => ({ ...prev, [field]: value }));
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    const unconfirmedKey = `_unconfirmed_${field}`;
+    onUpdate((prev: any) => {
+      if (prev[unconfirmedKey] === value) return prev;
+      return { ...prev, [unconfirmedKey]: value };
+    });
   };
 
   const loadVideoPreview = async () => {
@@ -271,6 +289,7 @@ export default function MarkingCard({ record, include, onIncludeChange, index, s
                         <MarkingNameInput
                            value={record[field.prop]}
                            onChange={(val) => handleChange(field.prop, val)}
+                           hasError={showFieldError(field.prop)}
                         />
                      )}
 
@@ -278,8 +297,10 @@ export default function MarkingCard({ record, include, onIncludeChange, index, s
                         <MarkingTags 
                            value={record[field.prop]} 
                            onChange={(val) => handleChange(field.prop, val)}
+                           onInputChange={(val) => handleInputChange(field.prop, val)}
                            type={field.search || field.prop}
                            useHint={field.type === 'tags-hint'}
+                           hasError={showFieldError(field.prop) || !!record[`_unconfirmed_${field.prop}`]}
                         />
                      )}
 
@@ -291,7 +312,7 @@ export default function MarkingCard({ record, include, onIncludeChange, index, s
                               handleChange(field.prop, isNaN(numVal) ? val : numVal);
                            }}
                         >
-                           <SelectTrigger className="h-9">
+                           <SelectTrigger className={cn("h-9", showFieldError(field.prop) && "border-destructive focus:ring-destructive")}>
                               <SelectValue placeholder="选择..." />
                            </SelectTrigger>
                            <SelectContent>
@@ -308,6 +329,7 @@ export default function MarkingCard({ record, include, onIncludeChange, index, s
             <div className="flex gap-4 text-xs text-muted-foreground mt-2">
                <span>时长: {record.duration}</span>
                <span>分P: {record.page}</span>
+               {record.tid && <span>分区: {record.tid}</span>}
             </div>
             
             <div className="bg-muted/50 p-2 rounded text-xs text-muted-foreground max-h-16 overflow-y-auto mt-auto">

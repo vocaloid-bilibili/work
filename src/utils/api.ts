@@ -1,11 +1,20 @@
 import axios from "axios";
+import { fetchEventSource } from "@microsoft/fetch-event-source";
 import type { SongInfo, VideoInfo } from "@/utils/types";
 
-const BASE_URL = "https://cors.vocaloid.world/https://api.vocabili.top/v2"
+const BASE_URL = "https://cors.vocabili.top/https://api.vocabili.top/v2"
 
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 20000,
+});
+
+api.interceptors.request.use((config) => {
+  const apiKey = localStorage.getItem("x-api-key");
+  if (apiKey) {
+    config.headers["x-api-key"] = apiKey;
+  }
+  return config;
 });
 
 class Requester {
@@ -63,51 +72,53 @@ class Requester {
       onStart?: () => void;
       onProgress?: (data: string) => void;
       onComplete?: (data?: string) => void;
-      onError?: (err: Event) => void;
+      onError?: (err: unknown) => void;
     }
   ) {
-    // Note: EventSource might not send custom headers or handle POSTs with body easily.
-    // Ensure the backend endpoint supports GET query params as constructed here.
     const url = `${BASE_URL}${Requester.endpoint.updateRanking}?board=${board}&part=${part}&issue=${issue}${old ? '&old=true' : ''}`;
-    const es = new EventSource(url);
+    const apiKey = localStorage.getItem("x-api-key") || "";
 
     if (handlers?.onStart) {
         handlers.onStart();
     }
 
-    es.addEventListener("progress", (e: MessageEvent) => {
-      handlers?.onProgress?.(e.data);
-    });
+    const abortController = new AbortController();
 
-    es.addEventListener("complete", (e: MessageEvent) => {
-      handlers?.onComplete?.(e.data);
-      es.close(); 
-    });
-
-    es.onerror = (e) => {
-      if (es.readyState !== EventSource.CLOSED) {
-        handlers?.onError?.(e);
+    fetchEventSource(url, {
+      method: "GET",
+      headers: {
+        "x-api-key": apiKey,
+      },
+      signal: abortController.signal,
+      onmessage(ev) {
+        if (ev.event === "progress") {
+          handlers?.onProgress?.(ev.data);
+        } else if (ev.event === "complete") {
+          handlers?.onComplete?.(ev.data);
+          abortController.abort();
+        } else {
+          // fallback if event type is default
+          if (ev.data === "complete") {
+            handlers?.onComplete?.(ev.data);
+            abortController.abort();
+          } else if (ev.data.includes("progress")) {
+            handlers?.onProgress?.(ev.data);
+          }
+        }
+      },
+      onerror(err) {
+        handlers?.onError?.(err);
+        abortController.abort();
+        throw err; // prevent default retry
       }
-    };
-
-    // If backend sends specific events named "progress" or "complete":
-    es.addEventListener("progress", (e: MessageEvent) => {
-      handlers?.onProgress?.(e.data);
-    });
-
-    es.addEventListener("complete", (e: MessageEvent) => {
-      handlers?.onComplete?.(e.data);
-      es.close(); 
-    });
-
-    es.onerror = (e) => {
-      if (es.readyState !== EventSource.CLOSED) {
-        handlers?.onError?.(e);
+    }).catch((err) => {
+      // Catch any unexpected errors outside the event source loop (e.g. network failure before starting)
+      if (err.name !== 'AbortError') {
+        handlers?.onError?.(err);
       }
-      es.close(); // Safety close on error to prevent infinite retries if needed
-    };
+    });
 
-    return () => es.close(); 
+    return () => abortController.abort(); 
   }
 
 

@@ -12,6 +12,7 @@ export interface Bookmark {
 interface BookmarksContextType {
   bookmarks: Bookmark[];
   addBookmark: (index: number, title: string, note?: string) => void;
+  addBookmarksBatch: (bookmarksToAdd: {index: number, title: string, note?: string}[]) => void;
   removeBookmark: (index: number) => void;
   toggleBookmark: (index: number, title: string, note?: string) => void;
   updateBookmarkNote: (index: number, note: string) => void;
@@ -43,6 +44,24 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
       return newBookmarks.sort((a, b) => a.index - b.index);
     });
     toast.success('已添加书签');
+  };
+
+  const addBookmarksBatch = (bookmarksToAdd: {index: number, title: string, note?: string}[]) => {
+    setBookmarks(prev => {
+      let changed = false;
+      const prevMap = new Map(prev.map(b => [b.index, b]));
+      
+      bookmarksToAdd.forEach(b => {
+        if (!prevMap.has(b.index)) {
+          prevMap.set(b.index, { index: b.index, title: b.title, timestamp: Date.now(), note: b.note });
+          changed = true;
+        }
+      });
+      
+      if (!changed) return prev;
+      return Array.from(prevMap.values()).sort((a, b) => a.index - b.index);
+    });
+    toast.success(`批量添加了书签`);
   };
 
   const removeBookmark = (index: number) => {
@@ -121,6 +140,7 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
     <BookmarksContext.Provider value={{
       bookmarks,
       addBookmark,
+      addBookmarksBatch,
       removeBookmark,
       toggleBookmark,
       updateBookmarkNote,
