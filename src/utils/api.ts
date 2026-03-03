@@ -33,6 +33,7 @@ class Requester {
     selectArtist: `/select/artist`,
     selectSong: `/select/song`,
     selectVideo: `/select/video`,
+    mergeArtist: "/edit/artist/merge",
   };
 
   async uploadFile(
@@ -239,6 +240,14 @@ class Requester {
       bvid,
       target_song_id: targetSongId,
       new_song_name: newSongName,
+    });
+    return res.data;
+  }
+  async mergeArtist(type: string, sourceId: number, targetId: number) {
+    const res = await api.post(Requester.endpoint.mergeArtist, {
+      type,
+      source_id: sourceId,
+      target_id: targetId,
     });
     return res.data;
   }
