@@ -17,97 +17,233 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { X, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/utils/api";
-import type { SongInfo, SongType } from "@/utils/types";
+import type { SongInfo, SongType, Artist } from "@/utils/types";
 
 const songTypes: SongType[] = ["原创", "翻唱", "本家重置", "串烧"];
+
+interface EditForm {
+  id: number;
+  display_name: string;
+  type: SongType;
+  vocadb_id: number | null;
+  vocalist_ids: number[];
+  producer_ids: number[];
+  synthesizer_ids: number[];
+}
 
 export default function EditSong() {
   const [searchId, setSearchId] = useState<number | "">("");
   const [searching, setSearching] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   const [songInfo, setSongInfo] = useState<SongInfo | null>(null);
-  const [originalSong, setOriginalSong] = useState<SongInfo | null>(null);
+  const [editForm, setEditForm] = useState<EditForm | null>(null);
   const [dialogVisible, setDialogVisible] = useState(false);
+  const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+
+  // 艺术家搜索
+  const [artistSearch, setArtistSearch] = useState({ type: "", query: "" });
+  const [artistResults, setArtistResults] = useState<Artist[]>([]);
 
   const hasChanges = useMemo(() => {
-    if (!songInfo || !originalSong) return false;
-    return JSON.stringify(songInfo) !== JSON.stringify(originalSong);
-  }, [songInfo, originalSong]);
+    if (!songInfo || !editForm) return false;
+    const original = {
+      display_name: songInfo.display_name || "",
+      type: songInfo.type,
+      vocadb_id: songInfo.vocadb_id || null,
+      vocalist_ids: (songInfo.vocalists || []).map((a) => a.id).sort(),
+      producer_ids: (songInfo.producers || []).map((a) => a.id).sort(),
+      synthesizer_ids: (songInfo.synthesizers || []).map((a) => a.id).sort(),
+    };
+    const current = {
+      display_name: editForm.display_name,
+      type: editForm.type,
+      vocadb_id: editForm.vocadb_id,
+      vocalist_ids: [...editForm.vocalist_ids].sort(),
+      producer_ids: [...editForm.producer_ids].sort(),
+      synthesizer_ids: [...editForm.synthesizer_ids].sort(),
+    };
+    return JSON.stringify(original) !== JSON.stringify(current);
+  }, [songInfo, editForm]);
 
   const handleSearch = async () => {
     if (!searchId) {
       toast.warning("请输入歌曲ID");
       return;
     }
-
     try {
       setSearching(true);
       const result = await api.selectSong(Number(searchId));
-      setSongInfo({ ...result.data });
-      setOriginalSong({ ...result.data });
+      const data = result.data;
+      setSongInfo(data);
+      setEditForm({
+        id: data.id,
+        display_name: data.display_name || "",
+        type: data.type,
+        vocadb_id: data.vocadb_id || null,
+        vocalist_ids: (data.vocalists || []).map((a) => a.id),
+        producer_ids: (data.producers || []).map((a) => a.id),
+        synthesizer_ids: (data.synthesizers || []).map((a) => a.id),
+      });
       toast.success("歌曲信息获取成功");
     } catch (error: any) {
-      const errorMsg =
-        error.response?.data?.message || error.message || "获取歌曲信息失败";
-      toast.error(errorMsg);
+      toast.error(error.response?.data?.detail || "获取歌曲信息失败");
       setSongInfo(null);
-      setOriginalSong(null);
+      setEditForm(null);
     } finally {
       setSearching(false);
     }
   };
 
+  const searchArtist = async (type: string) => {
+    if (!artistSearch.query.trim()) return;
+    try {
+      const result = await api.search(type, artistSearch.query, 1, 10);
+      setArtistResults(result.data || []);
+      setArtistSearch({ ...artistSearch, type });
+    } catch {
+      setArtistResults([]);
+    }
+  };
+
+  const addArtist = (
+    type: "vocalist" | "producer" | "synthesizer",
+    artist: Artist,
+  ) => {
+    if (!editForm) return;
+    const key = `${type}_ids` as keyof EditForm;
+    const ids = editForm[key] as number[];
+    if (!ids.includes(artist.id)) {
+      setEditForm({ ...editForm, [key]: [...ids, artist.id] });
+    }
+    setArtistResults([]);
+    setArtistSearch({ type: "", query: "" });
+  };
+
+  const removeArtist = (
+    type: "vocalist" | "producer" | "synthesizer",
+    id: number,
+  ) => {
+    if (!editForm) return;
+    const key = `${type}_ids` as keyof EditForm;
+    const ids = editForm[key] as number[];
+    setEditForm({ ...editForm, [key]: ids.filter((i) => i !== id) });
+  };
+
+  const getArtistName = (
+    type: "vocalist" | "producer" | "synthesizer",
+    id: number,
+  ) => {
+    const list = songInfo?.[`${type}s` as keyof SongInfo] as
+      | Artist[]
+      | undefined;
+    return list?.find((a) => a.id === id)?.name || `ID: ${id}`;
+  };
+
   const handleSubmit = () => {
-    if (!songInfo) {
-      toast.warning("没有可提交的歌曲信息");
-      return;
-    }
-
-    if (!songInfo.name.trim()) {
-      toast.warning("请输入歌曲名称");
-      return;
-    }
-
-    if (!songInfo.type) {
-      toast.warning("请选择歌曲类型");
-      return;
-    }
-
+    if (!editForm) return;
     if (!hasChanges) {
       toast.warning("没有检测到任何变化");
       return;
     }
-
     setDialogVisible(true);
   };
 
   const confirmEdit = async () => {
-    if (!songInfo) {
-      toast.error("歌曲信息不存在");
-      return;
-    }
-
+    if (!editForm) return;
     try {
       setSubmitting(true);
-      await api.editSong(songInfo);
+      await api.editSong({
+        id: editForm.id,
+        display_name: editForm.display_name || undefined,
+        type: editForm.type,
+        vocadb_id: editForm.vocadb_id,
+        vocalist_ids: editForm.vocalist_ids,
+        producer_ids: editForm.producer_ids,
+        synthesizer_ids: editForm.synthesizer_ids,
+      });
       toast.success("歌曲信息更新成功");
       setDialogVisible(false);
-
-      if (songInfo.id) {
-        // Refresh data
-        const result = await api.selectSong(songInfo.id);
-        setSongInfo({ ...result.data });
-        setOriginalSong({ ...result.data });
-      }
+      // 刷新
+      handleSearch();
     } catch (error: any) {
-      const errorMsg =
-        error.response?.data?.detail || error.message || "更新歌曲信息失败";
-      toast.error(errorMsg);
+      toast.error(error.response?.data?.detail || "更新失败");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const confirmDelete = async () => {
+    if (!songInfo) return;
+    try {
+      setDeleting(true);
+      await api.deleteSong(songInfo.id);
+      toast.success("歌曲删除成功");
+      setDeleteDialogVisible(false);
+      setSongInfo(null);
+      setEditForm(null);
+      setSearchId("");
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || "删除失败");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const ArtistSection = ({
+    label,
+    type,
+  }: {
+    label: string;
+    type: "vocalist" | "producer" | "synthesizer";
+  }) => {
+    const ids = (editForm?.[`${type}_ids` as keyof EditForm] as number[]) || [];
+    return (
+      <div>
+        <Label className="mb-2 block">{label}：</Label>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {ids.map((id) => (
+            <Badge key={id} variant="secondary" className="gap-1">
+              {getArtistName(type, id)}
+              <X
+                className="h-3 w-3 cursor-pointer"
+                onClick={() => removeArtist(type, id)}
+              />
+            </Badge>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <Input
+            placeholder={`搜索${label}`}
+            value={artistSearch.type === type ? artistSearch.query : ""}
+            onChange={(e) => setArtistSearch({ type, query: e.target.value })}
+            onKeyDown={(e) => e.key === "Enter" && searchArtist(type)}
+            className="flex-1"
+          />
+          <Button size="sm" onClick={() => searchArtist(type)}>
+            搜索
+          </Button>
+        </div>
+        {artistSearch.type === type && artistResults.length > 0 && (
+          <div className="mt-2 border rounded-md p-2 max-h-32 overflow-y-auto">
+            {artistResults.map((a) => (
+              <div
+                key={a.id}
+                className="p-1 hover:bg-muted cursor-pointer rounded"
+                onClick={() => addArtist(type, a)}
+              >
+                {a.name} (ID: {a.id})
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -119,7 +255,7 @@ export default function EditSong() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {/* Search Area */}
+          {/* 搜索 */}
           <div className="mb-6">
             <Label className="mb-2 block">歌曲ID：</Label>
             <div className="flex gap-2">
@@ -138,21 +274,21 @@ export default function EditSong() {
             </div>
           </div>
 
-          {/* Edit Area */}
-          {songInfo && (
+          {/* 编辑区 */}
+          {editForm && songInfo && (
             <div className="space-y-5">
               <div>
-                <Label className="mb-2 block">ID：</Label>
-                <Input value={songInfo.id} disabled />
+                <Label className="mb-2 block">歌曲名称：</Label>
+                <Input value={songInfo.name} disabled />
               </div>
 
               <div>
-                <Label className="mb-2 block">歌曲名称：</Label>
+                <Label className="mb-2 block">显示名称：</Label>
                 <Input
-                  value={songInfo.name}
-                  placeholder="请输入歌曲名称"
+                  value={editForm.display_name}
+                  placeholder="请输入显示名称"
                   onChange={(e) =>
-                    setSongInfo({ ...songInfo, name: e.target.value })
+                    setEditForm({ ...editForm, display_name: e.target.value })
                   }
                 />
               </div>
@@ -160,13 +296,13 @@ export default function EditSong() {
               <div>
                 <Label className="mb-2 block">类型：</Label>
                 <Select
-                  value={songInfo.type}
+                  value={editForm.type}
                   onValueChange={(val: SongType) =>
-                    setSongInfo({ ...songInfo, type: val })
+                    setEditForm({ ...editForm, type: val })
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="请选择歌曲类型" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {songTypes.map((type) => (
@@ -182,108 +318,49 @@ export default function EditSong() {
                 <Label className="mb-2 block">VocaDB ID：</Label>
                 <Input
                   type="number"
-                  value={songInfo.vocadb_id || ""}
+                  value={editForm.vocadb_id || ""}
                   placeholder="请输入VocaDB ID"
                   onChange={(e) =>
-                    setSongInfo({
-                      ...songInfo,
-                      vocadb_id: parseInt(e.target.value) || 0,
+                    setEditForm({
+                      ...editForm,
+                      vocadb_id: parseInt(e.target.value) || null,
                     })
                   }
                 />
               </div>
 
-              <div>
-                <Label className="mb-2 block">显示名称：</Label>
-                <Input
-                  value={songInfo.display_name || ""}
-                  placeholder="请输入显示名称"
-                  onChange={(e) =>
-                    setSongInfo({ ...songInfo, display_name: e.target.value })
-                  }
-                />
-              </div>
+              <ArtistSection label="歌手" type="vocalist" />
+              <ArtistSection label="作者" type="producer" />
+              <ArtistSection label="引擎" type="synthesizer" />
 
-              <Button
-                className="w-full"
-                onClick={handleSubmit}
-                disabled={submitting}
-              >
-                提交更新
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1"
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                >
+                  提交更新
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => setDeleteDialogVisible(true)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
 
+      {/* 确认编辑对话框 */}
       <Dialog open={dialogVisible} onOpenChange={setDialogVisible}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>确认更新歌曲信息</DialogTitle>
           </DialogHeader>
-          <div className="py-5 space-y-4">
-            <div className="flex items-center">
-              <span className="w-24 font-medium">歌曲ID：</span>
-              <span className="text-gray-600">{originalSong?.id}</span>
-            </div>
-
-            {songInfo?.name !== originalSong?.name && (
-              <div className="flex items-center">
-                <span className="w-24 font-medium">歌曲名称：</span>
-                <span className="text-gray-500 line-through mr-2">
-                  {originalSong?.name}
-                </span>
-                <span className="mr-2">→</span>
-                <span className="text-blue-500 font-medium">
-                  {songInfo?.name}
-                </span>
-              </div>
-            )}
-
-            {songInfo?.type !== originalSong?.type && (
-              <div className="flex items-center">
-                <span className="w-24 font-medium">类型：</span>
-                <span className="text-gray-500 line-through mr-2">
-                  {originalSong?.type}
-                </span>
-                <span className="mr-2">→</span>
-                <span className="text-blue-500 font-medium">
-                  {songInfo?.type}
-                </span>
-              </div>
-            )}
-
-            {songInfo?.vocadb_id !== originalSong?.vocadb_id && (
-              <div className="flex items-center">
-                <span className="w-24 font-medium">VocaDB ID：</span>
-                <span className="text-gray-500 line-through mr-2">
-                  {originalSong?.vocadb_id || "空"}
-                </span>
-                <span className="mr-2">→</span>
-                <span className="text-blue-500 font-medium">
-                  {songInfo?.vocadb_id || "空"}
-                </span>
-              </div>
-            )}
-
-            {songInfo?.display_name !== originalSong?.display_name && (
-              <div className="flex items-center">
-                <span className="w-24 font-medium">显示名称：</span>
-                <span className="text-gray-500 line-through mr-2">
-                  {originalSong?.display_name || "空"}
-                </span>
-                <span className="mr-2">→</span>
-                <span className="text-blue-500 font-medium">
-                  {songInfo?.display_name || "空"}
-                </span>
-              </div>
-            )}
-
-            {!hasChanges && (
-              <div className="flex items-center text-gray-500">
-                没有检测到任何变化
-              </div>
-            )}
+          <div className="py-4 text-sm">
+            确定要更新歌曲 "{songInfo?.name}" 的信息吗？
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogVisible(false)}>
@@ -291,6 +368,34 @@ export default function EditSong() {
             </Button>
             <Button onClick={confirmEdit} disabled={submitting}>
               {submitting ? "更新中..." : "确认更新"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 确认删除对话框 */}
+      <Dialog open={deleteDialogVisible} onOpenChange={setDeleteDialogVisible}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认删除歌曲</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 text-sm text-destructive">
+            确定要删除歌曲 "{songInfo?.name}"
+            吗？此操作会删除所有关联视频和快照，且不可恢复！
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogVisible(false)}
+            >
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleting}
+            >
+              {deleting ? "删除中..." : "确认删除"}
             </Button>
           </DialogFooter>
         </DialogContent>

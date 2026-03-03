@@ -23,34 +23,29 @@ class Requester {
     checkFile: "/update/check_ranking",
     updateRanking: "/update/ranking",
     updateSnapshot: "/update/snapshots",
-    editArtistCheck: "/edit/artist/check",
-    editArtistConfirm: "/edit/artist/confirm",
     editSong: "/edit/song",
+    deleteSong: (id: number) => `/edit/song/${id}`,
+    mergeSong: "/edit/song/merge",
     editVideo: "/edit/video",
+    deleteVideo: (bvid: string) => `/edit/video/${bvid}`,
+    reassignVideo: "/edit/video/reassign",
     search: (type: string) => `/search/${type}`,
     selectArtist: `/select/artist`,
     selectSong: `/select/song`,
     selectVideo: `/select/video`,
   };
 
-  constructor() {}
-
   async uploadFile(
     file: File,
-    handlers?: {
-      onProgress?: (progress: number) => void;
-    },
+    handlers?: { onProgress?: (progress: number) => void },
   ) {
     const formData = new FormData();
     formData.append("file", file);
     return api.post(Requester.endpoint.uploadFile, formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
+      headers: { "Content-Type": "multipart/form-data" },
       onUploadProgress: (evt) => {
         if (evt.total && evt.loaded) {
-          const progress = evt.loaded / evt.total;
-          handlers?.onProgress?.(progress);
+          handlers?.onProgress?.(evt.loaded / evt.total);
         }
       },
       timeout: 100000,
@@ -78,37 +73,22 @@ class Requester {
   ) {
     const url = `${BASE_URL}${Requester.endpoint.updateRanking}?board=${board}&part=${part}&issue=${issue}${old ? "&old=true" : ""}`;
     const apiKey = localStorage.getItem("x-api-key") || "";
-
-    if (handlers?.onStart) {
-      handlers.onStart();
-    }
-
+    handlers?.onStart?.();
     const abortController = new AbortController();
 
     fetchEventSource(url, {
       method: "GET",
-      headers: {
-        "x-api-key": apiKey,
-      },
+      headers: { "x-api-key": apiKey },
       signal: abortController.signal,
-
       async onopen(response) {
-        if (response.ok) {
-          console.log("SSE 连接成功", response.status);
-          return;
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`HTTP ${response.status}: ${text}`);
         }
-
-        const text = await response.text();
-        console.error("SSE 连接失败", response.status, text);
-        throw new Error(`HTTP ${response.status}: ${text}`);
       },
-
       onmessage(ev) {
-        console.log("SSE 消息:", ev.event, ev.data);
-
-        if (ev.event === "progress") {
-          handlers?.onProgress?.(ev.data);
-        } else if (ev.event === "complete") {
+        if (ev.event === "progress") handlers?.onProgress?.(ev.data);
+        else if (ev.event === "complete") {
           handlers?.onComplete?.(ev.data);
           abortController.abort();
         } else if (ev.event === "error") {
@@ -116,20 +96,14 @@ class Requester {
           abortController.abort();
         }
       },
-
       onerror(err) {
-        console.error("SSE 错误:", err);
         handlers?.onError?.(err);
         abortController.abort();
         throw err;
       },
-
       openWhenHidden: true,
     }).catch((err) => {
-      if (err.name !== "AbortError") {
-        console.error("SSE catch:", err);
-        handlers?.onError?.(err);
-      }
+      if (err.name !== "AbortError") handlers?.onError?.(err);
     });
 
     return () => abortController.abort();
@@ -147,32 +121,22 @@ class Requester {
   ) {
     const url = `${BASE_URL}${Requester.endpoint.updateSnapshot}?date=${date}${old ? "&old=true" : ""}`;
     const apiKey = localStorage.getItem("x-api-key") || "";
-
     handlers?.onStart?.();
-
     const abortController = new AbortController();
 
     fetchEventSource(url, {
       method: "GET",
-      headers: {
-        "x-api-key": apiKey,
-      },
+      headers: { "x-api-key": apiKey },
       signal: abortController.signal,
-
       async onopen(response) {
-        if (response.ok) {
-          console.log("SSE 连接成功");
-          return;
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`HTTP ${response.status}: ${text}`);
         }
-        const text = await response.text();
-        throw new Error(`HTTP ${response.status}: ${text}`);
       },
-
       onmessage(ev) {
-        console.log("SSE:", ev.event, ev.data);
-        if (ev.event === "progress") {
-          handlers?.onProgress?.(ev.data);
-        } else if (ev.event === "complete") {
+        if (ev.event === "progress") handlers?.onProgress?.(ev.data);
+        else if (ev.event === "complete") {
           handlers?.onComplete?.(ev.data);
           abortController.abort();
         } else if (ev.event === "error") {
@@ -180,43 +144,21 @@ class Requester {
           abortController.abort();
         }
       },
-
       onerror(err) {
-        console.error("SSE 错误:", err);
         handlers?.onError?.(err);
         abortController.abort();
         throw err;
       },
-
       openWhenHidden: true,
     }).catch((err) => {
-      if (err.name !== "AbortError") {
-        handlers?.onError?.(err);
-      }
+      if (err.name !== "AbortError") handlers?.onError?.(err);
     });
 
     return () => abortController.abort();
   }
 
-  async editArtistCheck(type: string, id: number, name: string) {
-    const res = await api.post(Requester.endpoint.editArtistCheck, {
-      type,
-      id,
-      name,
-    });
-    return res.data;
-  }
-
-  async editArtistConfirm(task_id: string) {
-    return api.post(Requester.endpoint.editArtistConfirm, { task_id });
-  }
-
-  async search(
-    type: string,
-    keyword: string,
-    page = 1,
-    pageSize = 20,
-  ): Promise<any> {
+  // ===== 查询 =====
+  async search(type: string, keyword: string, page = 1, pageSize = 20) {
     const res = await api.get(Requester.endpoint.search(type), {
       params: { keyword, page, page_size: pageSize },
     });
@@ -237,12 +179,6 @@ class Requester {
     return res.data;
   }
 
-  async editSong(song: SongInfo) {
-    // Some APIs expect ID in URL or query, others in body. Assuming body based on usage.
-    const res = await api.post(Requester.endpoint.editSong, song);
-    return res.data;
-  }
-
   async selectVideo(bvid: string): Promise<{ data: VideoInfo }> {
     const res = await api.get(Requester.endpoint.selectVideo, {
       params: { bvid },
@@ -250,8 +186,60 @@ class Requester {
     return res.data;
   }
 
-  async editVideo(video: VideoInfo) {
-    const res = await api.post(Requester.endpoint.editVideo, video);
+  // ===== 歌曲编辑 =====
+  async editSong(data: {
+    id: number;
+    display_name?: string;
+    type?: string;
+    vocadb_id?: number | null;
+    vocalist_ids?: number[];
+    producer_ids?: number[];
+    synthesizer_ids?: number[];
+  }) {
+    const res = await api.post(Requester.endpoint.editSong, data);
+    return res.data;
+  }
+
+  async deleteSong(id: number) {
+    const res = await api.delete(Requester.endpoint.deleteSong(id));
+    return res.data;
+  }
+
+  async mergeSong(sourceId: number, targetId: number) {
+    const res = await api.post(Requester.endpoint.mergeSong, {
+      source_id: sourceId,
+      target_id: targetId,
+    });
+    return res.data;
+  }
+
+  // ===== 视频编辑 =====
+  async editVideo(data: {
+    bvid: string;
+    title?: string;
+    copyright?: number;
+    uploader_id?: number;
+    disabled?: boolean;
+  }) {
+    const res = await api.post(Requester.endpoint.editVideo, data);
+    return res.data;
+  }
+
+  async deleteVideo(bvid: string) {
+    const res = await api.delete(Requester.endpoint.deleteVideo(bvid));
+    return res.data;
+  }
+
+  async reassignVideo(
+    bvid: string,
+    targetSongId?: number,
+    newSongName?: string,
+  ) {
+    const res = await api.post(Requester.endpoint.reassignVideo, {
+      bvid,
+      target_song_id: targetSongId,
+      new_song_name: newSongName,
+    });
     return res.data;
   }
 }
