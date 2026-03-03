@@ -11,7 +11,6 @@ export interface SongInfo {
   name: string;
   display_name?: string;
   type: SongType;
-  vocadb_id?: number | null;
   vocalists?: Artist[];
   producers?: Artist[];
   synthesizers?: Artist[];

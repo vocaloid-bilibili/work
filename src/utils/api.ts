@@ -192,7 +192,6 @@ class Requester {
     id: number;
     display_name?: string;
     type?: string;
-    vocadb_id?: number | null;
     vocalist_ids?: number[];
     producer_ids?: number[];
     synthesizer_ids?: number[];

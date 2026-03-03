@@ -1,7 +1,6 @@
 // src/components/EditPanels/MergeArtist.tsx
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -18,83 +17,58 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/utils/api";
-import type { Artist } from "@/utils/types";
+import EntitySearch from "./EntitySearch";
 
 const artistTypes = [
   { label: "歌手", value: "vocalist" },
   { label: "作者", value: "producer" },
   { label: "引擎", value: "synthesizer" },
-];
+] as const;
+
+type ArtistType = (typeof artistTypes)[number]["value"];
+
+interface SelectedEntity {
+  id: number;
+  name: string;
+}
 
 export default function MergeArtist() {
-  const [artistType, setArtistType] = useState("vocalist");
-  const [sourceId, setSourceId] = useState<number | "">("");
-  const [targetId, setTargetId] = useState<number | "">("");
-  const [sourceArtist, setSourceArtist] = useState<Artist | null>(null);
-  const [targetArtist, setTargetArtist] = useState<Artist | null>(null);
+  const [artistType, setArtistType] = useState<ArtistType>("vocalist");
+  const [source, setSource] = useState<SelectedEntity | null>(null);
+  const [target, setTarget] = useState<SelectedEntity | null>(null);
   const [loading, setLoading] = useState(false);
   const [dialogVisible, setDialogVisible] = useState(false);
 
-  const fetchArtist = async (id: number, setFn: (a: Artist | null) => void) => {
-    try {
-      const result = await api.selectArtist(artistType, id);
-      const data = result.data || result;
-      setFn(data);
-      toast.success(`找到: ${data.name}`);
-    } catch (error: unknown) {
-      setFn(null);
-      const err = error as { response?: { data?: { detail?: string } } };
-      const detail = err.response?.data?.detail;
-      if (detail?.includes("not found")) {
-        toast.error(`艺人 ${id} 不存在`);
-      } else {
-        toast.error(detail || `获取艺人 ${id} 失败`);
-      }
-    }
-  };
-
-  const handleTypeChange = (type: string) => {
+  const handleTypeChange = (type: ArtistType) => {
     setArtistType(type);
-    // 切换类型时清空已查询的艺人
-    setSourceArtist(null);
-    setTargetArtist(null);
+    setSource(null);
+    setTarget(null);
   };
 
   const handleMerge = () => {
-    if (!sourceId || !targetId) {
-      toast.warning("请填写完整信息");
+    if (!source || !target) {
+      toast.warning("请选择源艺人和目标艺人");
       return;
     }
-    if (sourceId === targetId) {
+    if (source.id === target.id) {
       toast.warning("源艺人和目标艺人不能相同");
-      return;
-    }
-    if (!sourceArtist || !targetArtist) {
-      toast.warning("请先查询艺人信息");
       return;
     }
     setDialogVisible(true);
   };
 
   const confirmMerge = async () => {
-    if (!sourceId || !targetId) return;
+    if (!source || !target) return;
     try {
       setLoading(true);
-      const result = await api.mergeArtist(
-        artistType,
-        Number(sourceId),
-        Number(targetId),
-      );
+      const result = await api.mergeArtist(artistType, source.id, target.id);
       toast.success(`艺人合并成功，影响 ${result.songs_affected || 0} 首歌曲`);
       setDialogVisible(false);
-      setSourceId("");
-      setTargetId("");
-      setSourceArtist(null);
-      setTargetArtist(null);
+      setSource(null);
+      setTarget(null);
     } catch (error: unknown) {
       const err = error as { response?: { data?: { detail?: string } } };
       toast.error(err.response?.data?.detail || "合并失败");
@@ -103,9 +77,8 @@ export default function MergeArtist() {
     }
   };
 
-  const getTypeLabel = (type: string) => {
-    return artistTypes.find((t) => t.value === type)?.label || type;
-  };
+  const getTypeLabel = (type: string) =>
+    artistTypes.find((t) => t.value === type)?.label || type;
 
   return (
     <div className="p-5 max-w-2xl mx-auto">
@@ -120,9 +93,8 @@ export default function MergeArtist() {
             将源艺人的所有歌曲关联转移到目标艺人，然后删除源艺人
           </div>
 
-          {/* 艺人类型 */}
           <div className="space-y-2">
-            <Label>艺人类型：</Label>
+            <Label>艺人类型</Label>
             <Select value={artistType} onValueChange={handleTypeChange}>
               <SelectTrigger>
                 <SelectValue />
@@ -138,72 +110,32 @@ export default function MergeArtist() {
           </div>
 
           <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-end">
-            {/* 源艺人 */}
             <div className="space-y-2">
-              <Label>源艺人ID（被删除）：</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  value={sourceId}
-                  onChange={(e) =>
-                    setSourceId(e.target.value ? parseInt(e.target.value) : "")
-                  }
-                />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    sourceId && fetchArtist(Number(sourceId), setSourceArtist)
-                  }
-                >
-                  查询
-                </Button>
-              </div>
-              {sourceArtist && (
-                <div className="p-3 bg-destructive/10 rounded text-sm space-y-1">
-                  <div className="font-medium">{sourceArtist.name}</div>
-                  <div className="flex gap-2 flex-wrap">
-                    <Badge variant="outline">ID: {sourceArtist.id}</Badge>
-                  </div>
-                </div>
-              )}
+              <Label>源{getTypeLabel(artistType)}（被删除）</Label>
+              <EntitySearch
+                type={artistType}
+                value={source}
+                onChange={setSource}
+              />
             </div>
 
-            <ArrowRight className="h-6 w-6 text-muted-foreground mb-8" />
+            <ArrowRight className="h-6 w-6 text-muted-foreground mb-2" />
 
-            {/* 目标艺人 */}
             <div className="space-y-2">
-              <Label>目标艺人ID（保留）：</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  value={targetId}
-                  onChange={(e) =>
-                    setTargetId(e.target.value ? parseInt(e.target.value) : "")
-                  }
-                />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    targetId && fetchArtist(Number(targetId), setTargetArtist)
-                  }
-                >
-                  查询
-                </Button>
-              </div>
-              {targetArtist && (
-                <div className="p-3 bg-primary/10 rounded text-sm space-y-1">
-                  <div className="font-medium">{targetArtist.name}</div>
-                  <div className="flex gap-2 flex-wrap">
-                    <Badge variant="outline">ID: {targetArtist.id}</Badge>
-                  </div>
-                </div>
-              )}
+              <Label>目标{getTypeLabel(artistType)}（保留）</Label>
+              <EntitySearch
+                type={artistType}
+                value={target}
+                onChange={setTarget}
+              />
             </div>
           </div>
 
-          <Button className="w-full" onClick={handleMerge}>
+          <Button
+            className="w-full"
+            onClick={handleMerge}
+            disabled={!source || !target}
+          >
             合并艺人
           </Button>
         </CardContent>
@@ -215,23 +147,22 @@ export default function MergeArtist() {
             <DialogTitle>确认合并{getTypeLabel(artistType)}</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-3">
-            <div className="flex items-center gap-2 text-destructive">
-              <span>删除：</span>
-              <span className="font-medium">{sourceArtist?.name}</span>
-              <Badge variant="outline">ID: {sourceArtist?.id}</Badge>
+            <div className="p-3 bg-destructive/10 rounded">
+              <div className="text-sm text-muted-foreground">删除</div>
+              <div className="font-medium">{source?.name}</div>
+              <div className="text-xs text-muted-foreground">
+                ID: {source?.id}
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-primary">
-              <span>保留：</span>
-              <span className="font-medium">{targetArtist?.name}</span>
-              <Badge variant="outline">ID: {targetArtist?.id}</Badge>
+            <div className="p-3 bg-primary/10 rounded">
+              <div className="text-sm text-muted-foreground">保留</div>
+              <div className="font-medium">{target?.name}</div>
+              <div className="text-xs text-muted-foreground">
+                ID: {target?.id}
+              </div>
             </div>
-            <div className="text-sm text-muted-foreground mt-4 p-3 bg-muted rounded">
-              <p>合并后将执行以下操作：</p>
-              <ul className="list-disc list-inside mt-1 space-y-1">
-                <li>源艺人的所有歌曲关联将转移到目标艺人</li>
-                <li>重复的关联将被自动去重</li>
-                <li>源艺人将被永久删除</li>
-              </ul>
+            <div className="text-sm text-muted-foreground p-3 bg-muted rounded">
+              源艺人的所有歌曲关联将转移到目标艺人，然后删除源艺人。
             </div>
           </div>
           <DialogFooter>

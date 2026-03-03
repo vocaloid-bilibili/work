@@ -1,3 +1,4 @@
+// src/components/EditPanels/EditVideo.tsx
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2 } from "lucide-react";
+import { Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/utils/api";
 import type { VideoInfo, Copyright } from "@/utils/types";
@@ -73,7 +74,7 @@ export default function EditVideo() {
     }
     try {
       setSearching(true);
-      const result = await api.selectVideo(searchBvid);
+      const result = await api.selectVideo(searchBvid.trim());
       const data = result.data;
       setVideoInfo(data);
       setEditForm({
@@ -84,13 +85,20 @@ export default function EditVideo() {
         disabled: data.disabled || false,
       });
       toast.success("视频信息获取成功");
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || "获取视频信息失败");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      toast.error(err.response?.data?.detail || "获取视频信息失败");
       setVideoInfo(null);
       setEditForm(null);
     } finally {
       setSearching(false);
     }
+  };
+
+  const handleClear = () => {
+    setVideoInfo(null);
+    setEditForm(null);
+    setSearchBvid("");
   };
 
   const handleSubmit = () => {
@@ -116,8 +124,9 @@ export default function EditVideo() {
       toast.success("视频信息更新成功");
       setDialogVisible(false);
       handleSearch();
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || "更新失败");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      toast.error(err.response?.data?.detail || "更新失败");
     } finally {
       setSubmitting(false);
     }
@@ -130,11 +139,10 @@ export default function EditVideo() {
       await api.deleteVideo(videoInfo.bvid);
       toast.success("视频删除成功");
       setDeleteDialogVisible(false);
-      setVideoInfo(null);
-      setEditForm(null);
-      setSearchBvid("");
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || "删除失败");
+      handleClear();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      toast.error(err.response?.data?.detail || "删除失败");
     } finally {
       setDeleting(false);
     }
@@ -148,34 +156,54 @@ export default function EditVideo() {
             编辑视频信息
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="mb-6">
-            <Label className="mb-2 block">视频BV号：</Label>
-            <div className="flex gap-2">
-              <Input
-                placeholder="请输入视频BV号"
-                value={searchBvid}
-                onChange={(e) => setSearchBvid(e.target.value)}
-                className="flex-1"
-              />
-              <Button
-                onClick={handleSearch}
-                disabled={searching || !searchBvid.trim()}
+        <CardContent className="space-y-5">
+          {/* 搜索区 */}
+          <div className="space-y-2">
+            <Label>视频BV号</Label>
+            {videoInfo ? (
+              <div
+                className="flex items-center gap-2 px-3 py-2 border rounded-md bg-muted/50 cursor-pointer hover:bg-muted"
+                onClick={handleClear}
               >
-                {searching ? "搜索中..." : "搜索"}
-              </Button>
-            </div>
+                <span className="font-medium flex-1 truncate">
+                  {videoInfo.title}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {videoInfo.bvid}
+                </span>
+                <span className="text-xs text-muted-foreground">点击清除</span>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    placeholder="输入BV号"
+                    value={searchBvid}
+                    onChange={(e) => setSearchBvid(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                    disabled={searching}
+                  />
+                  {searching && (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+                <Button
+                  onClick={handleSearch}
+                  disabled={searching || !searchBvid.trim()}
+                >
+                  查询
+                </Button>
+              </div>
+            )}
           </div>
 
+          {/* 编辑区 */}
           {editForm && (
-            <div className="space-y-5">
-              <div>
-                <Label className="mb-2 block">BV号：</Label>
-                <Input value={editForm.bvid} disabled />
-              </div>
-
-              <div>
-                <Label className="mb-2 block">视频标题：</Label>
+            <div className="border-t pt-5 space-y-5">
+              <div className="space-y-2">
+                <Label>视频标题</Label>
                 <Input
                   value={editForm.title}
                   onChange={(e) =>
@@ -184,8 +212,8 @@ export default function EditVideo() {
                 />
               </div>
 
-              <div>
-                <Label className="mb-2 block">版权类型：</Label>
+              <div className="space-y-2">
+                <Label>版权类型</Label>
                 <Select
                   value={String(editForm.copyright)}
                   onValueChange={(val) =>
@@ -208,11 +236,12 @@ export default function EditVideo() {
                 </Select>
               </div>
 
-              <div>
-                <Label className="mb-2 block">投稿人ID：</Label>
+              <div className="space-y-2">
+                <Label>投稿人ID</Label>
                 <Input
                   type="number"
                   value={editForm.uploader_id || ""}
+                  placeholder="可选"
                   onChange={(e) =>
                     setEditForm({
                       ...editForm,
@@ -221,14 +250,14 @@ export default function EditVideo() {
                   }
                 />
                 {videoInfo?.uploader_name && (
-                  <div className="mt-1 text-sm text-muted-foreground">
+                  <div className="text-sm text-muted-foreground">
                     当前投稿人：{videoInfo.uploader_name}
                   </div>
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
-                <Label>禁用：</Label>
+              <div className="flex items-center justify-between">
+                <Label>禁用视频</Label>
                 <Switch
                   checked={editForm.disabled}
                   onCheckedChange={(checked) =>
@@ -237,16 +266,17 @@ export default function EditVideo() {
                 />
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 pt-2">
                 <Button
                   className="flex-1"
                   onClick={handleSubmit}
-                  disabled={submitting}
+                  disabled={submitting || !hasChanges}
                 >
-                  提交更新
+                  {hasChanges ? "提交更新" : "无变化"}
                 </Button>
                 <Button
                   variant="destructive"
+                  size="icon"
                   onClick={() => setDeleteDialogVisible(true)}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -257,6 +287,7 @@ export default function EditVideo() {
         </CardContent>
       </Card>
 
+      {/* 确认编辑 */}
       <Dialog open={dialogVisible} onOpenChange={setDialogVisible}>
         <DialogContent>
           <DialogHeader>
@@ -264,20 +295,29 @@ export default function EditVideo() {
           </DialogHeader>
           <div className="py-4 space-y-2 text-sm">
             {editForm?.title !== videoInfo?.title && (
-              <div>
-                标题：{videoInfo?.title} → {editForm?.title}
+              <div className="flex gap-2">
+                <span className="text-muted-foreground">标题:</span>
+                <span className="line-through text-muted-foreground">
+                  {videoInfo?.title}
+                </span>
+                <span>→</span>
+                <span>{editForm?.title}</span>
               </div>
             )}
             {editForm?.copyright !== videoInfo?.copyright && (
-              <div>
-                版权：{getCopyrightLabel(videoInfo?.copyright)} →{" "}
-                {getCopyrightLabel(editForm?.copyright)}
+              <div className="flex gap-2">
+                <span className="text-muted-foreground">版权:</span>
+                <span>{getCopyrightLabel(videoInfo?.copyright)}</span>
+                <span>→</span>
+                <span>{getCopyrightLabel(editForm?.copyright)}</span>
               </div>
             )}
             {editForm?.disabled !== (videoInfo?.disabled || false) && (
-              <div>
-                禁用：{videoInfo?.disabled ? "是" : "否"} →{" "}
-                {editForm?.disabled ? "是" : "否"}
+              <div className="flex gap-2">
+                <span className="text-muted-foreground">禁用:</span>
+                <span>{videoInfo?.disabled ? "是" : "否"}</span>
+                <span>→</span>
+                <span>{editForm?.disabled ? "是" : "否"}</span>
               </div>
             )}
           </div>
@@ -292,6 +332,7 @@ export default function EditVideo() {
         </DialogContent>
       </Dialog>
 
+      {/* 确认删除 */}
       <Dialog open={deleteDialogVisible} onOpenChange={setDeleteDialogVisible}>
         <DialogContent>
           <DialogHeader>
