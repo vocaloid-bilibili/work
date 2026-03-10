@@ -92,12 +92,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
       const data = await res.json();
-      const payload = parseToken(data.access_token);
-      if (!payload || !hasAccess(payload.role)) {
-        clearTokens();
-        applyToken(null);
-        return false;
-      }
       setTokens(data.access_token, refresh);
       applyToken(data.access_token);
       return true;
@@ -143,12 +137,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(err.detail || err.message || "登录失败");
       }
       const data = await res.json();
-
-      const payload = parseToken(data.access_token);
-      if (!payload || !hasAccess(payload.role)) {
-        throw new Error("权限不足");
-      }
-
       setTokens(data.access_token, data.refresh_token);
       applyToken(data.access_token);
     },

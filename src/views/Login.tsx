@@ -27,7 +27,7 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
 
   const captchaLock = useRef(false);
-  const captchaLoaded = useRef(false);
+  const mounted = useRef(false);
 
   useEffect(() => {
     if (!authLoading && role !== "guest") {
@@ -52,16 +52,15 @@ export default function Login() {
   }, []);
 
   useEffect(() => {
-    if (authLoading) return;
-    if (role !== "guest") return;
-    if (captchaLoaded.current) return;
-    captchaLoaded.current = true;
+    if (authLoading || role !== "guest") return;
+    if (mounted.current) return;
+    mounted.current = true;
     loadCaptcha();
   }, [authLoading, role, loadCaptcha]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!captcha) return;
+    if (!captcha || loading) return;
 
     setLoading(true);
     setError(null);
@@ -75,7 +74,8 @@ export default function Login() {
       navigate("/", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "登录失败");
-      loadCaptcha();
+
+      await loadCaptcha();
     } finally {
       setLoading(false);
     }
