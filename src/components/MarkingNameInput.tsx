@@ -116,7 +116,7 @@ export default function MarkingNameInput({
 
         {open && (suggestions.length > 0 || loading) && (
           <div className="absolute top-full left-0 z-50 w-full mt-1 rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden">
-            <div className="max-h-[300px] overflow-y-auto p-1 bg-background">
+            <div className="max-h-75 overflow-y-auto p-1 bg-background">
               {loading && (
                 <div className="flex items-center justify-center p-4 text-sm text-muted-foreground gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />

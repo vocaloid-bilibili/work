@@ -21,7 +21,7 @@ const HighlightSpaces = ({ text }: { text: string }) => {
 
   const renderSpace = (sp: string) => (
     <span
-      className="bg-destructive/20 text-destructive font-mono px-[2px] mx-[1px] rounded-[2px] opacity-80"
+      className="bg-destructive/20 text-destructive font-mono px-0.5 mx-px rounded-[2px] opacity-80"
       title="警告：包含多余的前导或后导空格"
     >
       {sp.replace(/ /g, "␣").replace(/\t/g, "⇥")}
@@ -143,7 +143,7 @@ export default function MarkingTags({
 
   if (!useHint) {
     return (
-      <div className="flex flex-wrap gap-2 p-2 border rounded-md min-h-[42px] items-center bg-muted/20">
+      <div className="flex flex-wrap gap-2 p-2 border rounded-md min-h-10.5 items-center bg-muted/20">
         {tags.length > 0 ? (
           tags.map((tag) => (
             <Badge key={tag} variant="secondary">
@@ -162,7 +162,7 @@ export default function MarkingTags({
       <div
         className={cn(
           "flex flex-wrap items-center gap-1.5 p-2 rounded-md border bg-background ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
-          "min-h-[42px]",
+          "min-h-10.5",
           hasError && "border-destructive focus-within:ring-destructive",
         )}
       >
@@ -182,7 +182,7 @@ export default function MarkingTags({
         ))}
 
         <input
-          className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground min-w-[120px] text-sm h-6"
+          className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground min-w-30 text-sm h-6"
           placeholder={tags.length === 0 ? "输入标签..." : ""}
           value={inputValue}
           onChange={(e) => {
@@ -197,7 +197,7 @@ export default function MarkingTags({
       {open && (suggestions.length > 0 || inputValue) && (
         <div className="absolute top-full left-0 z-50 w-full mt-1 rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden">
           <Command className="w-full">
-            <CommandList className="max-h-[200px] overflow-y-auto p-1">
+            <CommandList className="max-h-50 overflow-y-auto p-1">
               {suggestions.length > 0 && (
                 <CommandGroup heading="建议">
                   {suggestions.map((suggestion) => (
