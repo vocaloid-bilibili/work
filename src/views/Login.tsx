@@ -1,6 +1,6 @@
 // src/views/Login.tsx
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
+import { AUTH_BASE } from "@/utils/auth";
 
 export default function Login() {
   const navigate = useNavigate();
-  const { role, loading: authLoading, login, getCaptcha } = useAuth();
+  const { role, loading: authLoading, login } = useAuth();
 
   const [form, setForm] = useState({
     username: "",
@@ -25,27 +26,38 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 已登录跳转
+  const captchaLock = useRef(false);
+  const captchaLoaded = useRef(false);
+
   useEffect(() => {
     if (!authLoading && role !== "guest") {
       navigate("/", { replace: true });
     }
   }, [role, authLoading, navigate]);
 
-  // 加载验证码
-  const loadCaptcha = async () => {
+  const loadCaptcha = useCallback(async () => {
+    if (captchaLock.current) return;
+    captchaLock.current = true;
     try {
-      const data = await getCaptcha();
+      const res = await fetch(`${AUTH_BASE}/auth/captcha`);
+      if (!res.ok) return;
+      const data = await res.json();
       setCaptcha(data);
       setForm((f) => ({ ...f, captchaAnswer: "" }));
     } catch {
       // ignore
+    } finally {
+      captchaLock.current = false;
     }
-  };
+  }, []);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (role !== "guest") return;
+    if (captchaLoaded.current) return;
+    captchaLoaded.current = true;
     loadCaptcha();
-  }, []);
+  }, [authLoading, role, loadCaptcha]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,6 +84,14 @@ export default function Login() {
   const set =
     (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-[80vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-[80vh] items-center justify-center px-4">

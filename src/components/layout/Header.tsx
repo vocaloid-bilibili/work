@@ -33,12 +33,7 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 border-b bg-background/90 backdrop-blur supports-backdrop-filter:bg-background/70">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
-        {/* 左侧：Logo + 导航 */}
         <div className="flex items-center gap-6">
-          <Link to="/" className="text-sm font-semibold tracking-tight">
-            打标工作台
-          </Link>
-
           {isLoggedIn && (
             <nav className="hidden items-center gap-0.5 sm:flex">
               {navs.map((nav) => (

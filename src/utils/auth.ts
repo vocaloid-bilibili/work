@@ -42,3 +42,22 @@ export function isTokenExpired(token: string, bufferSeconds = 30): boolean {
   if (!payload) return true;
   return payload.exp * 1000 < Date.now() + bufferSeconds * 1000;
 }
+
+// ===== 角色权限 =====
+
+const ROLE_LEVEL: Record<string, number> = {
+  user: 0,
+  worker: 1,
+  sponsor: 2,
+  admin: 3,
+  superuser: 4,
+};
+
+const MIN_ROLE = "worker";
+
+export function hasAccess(role: string): boolean {
+  return (ROLE_LEVEL[role] ?? -1) >= (ROLE_LEVEL[MIN_ROLE] ?? 999);
+}
+
+export const AUTH_BASE =
+  import.meta.env.VITE_AUTH_BASE_URL ?? "https://api.vocabili.top/v2";

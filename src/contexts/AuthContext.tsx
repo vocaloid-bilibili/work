@@ -15,10 +15,9 @@ import {
   clearTokens,
   parseToken,
   isTokenExpired,
+  hasAccess,
+  AUTH_BASE,
 } from "@/utils/auth";
-
-const AUTH_BASE =
-  import.meta.env.VITE_AUTH_BASE_URL ?? "https://api.vocabili.top/v2";
 
 interface AuthState {
   role: string;
@@ -37,7 +36,6 @@ interface AuthContextValue extends AuthState {
   ) => Promise<void>;
   logout: () => void;
   refreshAuth: () => Promise<boolean>;
-  getCaptcha: () => Promise<{ code_id: number; image: string }>;
 }
 
 const EMPTY: AuthState = {
@@ -65,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     const payload = parseToken(token);
-    if (!payload) {
+    if (!payload || !hasAccess(payload.role)) {
       clearTokens();
       setState({ ...EMPTY });
       return;
@@ -94,6 +92,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
       const data = await res.json();
+      const payload = parseToken(data.access_token);
+      if (!payload || !hasAccess(payload.role)) {
+        clearTokens();
+        applyToken(null);
+        return false;
+      }
       setTokens(data.access_token, refresh);
       applyToken(data.access_token);
       return true;
@@ -117,46 +121,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [applyToken, refreshAuth]);
 
-  const getCaptcha = async () => {
-    const res = await fetch(`${AUTH_BASE}/auth/captcha`);
-    if (!res.ok) throw new Error("获取验证码失败");
-    return res.json();
-  };
+  const login = useCallback(
+    async (
+      loginId: string,
+      password: string,
+      codeId: number,
+      codeAnswer: string,
+    ) => {
+      const res = await fetch(`${AUTH_BASE}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: loginId,
+          password,
+          code_id: codeId,
+          code_answer: codeAnswer,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: "登录失败" }));
+        throw new Error(err.detail || err.message || "登录失败");
+      }
+      const data = await res.json();
 
-  const login = async (
-    loginId: string,
-    password: string,
-    codeId: number,
-    codeAnswer: string,
-  ) => {
-    const res = await fetch(`${AUTH_BASE}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username: loginId,
-        password,
-        code_id: codeId,
-        code_answer: codeAnswer,
-      }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: "登录失败" }));
-      throw new Error(err.detail || err.message || "登录失败");
-    }
-    const data = await res.json();
-    setTokens(data.access_token, data.refresh_token);
-    applyToken(data.access_token);
-  };
+      const payload = parseToken(data.access_token);
+      if (!payload || !hasAccess(payload.role)) {
+        throw new Error("权限不足");
+      }
 
-  const logout = () => {
+      setTokens(data.access_token, data.refresh_token);
+      applyToken(data.access_token);
+    },
+    [applyToken],
+  );
+
+  const logout = useCallback(() => {
     clearTokens();
     applyToken(null);
-  };
+  }, [applyToken]);
 
   return (
-    <AuthContext.Provider
-      value={{ ...state, login, logout, refreshAuth, getCaptcha }}
-    >
+    <AuthContext.Provider value={{ ...state, login, logout, refreshAuth }}>
       {children}
     </AuthContext.Provider>
   );
