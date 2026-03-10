@@ -1,3 +1,5 @@
+// src/App.tsx
+
 import {
   BrowserRouter as Router,
   Routes,
@@ -5,9 +7,11 @@ import {
   Navigate,
 } from "react-router-dom";
 import Header from "@/components/layout/Header";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Mark from "@/views/Mark";
 import Upload from "@/views/Upload";
 import Edit from "@/views/Edit";
+import Login from "@/views/Login";
 
 function App() {
   return (
@@ -16,9 +20,31 @@ function App() {
         <Header />
         <main className="w-full grow">
           <Routes>
-            <Route path="/" element={<Upload />} />
-            <Route path="/mark" element={<Mark />} />
-            <Route path="/edit" element={<Edit />} />
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Upload />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mark"
+              element={
+                <ProtectedRoute>
+                  <Mark />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/edit"
+              element={
+                <ProtectedRoute>
+                  <Edit />
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

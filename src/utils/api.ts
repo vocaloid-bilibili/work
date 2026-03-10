@@ -1,21 +1,98 @@
+// src/utils/api.ts
+
 import axios from "axios";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
+import {
+  getAccessToken,
+  getRefreshToken,
+  setTokens,
+  clearTokens,
+  isTokenExpired,
+} from "@/utils/auth";
 import type { SongInfo, VideoInfo } from "@/utils/types";
 
 const BASE_URL = "https://api.vocabili.top/v2";
+const AUTH_BASE =
+  import.meta.env.VITE_AUTH_BASE_URL ?? "https://api.vocabili.top/v2";
 
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 120000,
 });
 
-api.interceptors.request.use((config) => {
-  const apiKey = localStorage.getItem("x-api-key");
-  if (apiKey) {
-    config.headers["x-api-key"] = apiKey;
+// ── Token 刷新锁 ──
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  const refresh = getRefreshToken();
+  if (!refresh) return null;
+  try {
+    const res = await fetch(`${AUTH_BASE}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refresh }),
+    });
+    if (!res.ok) {
+      clearTokens();
+      return null;
+    }
+    const data = await res.json();
+    setTokens(data.access_token, refresh);
+    return data.access_token;
+  } catch {
+    clearTokens();
+    return null;
+  }
+}
+
+async function getValidToken(): Promise<string | null> {
+  let token = getAccessToken();
+  if (!token) return null;
+  if (!isTokenExpired(token)) return token;
+
+  // 避免并发刷新
+  if (!refreshPromise) {
+    refreshPromise = refreshAccessToken().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
+// ── Request 拦截器：Bearer token ──
+api.interceptors.request.use(async (config) => {
+  const token = await getValidToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
+
+// ── Response 拦截器：401 自动刷新重试 ──
+api.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    const original = error.config;
+    if (error.response?.status === 401 && !original._retried) {
+      original._retried = true;
+      const token = await refreshAccessToken();
+      if (token) {
+        original.headers.Authorization = `Bearer ${token}`;
+        return api(original);
+      }
+      // 刷新失败，跳登录
+      clearTokens();
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
+  },
+);
+
+// ── SSE 辅助：获取 Bearer header ──
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const token = await getValidToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 class Requester {
   static endpoint = {
@@ -73,39 +150,41 @@ class Requester {
     },
   ) {
     const url = `${BASE_URL}${Requester.endpoint.updateRanking}?board=${board}&part=${part}&issue=${issue}${old ? "&old=true" : ""}`;
-    const apiKey = localStorage.getItem("x-api-key") || "";
     handlers?.onStart?.();
     const abortController = new AbortController();
 
-    fetchEventSource(url, {
-      method: "GET",
-      headers: { "x-api-key": apiKey },
-      signal: abortController.signal,
-      async onopen(response) {
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(`HTTP ${response.status}: ${text}`);
-        }
-      },
-      onmessage(ev) {
-        if (ev.event === "progress") handlers?.onProgress?.(ev.data);
-        else if (ev.event === "complete") {
-          handlers?.onComplete?.(ev.data);
+    (async () => {
+      const headers = await getAuthHeaders();
+      fetchEventSource(url, {
+        method: "GET",
+        headers,
+        signal: abortController.signal,
+        async onopen(response) {
+          if (!response.ok) {
+            const text = await response.text();
+            throw new Error(`HTTP ${response.status}: ${text}`);
+          }
+        },
+        onmessage(ev) {
+          if (ev.event === "progress") handlers?.onProgress?.(ev.data);
+          else if (ev.event === "complete") {
+            handlers?.onComplete?.(ev.data);
+            abortController.abort();
+          } else if (ev.event === "error") {
+            handlers?.onError?.(new Error(ev.data));
+            abortController.abort();
+          }
+        },
+        onerror(err) {
+          handlers?.onError?.(err);
           abortController.abort();
-        } else if (ev.event === "error") {
-          handlers?.onError?.(new Error(ev.data));
-          abortController.abort();
-        }
-      },
-      onerror(err) {
-        handlers?.onError?.(err);
-        abortController.abort();
-        throw err;
-      },
-      openWhenHidden: true,
-    }).catch((err) => {
-      if (err.name !== "AbortError") handlers?.onError?.(err);
-    });
+          throw err;
+        },
+        openWhenHidden: true,
+      }).catch((err) => {
+        if (err.name !== "AbortError") handlers?.onError?.(err);
+      });
+    })();
 
     return () => abortController.abort();
   }
@@ -121,44 +200,45 @@ class Requester {
     },
   ) {
     const url = `${BASE_URL}${Requester.endpoint.updateSnapshot}?date=${date}${old ? "&old=true" : ""}`;
-    const apiKey = localStorage.getItem("x-api-key") || "";
     handlers?.onStart?.();
     const abortController = new AbortController();
 
-    fetchEventSource(url, {
-      method: "GET",
-      headers: { "x-api-key": apiKey },
-      signal: abortController.signal,
-      async onopen(response) {
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(`HTTP ${response.status}: ${text}`);
-        }
-      },
-      onmessage(ev) {
-        if (ev.event === "progress") handlers?.onProgress?.(ev.data);
-        else if (ev.event === "complete") {
-          handlers?.onComplete?.(ev.data);
+    (async () => {
+      const headers = await getAuthHeaders();
+      fetchEventSource(url, {
+        method: "GET",
+        headers,
+        signal: abortController.signal,
+        async onopen(response) {
+          if (!response.ok) {
+            const text = await response.text();
+            throw new Error(`HTTP ${response.status}: ${text}`);
+          }
+        },
+        onmessage(ev) {
+          if (ev.event === "progress") handlers?.onProgress?.(ev.data);
+          else if (ev.event === "complete") {
+            handlers?.onComplete?.(ev.data);
+            abortController.abort();
+          } else if (ev.event === "error") {
+            handlers?.onError?.(new Error(ev.data));
+            abortController.abort();
+          }
+        },
+        onerror(err) {
+          handlers?.onError?.(err);
           abortController.abort();
-        } else if (ev.event === "error") {
-          handlers?.onError?.(new Error(ev.data));
-          abortController.abort();
-        }
-      },
-      onerror(err) {
-        handlers?.onError?.(err);
-        abortController.abort();
-        throw err;
-      },
-      openWhenHidden: true,
-    }).catch((err) => {
-      if (err.name !== "AbortError") handlers?.onError?.(err);
-    });
+          throw err;
+        },
+        openWhenHidden: true,
+      }).catch((err) => {
+        if (err.name !== "AbortError") handlers?.onError?.(err);
+      });
+    })();
 
     return () => abortController.abort();
   }
 
-  // ===== 查询 =====
   async search(type: string, keyword: string, page = 1, pageSize = 20) {
     const res = await api.get(Requester.endpoint.search(type), {
       params: { keyword, page, page_size: pageSize },
@@ -187,7 +267,6 @@ class Requester {
     return res.data;
   }
 
-  // ===== 歌曲编辑 =====
   async editSong(data: {
     id: number;
     display_name?: string;
@@ -213,7 +292,6 @@ class Requester {
     return res.data;
   }
 
-  // ===== 视频编辑 =====
   async editVideo(data: {
     bvid: string;
     title?: string;
@@ -242,6 +320,7 @@ class Requester {
     });
     return res.data;
   }
+
   async mergeArtist(type: string, sourceId: number, targetId: number) {
     const res = await api.post(Requester.endpoint.mergeArtist, {
       type,
