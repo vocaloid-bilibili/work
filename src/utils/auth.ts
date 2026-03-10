@@ -22,16 +22,16 @@ export function clearTokens() {
 }
 
 export interface TokenPayload {
-  sub: number;
   role: string;
-  avatar_url?: string | null;
+  avatar?: string | null;
+  nickname?: string | null;
+  username?: string | null;
   exp: number;
 }
 
 export function parseToken(token: string): TokenPayload | null {
   try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload;
+    return JSON.parse(atob(token.split(".")[1]));
   } catch {
     return null;
   }

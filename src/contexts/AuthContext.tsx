@@ -17,14 +17,14 @@ import {
   isTokenExpired,
 } from "@/utils/auth";
 
-// 认证 API base（不带 /v2）
 const AUTH_BASE =
   import.meta.env.VITE_AUTH_BASE_URL ?? "https://api.vocabili.top/v2";
 
 interface AuthState {
   role: string;
-  userId: number | null;
   avatarUrl: string | null;
+  nickname: string | null;
+  username: string | null;
   loading: boolean;
 }
 
@@ -40,6 +40,14 @@ interface AuthContextValue extends AuthState {
   getCaptcha: () => Promise<{ code_id: number; image: string }>;
 }
 
+const EMPTY: AuthState = {
+  role: "guest",
+  avatarUrl: null,
+  nickname: null,
+  username: null,
+  loading: false,
+};
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function useAuth() {
@@ -49,38 +57,24 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>({
-    role: "guest",
-    userId: null,
-    avatarUrl: null,
-    loading: true,
-  });
+  const [state, setState] = useState<AuthState>({ ...EMPTY, loading: true });
 
   const applyToken = useCallback((token: string | null) => {
     if (!token) {
-      setState({
-        role: "guest",
-        userId: null,
-        avatarUrl: null,
-        loading: false,
-      });
+      setState({ ...EMPTY });
       return;
     }
     const payload = parseToken(token);
     if (!payload) {
       clearTokens();
-      setState({
-        role: "guest",
-        userId: null,
-        avatarUrl: null,
-        loading: false,
-      });
+      setState({ ...EMPTY });
       return;
     }
     setState({
       role: payload.role,
-      userId: payload.sub,
-      avatarUrl: payload.avatar_url ?? null,
+      avatarUrl: payload.avatar ?? null,
+      nickname: payload.nickname ?? null,
+      username: payload.username ?? null,
       loading: false,
     });
   }, []);
@@ -108,7 +102,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [applyToken]);
 
-  // 初始化：检查现有 token
   useEffect(() => {
     const token = getAccessToken();
     if (!token) {
@@ -131,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (
-    username: string,
+    loginId: string,
     password: string,
     codeId: number,
     codeAnswer: string,
@@ -140,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username,
+        username: loginId,
         password,
         code_id: codeId,
         code_answer: codeAnswer,
