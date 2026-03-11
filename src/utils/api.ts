@@ -3,65 +3,22 @@
 import axios from "axios";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import {
-  getAccessToken,
-  getRefreshToken,
-  setTokens,
   clearTokens,
-  isTokenExpired,
+  getAuthHeaders,
+  getValidAccessToken,
+  refreshAccessToken,
 } from "@/utils/auth";
 import type { SongInfo, VideoInfo } from "@/utils/types";
 
 const BASE_URL = "https://api.vocabili.top/v2";
-const AUTH_BASE =
-  import.meta.env.VITE_AUTH_BASE_URL ?? "https://api.vocabili.top/v2";
-
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 120000,
 });
 
-// ── Token 刷新锁 ──
-let refreshPromise: Promise<string | null> | null = null;
-
-async function refreshAccessToken(): Promise<string | null> {
-  const refresh = getRefreshToken();
-  if (!refresh) return null;
-  try {
-    const res = await fetch(`${AUTH_BASE}/auth/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refresh }),
-    });
-    if (!res.ok) {
-      clearTokens();
-      return null;
-    }
-    const data = await res.json();
-    setTokens(data.access_token, refresh);
-    return data.access_token;
-  } catch {
-    clearTokens();
-    return null;
-  }
-}
-
-async function getValidToken(): Promise<string | null> {
-  let token = getAccessToken();
-  if (!token) return null;
-  if (!isTokenExpired(token)) return token;
-
-  // 避免并发刷新
-  if (!refreshPromise) {
-    refreshPromise = refreshAccessToken().finally(() => {
-      refreshPromise = null;
-    });
-  }
-  return refreshPromise;
-}
-
 // ── Request 拦截器：Bearer token ──
 api.interceptors.request.use(async (config) => {
-  const token = await getValidToken();
+  const token = await getValidAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -87,12 +44,6 @@ api.interceptors.response.use(
     return Promise.reject(error);
   },
 );
-
-// ── SSE 辅助：获取 Bearer header ──
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  const token = await getValidToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
 
 class Requester {
   static endpoint = {

@@ -61,3 +61,45 @@ export function hasAccess(role: string): boolean {
 
 export const AUTH_BASE =
   import.meta.env.VITE_AUTH_BASE_URL ?? "https://api.vocabili.top/v2";
+
+let refreshPromise: Promise<string | null> | null = null;
+
+export async function refreshAccessToken(): Promise<string | null> {
+  const refresh = getRefreshToken();
+  if (!refresh) return null;
+  try {
+    const res = await fetch(`${AUTH_BASE}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refresh }),
+    });
+    if (!res.ok) {
+      clearTokens();
+      return null;
+    }
+    const data = await res.json();
+    setTokens(data.access_token, refresh);
+    return data.access_token as string;
+  } catch {
+    clearTokens();
+    return null;
+  }
+}
+
+export async function getValidAccessToken(): Promise<string | null> {
+  const token = getAccessToken();
+  if (!token) return null;
+  if (!isTokenExpired(token)) return token;
+
+  if (!refreshPromise) {
+    refreshPromise = refreshAccessToken().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
+export async function getAuthHeaders(): Promise<Record<string, string>> {
+  const token = await getValidAccessToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
