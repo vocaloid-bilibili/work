@@ -1,4 +1,8 @@
-export type ConnectionStatus = "connecting" | "connected" | "reconnecting" | "offline";
+export type ConnectionStatus =
+  | "connecting"
+  | "connected"
+  | "reconnecting"
+  | "offline";
 
 interface ClientEvent {
   type: "ping" | "join_task" | "submit_operation";
@@ -46,7 +50,9 @@ export class CollabClient {
 
   async connect(): Promise<void> {
     this.manualClose = false;
-    this.onStatusChange(this.reconnectAttempt > 0 ? "reconnecting" : "connecting");
+    this.onStatusChange(
+      this.reconnectAttempt > 0 ? "reconnecting" : "connecting",
+    );
 
     const token = await this.tokenProvider();
     if (!token) {
@@ -110,7 +116,7 @@ export class CollabClient {
   private makeWsUrl(token: string): string {
     const source = new URL(this.baseProvider());
     source.protocol = source.protocol === "https:" ? "wss:" : "ws:";
-    source.pathname = "/ws";
+    source.pathname = source.pathname.replace(/\/$/, "") + "/ws";
     source.searchParams.set("token", token);
     return source.toString();
   }

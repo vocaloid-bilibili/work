@@ -1,8 +1,6 @@
 import { getValidAccessToken } from "@/utils/auth";
 
-const COLLAB_BASE_KEY = "collab-base";
-const ENV_COLLAB_BASE =
-  import.meta.env.VITE_COLLAB_API_BASE ?? "http://localhost:8787";
+const COLLAB_BASE = "https://api.vocabili.top/collab";
 
 type Method = "GET" | "POST" | "PATCH" | "DELETE";
 
@@ -20,22 +18,20 @@ export class CollabApiError extends Error {
   }
 }
 
-export const collabBase = ENV_COLLAB_BASE;
+export const collabBase = COLLAB_BASE;
 
 export const getCollabBase = (): string => {
-  return localStorage.getItem(COLLAB_BASE_KEY) || ENV_COLLAB_BASE;
+  return COLLAB_BASE;
 };
 
-export const setCollabBase = (nextBase: string): void => {
-  localStorage.setItem(COLLAB_BASE_KEY, nextBase);
-};
-
-export async function requestCollabJson<T>(path: string, options: RequestOptions = {}): Promise<T> {
+export async function requestCollabJson<T>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<T> {
   const { method = "GET", body } = options;
   const token = await getValidAccessToken();
-  const base = getCollabBase();
 
-  const response = await fetch(`${base}${path}`, {
+  const response = await fetch(`${COLLAB_BASE}${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",

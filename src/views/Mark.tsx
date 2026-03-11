@@ -62,7 +62,6 @@ import {
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { useCollaborativeMark } from "@/hooks/useCollaborativeMark";
-import { getCollabBase, setCollabBase } from "@/utils/collabApi";
 
 // Define the record type based on usage
 interface RecordType {
@@ -86,8 +85,6 @@ function MarkContent() {
     return saved === "collab" ? "collab" : "local";
   });
   const [collabUploading, setCollabUploading] = useState(false);
-  const [collabBaseDialogOpen, setCollabBaseDialogOpen] = useState(false);
-  const [collabBaseInput, setCollabBaseInput] = useState(getCollabBase());
   const [openSearch, setOpenSearch] = useState(false);
   const [bookmarkOpen, setBookmarkOpen] = useState(false);
   const [gridLayout, setGridLayout] = useState(false); // false: list (1 col), true: grid (2 cols)
@@ -113,11 +110,19 @@ function MarkContent() {
 
   const isCollab = mode === "collab";
   const collab = useCollaborativeMark();
-  const currentRecords = isCollab ? (collab.records as RecordType[]) : allRecords;
-  const currentIncludeEntries = isCollab ? collab.includeEntries : includeEntries;
+  const currentRecords = isCollab
+    ? (collab.records as RecordType[])
+    : allRecords;
+  const currentIncludeEntries = isCollab
+    ? collab.includeEntries
+    : includeEntries;
   const effectiveSvmode = isCollab ? false : localSvmode;
-  const isLoading = isCollab ? collab.loading || collabUploading : status === "loading";
-  const allIncludedValue = isCollab ? currentIncludeEntries.every(Boolean) : allIncluded;
+  const isLoading = isCollab
+    ? collab.loading || collabUploading
+    : status === "loading";
+  const allIncludedValue = isCollab
+    ? currentIncludeEntries.every(Boolean)
+    : allIncluded;
 
   useEffect(() => {
     localStorage.setItem("mark_mode", mode);
@@ -126,24 +131,6 @@ function MarkContent() {
   const handleModeChange = (checked: boolean) => {
     const nextMode = checked ? "collab" : "local";
     setMode(nextMode);
-  };
-
-  const handleSaveCollabBase = () => {
-    const trimmed = collabBaseInput.trim();
-    if (!trimmed) {
-      toast.error("协同后端地址不能为空");
-      return;
-    }
-    try {
-      const normalized = new URL(trimmed).toString().replace(/\/$/, "");
-      setCollabBase(normalized);
-      setCollabBaseInput(normalized);
-      collab.reconnect();
-      toast.success("协同后端地址已更新");
-      setCollabBaseDialogOpen(false);
-    } catch {
-      toast.error("协同后端地址格式不正确");
-    }
   };
 
   const handleCollabUpload = async (file: File) => {
@@ -235,12 +222,12 @@ function MarkContent() {
         setAllRecords(records);
 
         let initialIncludes: boolean[] = [];
-          if (records.length > 0) {
-            if (localSvmode) {
-              if (records[0].include) {
-                initialIncludes = records.map(
-                  (item: any) => item.include === "收录",
-                );
+        if (records.length > 0) {
+          if (localSvmode) {
+            if (records[0].include) {
+              initialIncludes = records.map(
+                (item: any) => item.include === "收录",
+              );
             } else {
               initialIncludes = new Array(records.length).fill(true);
             }
@@ -301,7 +288,9 @@ function MarkContent() {
     if (isCollab) {
       const current = currentRecords[index];
       const nextRecord =
-        typeof updatedRecord === "function" ? updatedRecord(current) : updatedRecord;
+        typeof updatedRecord === "function"
+          ? updatedRecord(current)
+          : updatedRecord;
       if (!nextRecord || typeof nextRecord !== "object") return;
       const changedEntries = Object.entries(nextRecord).filter(
         ([field, value]) => current[field] !== value,
@@ -407,7 +396,12 @@ function MarkContent() {
   };
 
   const performExport = () => {
-    exportToExcel(currentRecords, currentIncludeEntries, effectiveSvmode, keepExcluded);
+    exportToExcel(
+      currentRecords,
+      currentIncludeEntries,
+      effectiveSvmode,
+      keepExcluded,
+    );
     setExportDialogOpen(false);
     setIncompleteDialogOpen(false);
   };
@@ -448,7 +442,8 @@ function MarkContent() {
   const handleAddIncompleteToBookmarks = () => {
     const bookmarksToAdd = incompleteIndices.map((idx) => ({
       index: idx,
-      title: currentRecords[idx]?.title || currentRecords[idx]?.name || "未命名",
+      title:
+        currentRecords[idx]?.title || currentRecords[idx]?.name || "未命名",
       note: currentRecords[idx]
         ? getRecordIssues(currentRecords[idx])
         : "信息未填写完整（导出时标记）",
@@ -734,37 +729,6 @@ function MarkContent() {
           )}
         </div>
 
-        <Dialog open={collabBaseDialogOpen} onOpenChange={setCollabBaseDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm">
-              协同后端地址
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>协同后端地址</DialogTitle>
-              <DialogDescription>
-                请输入协同打标后端地址，例如 http://localhost:8787
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-2">
-              <Label htmlFor="collab-base-url">后端地址</Label>
-              <Input
-                id="collab-base-url"
-                value={collabBaseInput}
-                onChange={(e) => setCollabBaseInput(e.target.value)}
-                placeholder="http://localhost:8787"
-              />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setCollabBaseDialogOpen(false)}>
-                取消
-              </Button>
-              <Button onClick={handleSaveCollabBase}>保存</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
         {(status === "waiting" || currentRecords.length === 0) && (
           <div className="flex items-center space-x-2">
             <Switch
@@ -917,7 +881,12 @@ function MarkContent() {
           <CommandGroup heading="歌曲列表">
             {currentRecords.map((record, index) => (
               <CommandItem
-                key={String(record.bvid || record.aid || record.title || `record-${index}`)}
+                key={String(
+                  record.bvid ||
+                    record.aid ||
+                    record.title ||
+                    `record-${index}`,
+                )}
                 value={`${record.title || ""} ${record.producer || ""} ${record.vocalist || ""} ${record.bvid || ""} ${index}`}
                 onSelect={() => handleJumpToRecord(index)}
               >
