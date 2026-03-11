@@ -61,6 +61,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
+import { useCollaborativeMark } from "@/hooks/useCollaborativeMark";
+import { getCollabBase, setCollabBase } from "@/utils/collabApi";
 
 // Define the record type based on usage
 interface RecordType {
@@ -78,7 +80,14 @@ function MarkContent() {
   const [status, setStatus] = useState<"waiting" | "loading" | "loaded">(
     "waiting",
   );
-  const [svmode, setSvmode] = useState(false);
+  const [localSvmode, setLocalSvmode] = useState(false);
+  const [mode, setMode] = useState<"local" | "collab">(() => {
+    const saved = localStorage.getItem("mark_mode");
+    return saved === "collab" ? "collab" : "local";
+  });
+  const [collabUploading, setCollabUploading] = useState(false);
+  const [collabBaseDialogOpen, setCollabBaseDialogOpen] = useState(false);
+  const [collabBaseInput, setCollabBaseInput] = useState(getCollabBase());
   const [openSearch, setOpenSearch] = useState(false);
   const [bookmarkOpen, setBookmarkOpen] = useState(false);
   const [gridLayout, setGridLayout] = useState(false); // false: list (1 col), true: grid (2 cols)
@@ -101,6 +110,53 @@ function MarkContent() {
   // Incomplete records warning
   const [incompleteDialogOpen, setIncompleteDialogOpen] = useState(false);
   const [incompleteIndices, setIncompleteIndices] = useState<number[]>([]);
+
+  const isCollab = mode === "collab";
+  const collab = useCollaborativeMark();
+  const currentRecords = isCollab ? (collab.records as RecordType[]) : allRecords;
+  const currentIncludeEntries = isCollab ? collab.includeEntries : includeEntries;
+  const effectiveSvmode = isCollab ? false : localSvmode;
+  const isLoading = isCollab ? collab.loading || collabUploading : status === "loading";
+  const allIncludedValue = isCollab ? currentIncludeEntries.every(Boolean) : allIncluded;
+
+  useEffect(() => {
+    localStorage.setItem("mark_mode", mode);
+  }, [mode]);
+
+  const handleModeChange = (checked: boolean) => {
+    const nextMode = checked ? "collab" : "local";
+    setMode(nextMode);
+  };
+
+  const handleSaveCollabBase = () => {
+    const trimmed = collabBaseInput.trim();
+    if (!trimmed) {
+      toast.error("协同后端地址不能为空");
+      return;
+    }
+    try {
+      const normalized = new URL(trimmed).toString().replace(/\/$/, "");
+      setCollabBase(normalized);
+      setCollabBaseInput(normalized);
+      collab.reconnect();
+      toast.success("协同后端地址已更新");
+      setCollabBaseDialogOpen(false);
+    } catch {
+      toast.error("协同后端地址格式不正确");
+    }
+  };
+
+  const handleCollabUpload = async (file: File) => {
+    setCollabUploading(true);
+    try {
+      await collab.uploadFile(file, localSvmode);
+      toast.success("上传成功，已进入协同模式");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "上传失败");
+    } finally {
+      setCollabUploading(false);
+    }
+  };
 
   // Keyboard shortcut for search
   useEffect(() => {
@@ -144,16 +200,20 @@ function MarkContent() {
   // Computed paged data
   const pagedData = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return allRecords.slice(start, start + pageSize);
-  }, [allRecords, currentPage, pageSize]);
+    return currentRecords.slice(start, start + pageSize);
+  }, [currentRecords, currentPage, pageSize]);
 
-  const totalPages = Math.ceil(allRecords.length / pageSize);
+  const totalPages = Math.ceil(currentRecords.length / pageSize);
 
   // Handle file upload with worker
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      handleFileUpload(file);
+      if (isCollab) {
+        void handleCollabUpload(file);
+      } else {
+        handleFileUpload(file);
+      }
     }
   };
 
@@ -175,12 +235,12 @@ function MarkContent() {
         setAllRecords(records);
 
         let initialIncludes: boolean[] = [];
-        if (records.length > 0) {
-          if (svmode) {
-            if (records[0].include) {
-              initialIncludes = records.map(
-                (item: any) => item.include === "收录",
-              );
+          if (records.length > 0) {
+            if (localSvmode) {
+              if (records[0].include) {
+                initialIncludes = records.map(
+                  (item: any) => item.include === "收录",
+                );
             } else {
               initialIncludes = new Array(records.length).fill(true);
             }
@@ -212,6 +272,14 @@ function MarkContent() {
 
   // Handle Select All toggle
   const handleChangeAll = (checked: boolean) => {
+    if (isCollab) {
+      currentIncludeEntries.forEach((value, index) => {
+        if (value !== checked) {
+          collab.toggleInclude(index, checked);
+        }
+      });
+      return;
+    }
     setAllIncluded(checked);
     const newIncludes = [...includeEntries].map(() => checked);
     setIncludeEntries(newIncludes);
@@ -219,6 +287,10 @@ function MarkContent() {
 
   // Handle individual include toggle
   const handleIncludeChange = (index: number, checked: boolean) => {
+    if (isCollab) {
+      collab.toggleInclude(index, checked);
+      return;
+    }
     const newIncludes = [...includeEntries];
     newIncludes[index] = checked;
     setIncludeEntries(newIncludes);
@@ -226,6 +298,37 @@ function MarkContent() {
 
   // Handle record update from card
   const handleRecordUpdate = (index: number, updatedRecord: any) => {
+    if (isCollab) {
+      const current = currentRecords[index];
+      const nextRecord =
+        typeof updatedRecord === "function" ? updatedRecord(current) : updatedRecord;
+      if (!nextRecord || typeof nextRecord !== "object") return;
+      const changedEntries = Object.entries(nextRecord).filter(
+        ([field, value]) => current[field] !== value,
+      );
+      if (changedEntries.length === 0) return;
+
+      const localOnly = changedEntries.filter(([field]) =>
+        field.startsWith("_unconfirmed_"),
+      );
+      if (localOnly.length > 0) {
+        collab.updateLocalRecord(index, (row) => {
+          const next = { ...row } as Record<string, unknown>;
+          for (const [field, value] of localOnly) {
+            next[field] = value;
+          }
+          return next;
+        });
+      }
+
+      changedEntries
+        .filter(([field]) => !field.startsWith("_unconfirmed_"))
+        .forEach(([field, value]) => {
+          collab.updateField(index, field, value);
+        });
+      return;
+    }
+
     setAllRecords((prev) => {
       const newRecords = [...prev];
       const newObj =
@@ -246,16 +349,16 @@ function MarkContent() {
   };
 
   const getProblematicRecords = () => {
-    const reqFields = getRequiredFields(svmode);
-    const tagFields = svmode
+    const reqFields = getRequiredFields(effectiveSvmode);
+    const tagFields = effectiveSvmode
       ? ["synthesizer"]
       : ["vocal", "author", "synthesizer"];
 
     const incomplete: number[] = [];
     const unconfirmed: number[] = [];
 
-    allRecords.forEach((record, index) => {
-      if (includeEntries[index]) {
+    currentRecords.forEach((record, index) => {
+      if (currentIncludeEntries[index]) {
         const isComplete = reqFields.every((field) => {
           const val = record[field];
           return val !== undefined && val !== null && val !== "";
@@ -279,6 +382,18 @@ function MarkContent() {
 
   // Handle export
   const handleExport = () => {
+    if (isCollab) {
+      void collab
+        .exportFile(keepExcluded)
+        .then(() => {
+          toast.success("导出成功");
+          setExportDialogOpen(false);
+        })
+        .catch((err) => {
+          toast.error(err instanceof Error ? err.message : "导出失败");
+        });
+      return;
+    }
     if (!keepExcluded) {
       const { incomplete, unconfirmed } = getProblematicRecords();
       if (incomplete.length > 0 || unconfirmed.length > 0) {
@@ -292,15 +407,15 @@ function MarkContent() {
   };
 
   const performExport = () => {
-    exportToExcel(allRecords, includeEntries, svmode, keepExcluded);
+    exportToExcel(currentRecords, currentIncludeEntries, effectiveSvmode, keepExcluded);
     setExportDialogOpen(false);
     setIncompleteDialogOpen(false);
   };
 
   const getRecordIssues = (record: any) => {
     const issues: string[] = [];
-    const reqFields = getRequiredFields(svmode);
-    const tagFields = svmode
+    const reqFields = getRequiredFields(effectiveSvmode);
+    const tagFields = effectiveSvmode
       ? ["synthesizer"]
       : ["vocal", "author", "synthesizer"];
 
@@ -308,7 +423,7 @@ function MarkContent() {
       name: "歌名",
       vocal: "歌手",
       author: "作者",
-      synthesizer: svmode ? "榜单" : "引擎",
+      synthesizer: effectiveSvmode ? "榜单" : "引擎",
       copyright: "版权",
       type: "类别",
     };
@@ -333,8 +448,10 @@ function MarkContent() {
   const handleAddIncompleteToBookmarks = () => {
     const bookmarksToAdd = incompleteIndices.map((idx) => ({
       index: idx,
-      title: allRecords[idx].title || allRecords[idx].name || "未命名",
-      note: getRecordIssues(allRecords[idx]) || "信息未填写完整（导出时标记）",
+      title: currentRecords[idx]?.title || currentRecords[idx]?.name || "未命名",
+      note: currentRecords[idx]
+        ? getRecordIssues(currentRecords[idx])
+        : "信息未填写完整（导出时标记）",
     }));
     addBookmarksBatch(bookmarksToAdd);
     setIncompleteDialogOpen(false);
@@ -355,13 +472,13 @@ function MarkContent() {
   // Prevent unload warning
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (allRecords.length > 0) {
+      if (currentRecords.length > 0) {
         event.preventDefault();
       }
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [allRecords]);
+  }, [currentRecords]);
 
   // Handle bookmark import
   const handleBookmarkImport = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -386,8 +503,9 @@ function MarkContent() {
 
     return (
       <div className="flex flex-col p-3 rounded-md border hover:bg-muted/50 transition-colors group relative">
-        <div
-          className="cursor-pointer"
+        <button
+          type="button"
+          className="cursor-pointer text-left"
           onClick={() => handleJumpToRecord(bookmark.index)}
         >
           <span className="font-medium line-clamp-1">{bookmark.title}</span>
@@ -399,7 +517,7 @@ function MarkContent() {
               备注: {bookmark.note}
             </div>
           )}
-        </div>
+        </button>
 
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <Popover open={isNoteOpen} onOpenChange={setIsNoteOpen}>
@@ -602,9 +720,59 @@ function MarkContent() {
 
       {/* Controls Area */}
       <div className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center">
-        {status === "waiting" && (
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="collab-mode"
+            checked={isCollab}
+            onCheckedChange={handleModeChange}
+          />
+          <Label htmlFor="collab-mode">协同模式</Label>
+          {isCollab && (
+            <span className="text-xs text-muted-foreground">
+              {collab.statusLabel} · 未同步 {collab.pendingCount}
+            </span>
+          )}
+        </div>
+
+        <Dialog open={collabBaseDialogOpen} onOpenChange={setCollabBaseDialogOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm">
+              协同后端地址
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>协同后端地址</DialogTitle>
+              <DialogDescription>
+                请输入协同打标后端地址，例如 http://localhost:8787
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="collab-base-url">后端地址</Label>
+              <Input
+                id="collab-base-url"
+                value={collabBaseInput}
+                onChange={(e) => setCollabBaseInput(e.target.value)}
+                placeholder="http://localhost:8787"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCollabBaseDialogOpen(false)}>
+                取消
+              </Button>
+              <Button onClick={handleSaveCollabBase}>保存</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {(status === "waiting" || currentRecords.length === 0) && (
           <div className="flex items-center space-x-2">
-            <Switch id="svmode" checked={svmode} onCheckedChange={setSvmode} />
+            <Switch
+              id="svmode"
+              checked={localSvmode}
+              onCheckedChange={setLocalSvmode}
+              disabled={isCollab}
+            />
             <Label htmlFor="svmode">SV榜模式</Label>
           </div>
         )}
@@ -619,7 +787,7 @@ function MarkContent() {
           />
         </div>
 
-        {allRecords.length > 0 && (
+        {currentRecords.length > 0 && (
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -747,9 +915,9 @@ function MarkContent() {
         <CommandList>
           <CommandEmpty>未找到结果.</CommandEmpty>
           <CommandGroup heading="歌曲列表">
-            {allRecords.map((record, index) => (
+            {currentRecords.map((record, index) => (
               <CommandItem
-                key={index}
+                key={String(record.bvid || record.aid || record.title || `record-${index}`)}
                 value={`${record.title || ""} ${record.producer || ""} ${record.vocalist || ""} ${record.bvid || ""} ${index}`}
                 onSelect={() => handleJumpToRecord(index)}
               >
@@ -766,24 +934,24 @@ function MarkContent() {
         </CommandList>
       </CommandDialog>
 
-      {status === "loading" && (
+      {isLoading && (
         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
           <Loader2 className="h-8 w-8 animate-spin mb-2" />
-          <p>正在解析文件...</p>
+          <p>{isCollab ? "正在同步协同任务..." : "正在解析文件..."}</p>
         </div>
       )}
 
       {/* Content Area */}
-      {allRecords.length > 0 && (
+      {currentRecords.length > 0 && (
         <div className="w-full space-y-4">
           <div className="flex items-center space-x-2 pb-2 border-b">
             <Switch
               id="select-all"
-              checked={allIncluded}
+              checked={allIncludedValue}
               onCheckedChange={handleChangeAll}
             />
             <Label htmlFor="select-all">
-              全选/全不选 (共 {allRecords.length} 条)
+              全选/全不选 (共 {currentRecords.length} 条)
             </Label>
           </div>
 
@@ -797,9 +965,9 @@ function MarkContent() {
                   key={realIndex} // Use real index as key to maintain state stability
                   index={realIndex}
                   record={record}
-                  include={includeEntries[realIndex]}
+                  include={currentIncludeEntries[realIndex]}
                   onIncludeChange={(val) => handleIncludeChange(realIndex, val)}
-                  svmode={svmode}
+                  svmode={effectiveSvmode}
                   onUpdate={(updated) => handleRecordUpdate(realIndex, updated)}
                 />
               );
