@@ -32,48 +32,56 @@ const FIELD_LABELS: Record<string, string> = {
 
 const isFilled = (v: unknown): boolean =>
   v !== undefined && v !== null && String(v).trim() !== "";
+
+// useMarkState.ts — 放在 isFilled 附近
+
+/** 将 Excel/后端传来的特殊值类型统一转为基本类型 */
 function sanitizeCellValue(val: unknown): unknown {
   if (val === null || val === undefined) return "";
 
+  // 富文本对象 { richText: [{ text: "..." }, ...] }
   if (typeof val === "object" && val !== null && "richText" in (val as any)) {
     const rt = (val as any).richText;
     if (Array.isArray(rt)) {
-      return rt.map((seg: any) => seg?.text ?? "").join("");
+      return rt.map((seg: any) => String(seg?.text ?? "")).join("");
     }
     return "";
   }
 
+  // 公式结果对象 { formula: "...", result: "..." }
   if (typeof val === "object" && val !== null && "result" in (val as any)) {
     return sanitizeCellValue((val as any).result);
   }
 
+  // 超链接对象 { text: "...", hyperlink: "..." }
   if (typeof val === "object" && val !== null && "hyperlink" in (val as any)) {
     return (val as any).text || (val as any).hyperlink || "";
   }
 
+  // 其他未知对象 → 转字符串
   if (typeof val === "object" && val !== null && !Array.isArray(val)) {
     try {
-      return String(val);
+      return JSON.stringify(val);
     } catch {
       return "";
     }
   }
 
-  if (typeof val === "string") {
-    if (
-      val.startsWith("http://") &&
-      (val.includes(".hdslb.com") ||
-        val.includes(".bilivideo.") ||
-        val.includes("i0.hdslb.com") ||
-        val.includes("i1.hdslb.com") ||
-        val.includes("i2.hdslb.com"))
-    ) {
-      return val.replace(/^http:\/\//, "https://");
-    }
-    return val;
+  // 字符串：http → https（B站 CDN）
+  if (typeof val === "string" && val.startsWith("http://")) {
+    return val.replace(/^http:\/\//, "https://");
   }
 
   return val;
+}
+
+/** 清洗整条记录 */
+function sanitizeRecord(r: RecordType): RecordType {
+  const out: RecordType = {};
+  for (const [k, v] of Object.entries(r)) {
+    out[k] = sanitizeCellValue(v);
+  }
+  return out;
 }
 export function useMarkState() {
   const [allRecords, setAllRecords] = useState<RecordType[]>([]);
@@ -110,6 +118,8 @@ export function useMarkState() {
       missingFields: [],
       nameMatchTitle: [],
       authorMatchUp: [],
+      sameAuthorDiffName: [],
+      inconsistentEntries: [],
     },
   );
 
@@ -119,9 +129,10 @@ export function useMarkState() {
   const { addBookmarksBatch } = useBookmarks();
 
   // Derived
-  const currentRecords = isCollab
-    ? (collab.records as RecordType[])
-    : allRecords;
+  const currentRecords = useMemo(() => {
+    const raw = isCollab ? (collab.records as RecordType[]) : allRecords;
+    return raw.map(sanitizeRecord);
+  }, [isCollab, collab.records, allRecords]);
   const currentIncludeEntries = isCollab
     ? collab.includeEntries
     : includeEntries;
@@ -505,7 +516,9 @@ export function useMarkState() {
       result.pending.length === 0 &&
       result.missingFields.length === 0 &&
       result.nameMatchTitle.length === 0 &&
-      result.authorMatchUp.length === 0;
+      result.authorMatchUp.length === 0 &&
+      result.sameAuthorDiffName.length === 0 &&
+      result.inconsistentEntries.length === 0;
 
     if (allClear) {
       performExport();
