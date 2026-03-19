@@ -4,9 +4,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { CheckCircle2, Ban, Undo2, Bookmark } from "lucide-react";
+import { CheckCircle2, Ban, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useBookmarks } from "@/contexts/BookmarksContext";
 import { COLUMNS, type ColDef } from "./columns";
 import CellRenderer from "./CellRenderer";
 import type { CellAddress } from "./useTableNav";
@@ -65,8 +64,7 @@ export default function TableRowComp({
   onRowDragEnter,
 }: Props) {
   const ri = pageOffset + rowInPage;
-  const { isBookmarked, toggleBookmark } = useBookmarks();
-  const bm = isBookmarked(ri);
+  const canBlacklist = !isBlacklisted && !isIncluded;
 
   return (
     <tr
@@ -132,8 +130,13 @@ export default function TableRowComp({
                 size="icon"
                 className={cn(
                   "h-6 w-6",
-                  isBlacklisted ? "text-red-500" : "text-muted-foreground/40",
+                  isBlacklisted
+                    ? "text-red-500"
+                    : canBlacklist
+                      ? "text-muted-foreground/40"
+                      : "text-muted-foreground/20 cursor-not-allowed",
                 )}
+                disabled={!isBlacklisted && !canBlacklist}
                 onClick={() =>
                   isBlacklisted ? onUnblacklist(ri) : onBlacklist(ri)
                 }
@@ -146,22 +149,13 @@ export default function TableRowComp({
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="text-xs">
-              {isBlacklisted ? "取消排除" : "排除"}
+              {isBlacklisted
+                ? "取消排除"
+                : !canBlacklist
+                  ? "请先取消收录再排除"
+                  : "排除"}
             </TooltipContent>
           </Tooltip>
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "h-6 w-6",
-              bm
-                ? "text-primary"
-                : "text-muted-foreground/40 opacity-0 group-hover:opacity-100",
-            )}
-            onClick={() => toggleBookmark(ri, record.title)}
-          >
-            <Bookmark className={cn("h-3.5 w-3.5", bm && "fill-primary")} />
-          </Button>
         </div>
       </td>
 
@@ -213,7 +207,6 @@ export default function TableRowComp({
               if (isBlacklisted) return;
               e.stopPropagation();
               if (active && !editing) {
-                // 已选中状态再次点击 → 进入编辑
                 onCellEdit();
               } else if (!active) {
                 onCellSelect(rowInPage, ci);
@@ -223,7 +216,6 @@ export default function TableRowComp({
               if (isBlacklisted) return;
               e.stopPropagation();
               onCellSelect(rowInPage, ci);
-              // 用 setTimeout 确保 selectCell 先执行
               setTimeout(() => onCellEdit(), 0);
             }}
           >

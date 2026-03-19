@@ -8,7 +8,6 @@ import {
 } from "@/components/ui/tooltip";
 import { CheckCircle2, Ban, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useBookmarks } from "@/contexts/BookmarksContext";
 
 interface Props {
   index: number;
@@ -21,7 +20,6 @@ interface Props {
 }
 
 export default function CardActions({
-  index,
   record,
   include,
   blacklisted,
@@ -29,8 +27,7 @@ export default function CardActions({
   onBlacklist,
   onUnblacklist,
 }: Props) {
-  const { getBookmark } = useBookmarks();
-  const bookmark = getBookmark(index);
+  const canBlacklist = !blacklisted && !include;
 
   return (
     <>
@@ -68,8 +65,13 @@ export default function CardActions({
                 className={cn(
                   "flex-1 gap-1.5 transition-all",
                   !blacklisted &&
+                    canBlacklist &&
                     "text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-red-800 dark:hover:bg-red-950",
+                  !blacklisted &&
+                    !canBlacklist &&
+                    "opacity-50 cursor-not-allowed",
                 )}
+                disabled={!blacklisted && !canBlacklist}
                 onClick={blacklisted ? onUnblacklist : onBlacklist}
               >
                 {blacklisted ? (
@@ -88,8 +90,10 @@ export default function CardActions({
             <TooltipContent>
               {blacklisted ? (
                 <p>从全局排除名单中移除</p>
+              ) : !canBlacklist ? (
+                <p>请先取消收录再排除</p>
               ) : (
-                <p>加入全局排除名单（跨文件生效）</p>
+                <p>加入全局排除名单</p>
               )}
             </TooltipContent>
           </Tooltip>
@@ -110,11 +114,6 @@ export default function CardActions({
             className="text-[10px] bg-sky-100 text-sky-800 border-sky-300 dark:bg-sky-900/40 dark:text-sky-300"
           >
             已完成
-          </Badge>
-        )}
-        {bookmark?.note && (
-          <Badge variant="outline" className="text-[10px] max-w-full truncate">
-            {bookmark.note}
           </Badge>
         )}
       </div>

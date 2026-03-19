@@ -1,19 +1,7 @@
-import { type RefObject } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import { FileDown, Search, LayoutGrid, LayoutList, Table2 } from "lucide-react";
+import { FileDown, LayoutGrid, LayoutList, Table2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import TaskStatsPanel from "@/components/mark/TaskStatsPanel";
 import type { LayoutMode } from "./useMarkState";
@@ -21,18 +9,10 @@ import type { LayoutMode } from "./useMarkState";
 interface Props {
   isCollab: boolean;
   collab: any;
-  mode: string;
   onModeChange: (checked: boolean) => void;
-  fileInputRef: RefObject<HTMLInputElement | null>;
-  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   layoutMode: LayoutMode;
   onLayoutChange: (m: LayoutMode) => void;
   hasRecords: boolean;
-  onOpenSearch: () => void;
-  exportDialogOpen: boolean;
-  onExportDialogChange: (v: boolean) => void;
-  keepExcluded: boolean;
-  onKeepExcludedChange: (v: boolean) => void;
   onExport: () => void;
 }
 
@@ -40,16 +20,9 @@ export default function MarkToolbar({
   isCollab,
   collab,
   onModeChange,
-  fileInputRef,
-  onFileChange,
   layoutMode,
   onLayoutChange,
   hasRecords,
-  onOpenSearch,
-  exportDialogOpen,
-  onExportDialogChange,
-  keepExcluded,
-  onKeepExcludedChange,
   onExport,
 }: Props) {
   return (
@@ -65,18 +38,10 @@ export default function MarkToolbar({
         </Label>
         {isCollab && (
           <span className="text-[11px] text-muted-foreground">
-            {collab.statusLabel} · 待同步 {collab.pendingCount}
+            {collab.statusLabel}
           </span>
         )}
       </div>
-
-      <Input
-        ref={fileInputRef}
-        type="file"
-        accept=".xlsx, .xls"
-        onChange={onFileChange}
-        className="max-w-xs cursor-pointer text-sm"
-      />
 
       {hasRecords && (
         <div className="flex flex-wrap gap-2 items-center">
@@ -89,7 +54,7 @@ export default function MarkToolbar({
           )}
 
           {/* 布局切换 */}
-          <div className="flex items-center border rounded-lg overflow-hidden md:flex">
+          <div className="flex items-center border rounded-lg overflow-hidden">
             {[
               { mode: "list" as const, Icon: LayoutList, title: "单列列表" },
               { mode: "grid" as const, Icon: LayoutGrid, title: "双列网格" },
@@ -112,53 +77,10 @@ export default function MarkToolbar({
             ))}
           </div>
 
-          <Button
-            variant="outline"
-            className="justify-between text-muted-foreground sm:w-56"
-            onClick={onOpenSearch}
-          >
-            <span className="flex items-center gap-2">
-              <Search className="h-4 w-4" />
-              搜索...
-            </span>
-            <kbd className="hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px]">
-              ⌘K
-            </kbd>
+          <Button variant="outline" className="gap-2" onClick={onExport}>
+            <FileDown className="h-4 w-4" />
+            导出
           </Button>
-
-          <Dialog open={exportDialogOpen} onOpenChange={onExportDialogChange}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <FileDown className="h-4 w-4" />
-                导出
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>导出选项</DialogTitle>
-                <DialogDescription>选择导出文件的内容</DialogDescription>
-              </DialogHeader>
-              <div className="flex items-center space-x-2 py-4">
-                <Checkbox
-                  id="keepExcluded"
-                  checked={keepExcluded}
-                  onCheckedChange={(c) => onKeepExcludedChange(c as boolean)}
-                />
-                <label htmlFor="keepExcluded" className="text-sm">
-                  保留未收录的歌曲（标记为"排除"）
-                </label>
-              </div>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => onExportDialogChange(false)}
-                >
-                  取消
-                </Button>
-                <Button onClick={onExport}>确认导出</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </div>
       )}
     </div>

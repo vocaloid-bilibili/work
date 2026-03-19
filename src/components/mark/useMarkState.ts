@@ -2,8 +2,8 @@ import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useCollaborativeMark } from "@/hooks/useCollaborativeMark";
 import { exportToExcel } from "@/utils/excel";
 import { toast } from "sonner";
-import { useBookmarks } from "@/contexts/BookmarksContext";
 import { runExportChecks, type ExportCheckResult } from "./exportCheck";
+import type { RecordAttribution } from "@/components/mark/stats/types";
 
 export type LayoutMode = "list" | "grid" | "table";
 
@@ -12,34 +12,11 @@ export interface RecordType {
   include?: string | boolean;
 }
 
-const REQUIRED_FIELDS = [
-  "name",
-  "vocal",
-  "author",
-  "synthesizer",
-  "copyright",
-  "type",
-];
-const TAG_FIELDS = ["vocal", "author", "synthesizer"];
-const FIELD_LABELS: Record<string, string> = {
-  name: "歌名",
-  vocal: "歌手",
-  author: "作者",
-  synthesizer: "引擎",
-  copyright: "版权",
-  type: "类别",
-};
-
 const isFilled = (v: unknown): boolean =>
   v !== undefined && v !== null && String(v).trim() !== "";
 
-// useMarkState.ts — 放在 isFilled 附近
-
-/** 将 Excel/后端传来的特殊值类型统一转为基本类型 */
 function sanitizeCellValue(val: unknown): unknown {
   if (val === null || val === undefined) return "";
-
-  // 富文本对象 { richText: [{ text: "..." }, ...] }
   if (typeof val === "object" && val !== null && "richText" in (val as any)) {
     const rt = (val as any).richText;
     if (Array.isArray(rt)) {
@@ -47,18 +24,12 @@ function sanitizeCellValue(val: unknown): unknown {
     }
     return "";
   }
-
-  // 公式结果对象 { formula: "...", result: "..." }
   if (typeof val === "object" && val !== null && "result" in (val as any)) {
     return sanitizeCellValue((val as any).result);
   }
-
-  // 超链接对象 { text: "...", hyperlink: "..." }
   if (typeof val === "object" && val !== null && "hyperlink" in (val as any)) {
     return (val as any).text || (val as any).hyperlink || "";
   }
-
-  // 其他未知对象 → 转字符串
   if (typeof val === "object" && val !== null && !Array.isArray(val)) {
     try {
       return JSON.stringify(val);
@@ -66,16 +37,12 @@ function sanitizeCellValue(val: unknown): unknown {
       return "";
     }
   }
-
-  // 字符串：http → https（B站 CDN）
   if (typeof val === "string" && val.startsWith("http://")) {
     return val.replace(/^http:\/\//, "https://");
   }
-
   return val;
 }
 
-/** 清洗整条记录 */
 function sanitizeRecord(r: RecordType): RecordType {
   const out: RecordType = {};
   for (const [k, v] of Object.entries(r)) {
@@ -83,6 +50,7 @@ function sanitizeRecord(r: RecordType): RecordType {
   }
   return out;
 }
+
 export function useMarkState() {
   const [allRecords, setAllRecords] = useState<RecordType[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -98,17 +66,11 @@ export function useMarkState() {
     return saved === "collab" ? "collab" : "local";
   });
   const [collabUploading, setCollabUploading] = useState(false);
-  const [openSearch, setOpenSearch] = useState(false);
-  const [bookmarkOpen, setBookmarkOpen] = useState(false);
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(() => {
     const saved = localStorage.getItem("mark_layout");
     if (saved === "grid" || saved === "table") return saved;
     return "list";
   });
-  const [keepExcluded, setKeepExcluded] = useState(false);
-  const [exportDialogOpen, setExportDialogOpen] = useState(false);
-  const [incompleteDialogOpen, setIncompleteDialogOpen] = useState(false);
-  const [incompleteIndices] = useState<number[]>([]);
 
   const [originalFileName, setOriginalFileName] = useState<string>("");
   const [exportCheckOpen, setExportCheckOpen] = useState(false);
@@ -126,19 +88,23 @@ export function useMarkState() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isCollab = mode === "collab";
   const collab = useCollaborativeMark();
-  const { addBookmarksBatch } = useBookmarks();
 
   // Derived
   const currentRecords = useMemo(() => {
     const raw = isCollab ? (collab.records as RecordType[]) : allRecords;
     return raw.map(sanitizeRecord);
   }, [isCollab, collab.records, allRecords]);
+
   const currentIncludeEntries = isCollab
     ? collab.includeEntries
     : includeEntries;
   const currentBlacklistedEntries = isCollab
     ? collab.blacklistedEntries
     : blacklistedEntries;
+  const currentRecordAttributions: RecordAttribution[] = isCollab
+    ? collab.recordAttributions
+    : [];
+
   const isLoading = isCollab
     ? collab.loading || collabUploading
     : status === "loading";
@@ -173,21 +139,6 @@ export function useMarkState() {
   }, [layoutMode]);
 
   useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setOpenSearch((o) => !o);
-      }
-      if (e.key === "b" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setBookmarkOpen((o) => !o);
-      }
-    };
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
-  }, []);
-
-  useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       if (currentRecords.length > 0) e.preventDefault();
     };
@@ -204,7 +155,6 @@ export function useMarkState() {
   const handleJumpToRecord = useCallback(
     (index: number) => {
       if (layoutMode === "table") {
-        setOpenSearch(false);
         const el = document.getElementById(`record-${index}`);
         if (el) {
           el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -219,7 +169,6 @@ export function useMarkState() {
       }
       const page = Math.floor(index / pageSize) + 1;
       setCurrentPage(page);
-      setOpenSearch(false);
       setTimeout(() => {
         const el = document.getElementById(`record-${index}`);
         if (el) {
@@ -281,7 +230,6 @@ export function useMarkState() {
               return obj;
             });
             setAllRecords(records);
-
             const init = records.map(
               (r: any) =>
                 isFilled(r.vocal) &&
@@ -413,7 +361,6 @@ export function useMarkState() {
         n[index] = obj;
         return n;
       });
-
       setIncludeEntries((prev) => {
         const n = [...prev];
         const merged =
@@ -441,7 +388,6 @@ export function useMarkState() {
         n[realIndex] = { ...n[realIndex], [field]: value };
         return n;
       });
-
       if (["vocal", "synthesizer", "type"].includes(field)) {
         setIncludeEntries((prev) => {
           const n = [...prev];
@@ -469,10 +415,9 @@ export function useMarkState() {
   const performExport = useCallback(() => {
     if (isCollab) {
       collab
-        .exportFile(keepExcluded)
+        .exportFile(false)
         .then(() => {
           toast.success("导出成功");
-          setExportDialogOpen(false);
           setExportCheckOpen(false);
         })
         .catch((err: unknown) =>
@@ -483,22 +428,18 @@ export function useMarkState() {
     exportToExcel(
       currentRecords,
       currentIncludeEntries,
-      keepExcluded,
+      false,
       getExportFileName(),
     );
-    setExportDialogOpen(false);
     setExportCheckOpen(false);
-    setIncompleteDialogOpen(false);
   }, [
     isCollab,
     collab,
     currentRecords,
     currentIncludeEntries,
-    keepExcluded,
     getExportFileName,
   ]);
 
-  // ★ 新导出入口：先检查再导出
   const handleExport = useCallback(() => {
     if (currentRecords.length === 0) {
       toast.error("没有数据可以导出");
@@ -523,7 +464,6 @@ export function useMarkState() {
     if (allClear) {
       performExport();
     } else {
-      setExportDialogOpen(false);
       setExportCheckOpen(true);
     }
   }, [
@@ -533,71 +473,26 @@ export function useMarkState() {
     performExport,
   ]);
 
-  const getRecordIssues = useCallback((record: any) => {
-    const issues: string[] = [];
-    REQUIRED_FIELDS.forEach((f) => {
-      const v = record[f];
-      if (v === undefined || v === null || v === "")
-        issues.push(`${FIELD_LABELS[f]}未填写`);
-    });
-    TAG_FIELDS.forEach((f) => {
-      const v = record[`_unconfirmed_${f}`];
-      if (!!v && v.trim() !== "")
-        issues.push(`${FIELD_LABELS[f]}栏存在内容未确认`);
-    });
-    return issues.join("，");
-  }, []);
-
-  const handleAddIncompleteToBookmarks = useCallback(() => {
-    const bm = incompleteIndices.map((idx: number) => ({
-      index: idx,
-      title:
-        currentRecords[idx]?.title || currentRecords[idx]?.name || "未命名",
-      note: currentRecords[idx]
-        ? getRecordIssues(currentRecords[idx])
-        : "信息未填写完整",
-    }));
-    addBookmarksBatch(bm);
-    setIncompleteDialogOpen(false);
-    if (incompleteIndices.length > 0) handleJumpToRecord(incompleteIndices[0]);
-  }, [
-    incompleteIndices,
-    currentRecords,
-    getRecordIssues,
-    addBookmarksBatch,
-    handleJumpToRecord,
-  ]);
-
   return {
-    // data
     currentRecords,
     pagedData,
     currentIncludeEntries,
     currentBlacklistedEntries,
-    // pagination
+    currentRecordAttributions,
     currentPage,
     totalPages,
     pageSize,
     handlePageChange,
-    // counts
     includedCount,
     blacklistedCount,
     pendingCount,
-    // mode
     isCollab,
     collab,
     isLoading,
     mode,
     handleModeChange,
-    // layout
     layoutMode,
     setLayoutMode,
-    // search / bookmarks
-    openSearch,
-    setOpenSearch,
-    bookmarkOpen,
-    setBookmarkOpen,
-    // actions
     fileInputRef,
     handleFileChange,
     handleChangeAll,
@@ -607,23 +502,13 @@ export function useMarkState() {
     handleRecordUpdate,
     handleDirectFieldChange,
     handleJumpToRecord,
-    // all included
     allIncludedValue,
-    // export
     handleExport,
     performExport,
-    keepExcluded,
-    setKeepExcluded,
-    exportDialogOpen,
-    setExportDialogOpen,
     getExportFileName,
     originalFileName,
     exportCheckOpen,
     setExportCheckOpen,
     exportCheckResult,
-    incompleteDialogOpen,
-    setIncompleteDialogOpen,
-    incompleteIndices,
-    handleAddIncompleteToBookmarks,
   };
 }

@@ -25,7 +25,6 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useBookmarks } from "@/contexts/BookmarksContext";
 import type { ExportCheckResult } from "../exportCheck";
 import { FIELD_LABELS } from "../exportCheck";
 import CheckSection from "./CheckSection";
@@ -46,7 +45,6 @@ export default function ExportCheckDialog({
   onJump,
   onExport,
 }: Props) {
-  const { toggleBookmark, isBookmarked } = useBookmarks();
   const [confirmed, setConfirmed] = useState<Set<string>>(new Set());
 
   const resetConfirmed = useCallback(() => setConfirmed(new Set()), []);
@@ -64,7 +62,6 @@ export default function ExportCheckDialog({
     inconsistentEntries,
   } = checkResult;
 
-  // 新增的计数
   const inconsistentCount = inconsistentEntries.reduce(
     (s, g) => s + g.entries.length,
     0,
@@ -77,22 +74,20 @@ export default function ExportCheckDialog({
   const hasMandatory =
     pending.length > 0 ||
     missingFields.length > 0 ||
-    inconsistentEntries.length > 0; // ★ 新增
+    inconsistentEntries.length > 0;
 
   const hasAdvisory =
     nameMatchTitle.length > 0 ||
     authorMatchUp.length > 0 ||
-    sameAuthorDiffName.length > 0; // ★ 新增
+    sameAuthorDiffName.length > 0;
 
   const advisoryConfirmed =
     (nameMatchTitle.length === 0 || confirmed.has("nameMatch")) &&
     (authorMatchUp.length === 0 || confirmed.has("authorMatch")) &&
-    (sameAuthorDiffName.length === 0 || confirmed.has("sameAuthorDiffName")); // ★ 新增
+    (sameAuthorDiffName.length === 0 || confirmed.has("sameAuthorDiffName"));
 
   const canExport = !hasMandatory && advisoryConfirmed;
   const allClear = !hasMandatory && !hasAdvisory;
-
-  // ── helpers ──
 
   const jump = useCallback(
     (index: number) => {
@@ -101,19 +96,6 @@ export default function ExportCheckDialog({
     },
     [onOpenChange, onJump],
   );
-
-  const bookmarkAll = useCallback(
-    (items: { index: number; title: string }[]) => {
-      for (const item of items) {
-        if (!isBookmarked(item.index)) {
-          toggleBookmark(item.index, item.title);
-        }
-      }
-    },
-    [isBookmarked, toggleBookmark],
-  );
-
-  // ── summary bar ──
 
   const summarySegments = useMemo(() => {
     const segs: { count: number; color: string; label: string }[] = [];
@@ -168,7 +150,6 @@ export default function ExportCheckDialog({
     confirmed,
   ]);
 
-  // mandatory 总数（用于 footer）
   const mandatoryCount =
     pending.length + missingFields.length + inconsistentCount;
 
@@ -181,7 +162,6 @@ export default function ExportCheckDialog({
       }}
     >
       <DialogContent className="max-w-lg max-h-[80vh] p-0 flex flex-col gap-0 overflow-hidden">
-        {/* ── Header ── */}
         <DialogHeader className="px-5 pt-5 pb-3 space-y-2">
           <DialogTitle className="flex items-center gap-2 text-base">
             {allClear ? (
@@ -226,7 +206,6 @@ export default function ExportCheckDialog({
           )}
         </DialogHeader>
 
-        {/* ── Body ── */}
         <ScrollArea className="flex-1 min-h-0">
           <div className="px-5 pb-4">
             {allClear ? (
@@ -239,16 +218,12 @@ export default function ExportCheckDialog({
               </div>
             ) : (
               <div className="space-y-2.5">
-                {/* ── 待处理 ── */}
                 <CheckSection
                   icon={<CircleDot className="h-4 w-4 text-red-500" />}
                   label="待处理（未收录也未排除）"
                   count={pending.length}
                   severity="error"
                   defaultOpen={pending.length > 0 && pending.length <= 15}
-                  onBookmarkAll={
-                    pending.length > 3 ? () => bookmarkAll(pending) : undefined
-                  }
                 >
                   {pending.map((item) => (
                     <ItemRow
@@ -256,12 +231,10 @@ export default function ExportCheckDialog({
                       index={item.index}
                       title={item.title}
                       onJump={() => jump(item.index)}
-                      onBookmark={() => toggleBookmark(item.index, item.title)}
                     />
                   ))}
                 </CheckSection>
 
-                {/* ── 字段缺失 ── */}
                 <CheckSection
                   icon={<XCircle className="h-4 w-4 text-red-500" />}
                   label="字段缺失（已收录但信息不完整）"
@@ -269,17 +242,6 @@ export default function ExportCheckDialog({
                   severity="error"
                   defaultOpen={
                     missingFields.length > 0 && missingFields.length <= 15
-                  }
-                  onBookmarkAll={
-                    missingFields.length > 3
-                      ? () =>
-                          bookmarkAll(
-                            missingFields.map((m) => ({
-                              index: m.index,
-                              title: `[缺] ${m.missingLabels.join("、")} — ${m.title}`,
-                            })),
-                          )
-                      : undefined
                   }
                 >
                   {missingFields.map((item) => (
@@ -293,17 +255,10 @@ export default function ExportCheckDialog({
                           "text-red-500 border-red-300 dark:border-red-800",
                       }))}
                       onJump={() => jump(item.index)}
-                      onBookmark={() =>
-                        toggleBookmark(
-                          item.index,
-                          `[缺] ${item.missingLabels.join("、")} — ${item.title}`,
-                        )
-                      }
                     />
                   ))}
                 </CheckSection>
 
-                {/* ★ 新增：字段不一致（error） */}
                 <CheckSection
                   icon={<GitCompareArrows className="h-4 w-4 text-red-500" />}
                   label="同歌名同作者但标注不一致"
@@ -312,23 +267,9 @@ export default function ExportCheckDialog({
                   defaultOpen={
                     inconsistentEntries.length > 0 && inconsistentCount <= 20
                   }
-                  onBookmarkAll={
-                    inconsistentCount > 3
-                      ? () =>
-                          bookmarkAll(
-                            inconsistentEntries.flatMap((g) =>
-                              g.entries.map((e) => ({
-                                index: e.index,
-                                title: `[不一致] ${g.inconsistentFields.map((f) => FIELD_LABELS[f]).join("、")} — ${e.title}`,
-                              })),
-                            ),
-                          )
-                      : undefined
-                  }
                 >
                   {inconsistentEntries.map((group) => (
                     <div key={group.key} className="space-y-0.5">
-                      {/* 分组头 */}
                       <div className="flex flex-col gap-1 px-2.5 py-1.5 bg-red-50/50 dark:bg-red-950/20 rounded-md mt-1 first:mt-0">
                         <div className="text-xs font-medium truncate">
                           <span className="text-muted-foreground">歌名</span>{" "}
@@ -350,7 +291,6 @@ export default function ExportCheckDialog({
                           ))}
                         </div>
                       </div>
-                      {/* 组内条目 */}
                       {group.entries.map((item) => (
                         <ItemRow
                           key={item.index}
@@ -362,19 +302,12 @@ export default function ExportCheckDialog({
                               "text-red-500 border-red-300 dark:border-red-800",
                           }))}
                           onJump={() => jump(item.index)}
-                          onBookmark={() =>
-                            toggleBookmark(
-                              item.index,
-                              `[不一致] ${group.inconsistentFields.map((f) => FIELD_LABELS[f]).join("、")} — ${item.title}`,
-                            )
-                          }
                         />
                       ))}
                     </div>
                   ))}
                 </CheckSection>
 
-                {/* ── 歌名=标题 ── */}
                 <CheckSection
                   icon={<TextCursorInput className="h-4 w-4 text-amber-500" />}
                   label="歌名与视频标题一致"
@@ -397,7 +330,6 @@ export default function ExportCheckDialog({
                   ))}
                 </CheckSection>
 
-                {/* ── 作者=UP ── */}
                 <CheckSection
                   icon={<UserCheck className="h-4 w-4 text-amber-500" />}
                   label="作者与UP主一致"
@@ -420,7 +352,6 @@ export default function ExportCheckDialog({
                   ))}
                 </CheckSection>
 
-                {/* ★ 新增：同作者不同歌名（caution） */}
                 <CheckSection
                   icon={<Users className="h-4 w-4 text-amber-500" />}
                   label="同作者不同歌名（可能是同曲异名）"
@@ -434,7 +365,6 @@ export default function ExportCheckDialog({
                 >
                   {sameAuthorDiffName.map((group) => (
                     <div key={group.author} className="space-y-0.5">
-                      {/* 分组头 */}
                       <div className="px-2.5 py-1.5 bg-amber-50/50 dark:bg-amber-950/20 rounded-md mt-1 first:mt-0">
                         <div className="text-xs font-medium">
                           <span className="text-muted-foreground">作者</span>{" "}
@@ -444,7 +374,6 @@ export default function ExportCheckDialog({
                           </span>
                         </div>
                       </div>
-                      {/* 组内条目 */}
                       {group.songs.map((item) => (
                         <ItemRow
                           key={item.index}
@@ -452,9 +381,6 @@ export default function ExportCheckDialog({
                           title={item.title}
                           extra={`歌名: ${item.name}`}
                           onJump={() => jump(item.index)}
-                          onBookmark={() =>
-                            toggleBookmark(item.index, item.title)
-                          }
                         />
                       ))}
                     </div>
@@ -465,7 +391,6 @@ export default function ExportCheckDialog({
           </div>
         </ScrollArea>
 
-        {/* ── Footer ── */}
         <DialogFooter className="px-5 py-3 border-t bg-muted/20">
           <div className="flex items-center justify-between w-full">
             <div className="text-xs">

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronRight, ShieldCheck, Bookmark } from "lucide-react";
+import { ChevronDown, ChevronRight, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface CheckSectionProps {
@@ -11,7 +11,6 @@ interface CheckSectionProps {
   severity: "error" | "warn";
   confirmed?: boolean;
   onConfirm?: () => void;
-  onBookmarkAll?: () => void;
   children: React.ReactNode;
   defaultOpen?: boolean;
 }
@@ -23,7 +22,6 @@ export default function CheckSection({
   severity,
   confirmed,
   onConfirm,
-  onBookmarkAll,
   children,
   defaultOpen = false,
 }: CheckSectionProps) {
@@ -86,35 +84,17 @@ export default function CheckSection({
       {/* 展开内容 */}
       {open && (
         <div className="border-t border-inherit">
-          {/* 批量操作栏 */}
-          {(onBookmarkAll || (onConfirm && !isConfirmed)) && (
-            <div className="flex items-center justify-between gap-2 px-3 py-1.5 bg-muted/30">
-              <div>
-                {onBookmarkAll && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 text-[11px] text-muted-foreground gap-1"
-                    onClick={onBookmarkAll}
-                  >
-                    <Bookmark className="h-3 w-3" />
-                    全部加入书签
-                  </Button>
-                )}
-              </div>
-              <div>
-                {onConfirm && !isConfirmed && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 text-[11px] gap-1"
-                    onClick={onConfirm}
-                  >
-                    <ShieldCheck className="h-3 w-3" />
-                    确认无误
-                  </Button>
-                )}
-              </div>
+          {onConfirm && !isConfirmed && (
+            <div className="flex items-center justify-end px-3 py-1.5 bg-muted/30">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-[11px] gap-1"
+                onClick={onConfirm}
+              >
+                <ShieldCheck className="h-3 w-3" />
+                确认无误
+              </Button>
             </div>
           )}
 

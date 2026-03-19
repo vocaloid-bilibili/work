@@ -76,7 +76,7 @@ export default function MarkingTable({
     return c;
   }, [data.length, pageOffset, includeEntries, blacklistedEntries]);
 
-  // 批量操作
+  // 批量收录
   const handleBulkInclude = useCallback(() => {
     for (const row of sel.selected) {
       const ri = pageOffset + row;
@@ -85,13 +85,14 @@ export default function MarkingTable({
     sel.selectNone();
   }, [sel, pageOffset, blacklistedEntries, onIncludeChange]);
 
+  // 批量排除：跳过已收录的和已排除的
   const handleBulkBlacklist = useCallback(() => {
     for (const row of sel.selected) {
       const ri = pageOffset + row;
-      if (!blacklistedEntries[ri]) onBlacklist(ri);
+      if (!blacklistedEntries[ri] && !includeEntries[ri]) onBlacklist(ri);
     }
     sel.selectNone();
-  }, [sel, pageOffset, blacklistedEntries, onBlacklist]);
+  }, [sel, pageOffset, blacklistedEntries, includeEntries, onBlacklist]);
 
   const handleSelectPending = useCallback(() => {
     sel.selectPending(
@@ -107,28 +108,24 @@ export default function MarkingTable({
 
       const { row, col } = nav.activeCell;
 
-      // Ctrl/⌘ + C
       if ((e.ctrlKey || e.metaKey) && e.key === "c") {
         e.preventDefault();
         void copy();
         return;
       }
 
-      // Ctrl/⌘ + V
       if ((e.ctrlKey || e.metaKey) && e.key === "v") {
         e.preventDefault();
         void paste();
         return;
       }
 
-      // Ctrl/⌘ + A (全选行)
       if ((e.ctrlKey || e.metaKey) && e.key === "a") {
         e.preventDefault();
         sel.selectAll();
         return;
       }
 
-      // 方向键导航
       if (e.key === "ArrowDown") {
         e.preventDefault();
         nav.moveDown(row, col);
@@ -150,7 +147,6 @@ export default function MarkingTable({
         return;
       }
 
-      // Tab
       if (e.key === "Tab") {
         e.preventDefault();
         if (e.shiftKey) nav.movePrev(row, col);
@@ -158,7 +154,6 @@ export default function MarkingTable({
         return;
       }
 
-      // Enter → 进入编辑
       if (e.key === "Enter") {
         e.preventDefault();
         setInitialChar(undefined);
@@ -166,7 +161,6 @@ export default function MarkingTable({
         return;
       }
 
-      // F2 → 进入编辑
       if (e.key === "F2") {
         e.preventDefault();
         setInitialChar(undefined);
@@ -174,7 +168,6 @@ export default function MarkingTable({
         return;
       }
 
-      // Delete / Backspace → 清空单元格
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
         const colDef = COLUMNS[col];
@@ -185,14 +178,12 @@ export default function MarkingTable({
         return;
       }
 
-      // Escape → 取消选中
       if (e.key === "Escape") {
         e.preventDefault();
         nav.clearActive();
         return;
       }
 
-      // ★ 任意可打印字符 → 直接开始编辑（覆盖原内容）
       if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
         setInitialChar(e.key);
@@ -202,8 +193,6 @@ export default function MarkingTable({
     },
     [nav, copy, paste, sel, pageOffset, onFieldChange],
   );
-
-  // 进入编辑后自动 focus 到输入框（由各编辑器的 autoFocus 处理）
 
   const fixedCols = [
     { key: "_num", label: "#" },

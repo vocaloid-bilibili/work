@@ -1,7 +1,6 @@
-// mark/export-check/ItemRow.tsx
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Bookmark } from "lucide-react";
+import { MapPin } from "lucide-react";
 
 interface ItemRowProps {
   index: number;
@@ -9,7 +8,6 @@ interface ItemRowProps {
   extra?: React.ReactNode;
   badges?: { label: string; className?: string }[];
   onJump: () => void;
-  onBookmark?: () => void;
 }
 
 export default function ItemRow({
@@ -18,7 +16,6 @@ export default function ItemRow({
   extra,
   badges,
   onJump,
-  onBookmark,
 }: ItemRowProps) {
   return (
     <div className="group flex items-start gap-2.5 py-1.5 px-2.5 rounded-md hover:bg-muted/60 transition-colors overflow-hidden">
@@ -64,17 +61,6 @@ export default function ItemRow({
         >
           <MapPin className="h-3.5 w-3.5" />
         </Button>
-        {onBookmark && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-foreground"
-            onClick={onBookmark}
-            title="加入书签"
-          >
-            <Bookmark className="h-3.5 w-3.5" />
-          </Button>
-        )}
       </div>
     </div>
   );

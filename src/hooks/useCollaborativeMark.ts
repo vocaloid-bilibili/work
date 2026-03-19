@@ -6,6 +6,7 @@ import {
   type ConnectionStatus,
   type ServerEvent,
 } from "@/utils/collabClient";
+import type { RecordAttribution } from "@/components/mark/stats/types";
 
 export type MarkAction = "set" | "toggle_include" | "blacklist" | "unblacklist";
 
@@ -26,6 +27,7 @@ export interface MarkTaskSnapshot {
   records: Array<Record<string, unknown>>;
   includeEntries: boolean[];
   blacklistedEntries: boolean[];
+  recordAttributions: RecordAttribution[];
   serverTime: string;
 }
 
@@ -89,6 +91,9 @@ export function useCollaborativeMark() {
   const [records, setRecords] = useState<Array<Record<string, unknown>>>([]);
   const [includeEntries, setIncludeEntries] = useState<boolean[]>([]);
   const [blacklistedEntries, setBlacklistedEntries] = useState<boolean[]>([]);
+  const [recordAttributions, setRecordAttributions] = useState<
+    RecordAttribution[]
+  >([]);
   const [connectionState, setConnectionState] =
     useState<ConnectionStatus>("offline");
   const [conflict, setConflict] = useState<string | null>(null);
@@ -122,6 +127,9 @@ export function useCollaborativeMark() {
     setIncludeEntries(snap.includeEntries);
     setBlacklistedEntries(
       snap.blacklistedEntries || new Array(snap.records.length).fill(false),
+    );
+    setRecordAttributions(
+      snap.recordAttributions || new Array(snap.records.length).fill({}),
     );
   }, []);
 
@@ -181,6 +189,36 @@ export function useCollaborativeMark() {
         setBlacklistedEntries(result.blacklistedEntries);
         if (typeof event.version === "number") setVersion(event.version);
         pendingOpsRef.current.delete(operation.opId);
+
+        // 更新归属
+        const userProfile = (event as any).userProfile as
+          | RecordAttribution["actionByProfile"]
+          | undefined;
+        if (
+          operation.action === "toggle_include" ||
+          operation.action === "blacklist" ||
+          operation.action === "unblacklist"
+        ) {
+          setRecordAttributions((prev) => {
+            const next = [...prev];
+            if (operation.action === "unblacklist") {
+              next[operation.recordIndex] = {};
+            } else {
+              next[operation.recordIndex] = {
+                actionBy: (operation as any).userId || undefined,
+                actionByProfile: userProfile,
+                action:
+                  operation.action === "blacklist"
+                    ? "blacklist"
+                    : Boolean(operation.value)
+                      ? "include"
+                      : "exclude",
+                actionAt: new Date().toISOString(),
+              };
+            }
+            return next;
+          });
+        }
         return;
       }
 
@@ -402,29 +440,7 @@ export function useCollaborativeMark() {
     async (targetTaskId?: string) => {
       const id = targetTaskId || taskId;
       if (!id) throw new Error("任务未初始化");
-      return requestCollabJson<{
-        taskId: string;
-        totalOperations: number;
-        recordCount: number;
-        totalIncluded: number;
-        totalExcluded: number;
-        totalBlacklisted: number;
-        contributors: Array<{
-          user: {
-            id: string;
-            username?: string;
-            nickname?: string;
-            avatar?: string | null;
-          };
-          totalOps: number;
-          includes: number;
-          excludes: number;
-          blacklists: number;
-          unblacklists: number;
-          fieldEdits: number;
-        }>;
-        fieldBreakdown: Record<string, number>;
-      }>(`/mark/tasks/${id}/stats`);
+      return requestCollabJson<any>(`/mark/tasks/${id}/stats`);
     },
     [taskId],
   );
@@ -461,6 +477,7 @@ export function useCollaborativeMark() {
     records,
     includeEntries,
     blacklistedEntries,
+    recordAttributions,
     conflict,
     connectionState,
     statusLabel,

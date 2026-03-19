@@ -1,15 +1,16 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import CardBookmark from "./card/CardBookmark";
 import CardCover from "./card/CardCover";
 import CardActions from "./card/CardActions";
 import CardFields from "./card/CardFields";
+import type { RecordAttribution } from "./stats/types";
 
 interface Props {
   record: any;
   include: boolean;
   blacklisted: boolean;
   index: number;
+  attribution?: RecordAttribution;
   onIncludeChange: (v: boolean) => void;
   onBlacklist: () => void;
   onUnblacklist: () => void;
@@ -21,6 +22,7 @@ export default function MarkingCard({
   include,
   blacklisted,
   index,
+  attribution,
   onIncludeChange,
   onBlacklist,
   onUnblacklist,
@@ -45,6 +47,16 @@ export default function MarkingCard({
           ? "border-sky-300/40 bg-sky-50/30 dark:bg-sky-950/15"
           : "";
 
+  const profile = attribution?.actionByProfile;
+  const actionLabel =
+    attribution?.action === "include"
+      ? "收录"
+      : attribution?.action === "exclude"
+        ? "排除"
+        : attribution?.action === "blacklist"
+          ? "排除"
+          : null;
+
   return (
     <Card
       id={`record-${index}`}
@@ -64,7 +76,6 @@ export default function MarkingCard({
         )}
       />
       <CardContent className="p-4 pl-5">
-        <CardBookmark index={index} title={record.title} />
         <div className="flex flex-col md:flex-row gap-4">
           <div className="w-full md:w-56 shrink-0 flex flex-col gap-3">
             <CardCover record={record} blacklisted={blacklisted} />
@@ -77,6 +88,26 @@ export default function MarkingCard({
               onBlacklist={onBlacklist}
               onUnblacklist={onUnblacklist}
             />
+            {/* 归属标识 */}
+            {profile && actionLabel && (
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground px-1">
+                {profile.avatar ? (
+                  <img
+                    src={profile.avatar}
+                    alt=""
+                    className="h-4 w-4 rounded-full object-cover shrink-0"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="h-4 w-4 rounded-full bg-muted flex items-center justify-center text-[9px] font-semibold shrink-0">
+                    {(profile.nickname || profile.username || "?")[0]}
+                  </div>
+                )}
+                <span className="truncate">
+                  {profile.nickname || profile.username || "未知"} {actionLabel}
+                </span>
+              </div>
+            )}
           </div>
           <div
             className={cn(

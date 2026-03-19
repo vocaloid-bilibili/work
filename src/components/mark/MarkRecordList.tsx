@@ -1,6 +1,7 @@
 import MarkingCard from "@/components/mark/MarkingCard";
 import MarkingTable from "@/components/mark/MarkingTable";
 import type { LayoutMode, RecordType } from "./useMarkState";
+import type { RecordAttribution } from "@/components/mark/stats/types";
 
 interface Props {
   layoutMode: LayoutMode;
@@ -9,6 +10,7 @@ interface Props {
   pageOffset: number;
   includeEntries: boolean[];
   blacklistedEntries: boolean[];
+  recordAttributions: RecordAttribution[];
   onIncludeChange: (index: number, value: boolean) => void;
   onBlacklist: (index: number) => void;
   onUnblacklist: (index: number) => void;
@@ -23,6 +25,7 @@ export default function MarkRecordList({
   pageOffset,
   includeEntries,
   blacklistedEntries,
+  recordAttributions,
   onIncludeChange,
   onBlacklist,
   onUnblacklist,
@@ -57,6 +60,7 @@ export default function MarkRecordList({
             record={record}
             include={includeEntries[realIndex]}
             blacklisted={blacklistedEntries[realIndex] || false}
+            attribution={recordAttributions[realIndex]}
             onIncludeChange={(val) => onIncludeChange(realIndex, val)}
             onBlacklist={() => onBlacklist(realIndex)}
             onUnblacklist={() => onUnblacklist(realIndex)}
