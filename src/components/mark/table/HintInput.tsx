@@ -6,7 +6,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 interface Props {
   value: string;
   onChange: (v: string) => void;
-  onCommit: () => void;
+  onCommit: (finalValue?: string) => void;
   onCancel: () => void;
   onTab: () => void;
   onShiftTab: () => void;
@@ -39,6 +39,7 @@ export default function HintInput({
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus();
   }, [autoFocus]);
+
   useEffect(() => {
     if (!searchType || !dv || dv.length < 1) {
       setSuggestions([]);
@@ -47,14 +48,15 @@ export default function HintInput({
     api
       .search(searchType, dv)
       .then((r: any) => {
-        if (r.data && Array.isArray(r.data))
-          setSuggestions(
-            r.data.map((i: any) => i.display_name || i.name).filter(Boolean),
-          );
-        else setSuggestions([]);
+        const names =
+          r.data && Array.isArray(r.data)
+            ? r.data.map((i: any) => i.display_name || i.name).filter(Boolean)
+            : [];
+        setSuggestions(names);
       })
       .catch(() => setSuggestions([]));
   }, [dv, searchType]);
+
   useEffect(() => {
     setSelectedIdx(-1);
   }, [suggestions]);
@@ -70,9 +72,10 @@ export default function HintInput({
     if (e.key === "Enter") {
       e.preventDefault();
       if (selectedIdx >= 0 && suggestions[selectedIdx]) {
-        onChange(suggestions[selectedIdx]);
-        setShow(false);
-      } else onCommit();
+        onCommit(suggestions[selectedIdx]);
+      } else {
+        onCommit();
+      }
       return;
     }
     if (e.key === "Escape") {
@@ -125,8 +128,7 @@ export default function HintInput({
               )}
               onMouseDown={(e) => {
                 e.preventDefault();
-                onChange(s);
-                setShow(false);
+                onCommit(s);
               }}
             >
               {s}

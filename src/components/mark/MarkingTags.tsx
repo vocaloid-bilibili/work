@@ -42,7 +42,7 @@ export default function MarkingTags({
     onInputChangeRef.current?.(debouncedInput);
   }, [debouncedInput]);
 
-  const tags = value ? value.split("、").filter(Boolean) : [];
+  const tags = value ? String(value).split("、").filter(Boolean) : [];
 
   useEffect(() => {
     const h = (e: MouseEvent) => {

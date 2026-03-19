@@ -17,15 +17,25 @@ interface Props {
   pageOffset: number;
   isIncluded: boolean;
   isBlacklisted: boolean;
+  isSelected: boolean;
   activeCell: CellAddress | null;
+  isEditing: boolean;
+  initialChar?: string;
   onIncludeChange: (i: number, v: boolean) => void;
   onBlacklist: (i: number) => void;
   onUnblacklist: (i: number) => void;
   commitField: (row: number, col: ColDef, value: unknown) => void;
-  setActiveCell: (c: CellAddress | null) => void;
+  onCellSelect: (row: number, col: number) => void;
+  onCellEdit: () => void;
+  stopEditing: () => void;
+  clearActive: () => void;
   moveNext: (r: number, c: number) => void;
   movePrev: (r: number, c: number) => void;
   moveDown: (r: number, c: number) => void;
+  getWidth: (key: string) => number;
+  onRowClick: (row: number, e: React.MouseEvent) => void;
+  onRowDragStart: (row: number) => void;
+  onRowDragEnter: (row: number) => void;
 }
 
 export default function TableRowComp({
@@ -34,37 +44,61 @@ export default function TableRowComp({
   pageOffset,
   isIncluded,
   isBlacklisted,
+  isSelected,
   activeCell,
+  isEditing,
+  initialChar,
   onIncludeChange,
   onBlacklist,
   onUnblacklist,
   commitField,
-  setActiveCell,
+  onCellSelect,
+  onCellEdit,
+  stopEditing,
+  clearActive,
   moveNext,
   movePrev,
   moveDown,
+  getWidth,
+  onRowClick,
+  onRowDragStart,
+  onRowDragEnter,
 }: Props) {
-  const realIndex = pageOffset + rowInPage;
+  const ri = pageOffset + rowInPage;
   const { isBookmarked, toggleBookmark } = useBookmarks();
-  const bookmarked = isBookmarked(realIndex);
+  const bm = isBookmarked(ri);
 
   return (
     <tr
-      id={`record-${realIndex}`}
+      id={`record-${ri}`}
       className={cn(
         "border-b transition-colors group scroll-mt-16",
+        isSelected && "bg-primary/10! dark:bg-primary/15!",
         isBlacklisted
           ? "bg-red-50/50 dark:bg-red-950/15 text-muted-foreground"
           : isIncluded
             ? "hover:bg-emerald-50/30 dark:hover:bg-emerald-950/10"
             : "hover:bg-muted/30",
-        activeCell?.row === rowInPage && "bg-primary/5",
+        activeCell?.row === rowInPage && !isSelected && "bg-primary/5",
       )}
     >
-      <td className="px-2 py-1.5 text-center text-[11px] text-muted-foreground border-r tabular-nums">
-        {realIndex + 1}
+      <td
+        style={{ width: getWidth("_num") }}
+        className={cn(
+          "px-2 py-1.5 text-center text-[11px] border-r tabular-nums cursor-pointer select-none transition-colors",
+          isSelected
+            ? "bg-primary/20 text-primary font-bold"
+            : "text-muted-foreground hover:bg-muted/60",
+        )}
+        onClick={(e) => onRowClick(rowInPage, e)}
+        onMouseDown={() => onRowDragStart(rowInPage)}
+        onMouseEnter={() => onRowDragEnter(rowInPage)}
+      >
+        {ri + 1}
       </td>
-      <td className="px-1 py-1 border-r">
+
+      {/* 操作列 */}
+      <td style={{ width: getWidth("_ops") }} className="px-1 py-1 border-r">
         <div className="flex items-center justify-center gap-0.5">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -78,7 +112,7 @@ export default function TableRowComp({
                     : "text-muted-foreground/40",
                 )}
                 disabled={isBlacklisted}
-                onClick={() => onIncludeChange(realIndex, !isIncluded)}
+                onClick={() => onIncludeChange(ri, !isIncluded)}
               >
                 <CheckCircle2 className="h-3.5 w-3.5" />
               </Button>
@@ -101,9 +135,7 @@ export default function TableRowComp({
                   isBlacklisted ? "text-red-500" : "text-muted-foreground/40",
                 )}
                 onClick={() =>
-                  isBlacklisted
-                    ? onUnblacklist(realIndex)
-                    : onBlacklist(realIndex)
+                  isBlacklisted ? onUnblacklist(ri) : onBlacklist(ri)
                 }
               >
                 {isBlacklisted ? (
@@ -122,19 +154,22 @@ export default function TableRowComp({
             size="icon"
             className={cn(
               "h-6 w-6",
-              bookmarked
+              bm
                 ? "text-primary"
                 : "text-muted-foreground/40 opacity-0 group-hover:opacity-100",
             )}
-            onClick={() => toggleBookmark(realIndex, record.title)}
+            onClick={() => toggleBookmark(ri, record.title)}
           >
-            <Bookmark
-              className={cn("h-3.5 w-3.5", bookmarked && "fill-primary")}
-            />
+            <Bookmark className={cn("h-3.5 w-3.5", bm && "fill-primary")} />
           </Button>
         </div>
       </td>
-      <td className="px-2 py-1.5 border-r">
+
+      {/* 标题列 */}
+      <td
+        style={{ width: getWidth("_title") }}
+        className="px-2 py-1.5 border-r"
+      >
         <div className="flex items-center gap-2 min-w-0">
           {record.image_url && (
             <img
@@ -158,34 +193,53 @@ export default function TableRowComp({
           </a>
         </div>
       </td>
-      {COLUMNS.map((colDef, colIdx) => {
-        const isActive =
-          activeCell?.row === rowInPage && activeCell?.col === colIdx;
+      {COLUMNS.map((col, ci) => {
+        const active = activeCell?.row === rowInPage && activeCell?.col === ci;
+        const editing = active && isEditing;
+
         return (
           <td
-            key={colDef.key}
+            key={col.key}
+            style={{ width: getWidth(col.key) }}
             className={cn(
-              "px-1.5 py-1 border-r last:border-r-0 relative cursor-pointer transition-colors",
-              colDef.width,
-              isActive && "ring-2 ring-inset ring-primary/60 bg-primary/5",
-              !isActive && "hover:bg-muted/40",
+              "px-1.5 py-1 border-r last:border-r-0 relative cursor-cell transition-colors",
+              active && "ring-2 ring-inset ring-primary/60",
+              active && !editing && "bg-primary/5",
+              editing && "bg-primary/10",
+              !active && "hover:bg-muted/40",
               isBlacklisted && "pointer-events-none opacity-40",
             )}
-            onClick={() => {
-              if (!isBlacklisted)
-                setActiveCell({ row: rowInPage, col: colIdx });
+            onClick={(e) => {
+              if (isBlacklisted) return;
+              e.stopPropagation();
+              if (active && !editing) {
+                // 已选中状态再次点击 → 进入编辑
+                onCellEdit();
+              } else if (!active) {
+                onCellSelect(rowInPage, ci);
+              }
+            }}
+            onDoubleClick={(e) => {
+              if (isBlacklisted) return;
+              e.stopPropagation();
+              onCellSelect(rowInPage, ci);
+              // 用 setTimeout 确保 selectCell 先执行
+              setTimeout(() => onCellEdit(), 0);
             }}
           >
             <CellRenderer
               record={record}
               rowInPage={rowInPage}
-              colIdx={colIdx}
-              colDef={colDef}
-              isActive={isActive}
+              colIdx={ci}
+              colDef={col}
+              isActive={active}
+              isEditing={editing}
               isIncluded={isIncluded}
               isBlacklisted={isBlacklisted}
+              initialChar={editing ? initialChar : undefined}
               commitField={commitField}
-              clearActive={() => setActiveCell(null)}
+              clearActive={clearActive}
+              stopEditing={stopEditing}
               moveNext={moveNext}
               movePrev={movePrev}
               moveDown={moveDown}

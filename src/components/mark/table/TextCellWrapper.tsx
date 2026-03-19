@@ -7,6 +7,7 @@ interface Props {
   rowInPage: number;
   colIdx: number;
   colDef: ColDef;
+  initialChar?: string;
   onCommit: (row: number, col: ColDef, value: unknown) => void;
   onCancel: () => void;
   onMoveNext: (row: number, col: number) => void;
@@ -19,6 +20,7 @@ export default function TextCellWrapper({
   rowInPage,
   colIdx,
   colDef,
+  initialChar,
   onCommit,
   onCancel,
   onMoveNext,
@@ -26,29 +28,32 @@ export default function TextCellWrapper({
   onMoveDown,
 }: Props) {
   const [localValue, setLocalValue] = useState(
-    String(record[colDef.key] || ""),
+    initialChar !== undefined ? initialChar : String(record[colDef.key] || ""),
   );
-  const commit = (v: string) => onCommit(rowInPage, colDef, v);
+
+  const commit = (finalValue?: string) => {
+    onCommit(rowInPage, colDef, finalValue ?? localValue);
+  };
 
   return (
     <HintInput
       value={localValue}
       onChange={setLocalValue}
-      onCommit={() => {
-        commit(localValue);
+      onCommit={(selected) => {
+        commit(selected);
         onMoveDown(rowInPage, colIdx);
       }}
       onCancel={onCancel}
       onTab={() => {
-        commit(localValue);
+        commit();
         onMoveNext(rowInPage, colIdx);
       }}
       onShiftTab={() => {
-        commit(localValue);
+        commit();
         onMovePrev(rowInPage, colIdx);
       }}
       onArrowDown={() => {
-        commit(localValue);
+        commit();
         onMoveDown(rowInPage, colIdx);
       }}
       searchType={colDef.searchType}

@@ -6,6 +6,7 @@ import HintInput from "./HintInput";
 interface Props {
   value: string;
   searchType?: string;
+  initialChar?: string;
   onCommit: (v: string) => void;
   onCancel: () => void;
   onTab: (v: string) => void;
@@ -16,35 +17,51 @@ interface Props {
 export default function TagCellEditor({
   value,
   searchType,
+  initialChar,
   onCancel,
   onTab,
   onShiftTab,
   onMoveDown,
 }: Props) {
   const parsed = useMemo(
-    () => (value ? value.split("、").filter(Boolean) : []),
+    () => (value ? String(value).split("、").filter(Boolean) : []),
     [value],
   );
-  const [tags, setTags] = useState(parsed);
-  const [input, setInput] = useState("");
-  useEffect(() => {
-    setTags(value ? value.split("、").filter(Boolean) : []);
-    setInput("");
-  }, [value]);
 
-  const val = (extra?: string) => (extra ? [...tags, extra] : tags).join("、");
-  const add = (t: string) => {
+  const [tags, setTags] = useState(parsed);
+  const [input, setInput] = useState(initialChar ?? "");
+
+  useEffect(() => {
+    setTags(value ? String(value).split("、").filter(Boolean) : []);
+    if (initialChar === undefined) setInput("");
+  }, [value, initialChar]);
+
+  const joinTags = (extra?: string) =>
+    (extra ? [...tags, extra] : tags).join("、");
+
+  const addTag = (t: string) => {
     const s = t.trim();
     if (s && !tags.includes(s)) setTags((p) => [...p, s]);
     setInput("");
   };
-  const remove = (t: string) => setTags((p) => p.filter((x) => x !== t));
 
-  const commitInput = () => {
-    if (input.trim()) add(input.trim());
-    else onMoveDown(val());
+  const removeTag = (t: string) => setTags((p) => p.filter((x) => x !== t));
+
+  const handleInputChange = (v: string) => {
+    if (v.endsWith("、")) {
+      const tag = v.slice(0, -1).trim();
+      if (tag) addTag(tag);
+    } else {
+      setInput(v);
+    }
   };
-  const tabVal = () => (input.trim() ? val(input.trim()) : val());
+
+  const handleCommit = (selected?: string) => {
+    const pending = selected ?? (input.trim() || undefined);
+    onMoveDown(joinTags(pending));
+  };
+
+  const tabVal = () => (input.trim() ? joinTags(input.trim()) : joinTags());
 
   return (
     <div className="flex flex-wrap items-center gap-1 w-full min-h-7 px-1">
@@ -57,7 +74,7 @@ export default function TagCellEditor({
           {t}
           <button
             type="button"
-            onClick={() => remove(t)}
+            onClick={() => removeTag(t)}
             className="ml-0.5 hover:text-destructive"
           >
             <X className="h-2.5 w-2.5" />
@@ -67,13 +84,13 @@ export default function TagCellEditor({
       <div className="flex-1 min-w-15">
         <HintInput
           value={input}
-          onChange={setInput}
-          onCommit={commitInput}
+          onChange={handleInputChange}
+          onCommit={handleCommit}
           onCancel={onCancel}
           onTab={() => onTab(tabVal())}
           onShiftTab={() => onShiftTab(tabVal())}
           onArrowDown={() => {
-            if (!input) onMoveDown(val());
+            if (!input) onMoveDown(joinTags());
           }}
           searchType={searchType}
           autoFocus

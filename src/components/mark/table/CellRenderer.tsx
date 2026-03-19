@@ -11,10 +11,13 @@ interface Props {
   colIdx: number;
   colDef: ColDef;
   isActive: boolean;
+  isEditing: boolean;
   isIncluded: boolean;
   isBlacklisted: boolean;
+  initialChar?: string;
   commitField: (row: number, col: ColDef, value: unknown) => void;
   clearActive: () => void;
+  stopEditing: () => void;
   moveNext: (r: number, c: number) => void;
   movePrev: (r: number, c: number) => void;
   moveDown: (r: number, c: number) => void;
@@ -26,10 +29,12 @@ export default function CellRenderer({
   colIdx,
   colDef,
   isActive,
+  isEditing,
   isIncluded,
   isBlacklisted,
+  initialChar,
   commitField,
-  clearActive,
+  stopEditing,
   moveNext,
   movePrev,
   moveDown,
@@ -39,31 +44,36 @@ export default function CellRenderer({
   const hasErr =
     isIncluded && !isBlacklisted && REQ_FIELDS.includes(colDef.key) && empty;
 
-  if (isActive && !isBlacklisted) {
-    if (colDef.type === "text")
+  if (isActive && isEditing && !isBlacklisted) {
+    if (colDef.type === "text") {
       return (
         <TextCellWrapper
           record={record}
           rowInPage={rowInPage}
           colIdx={colIdx}
           colDef={colDef}
+          initialChar={initialChar}
           onCommit={commitField}
-          onCancel={clearActive}
+          onCancel={() => {
+            stopEditing();
+          }}
           onMoveNext={moveNext}
           onMovePrev={movePrev}
           onMoveDown={moveDown}
         />
       );
-    if (colDef.type === "tags")
+    }
+    if (colDef.type === "tags") {
       return (
         <TagCellEditor
           value={String(val || "")}
           searchType={colDef.searchType}
+          initialChar={initialChar}
           onCommit={(v) => {
             commitField(rowInPage, colDef, v);
-            clearActive();
+            stopEditing();
           }}
-          onCancel={clearActive}
+          onCancel={() => stopEditing()}
           onTab={(v) => {
             commitField(rowInPage, colDef, v);
             moveNext(rowInPage, colIdx);
@@ -78,7 +88,8 @@ export default function CellRenderer({
           }}
         />
       );
-    if (colDef.type === "select")
+    }
+    if (colDef.type === "select") {
       return (
         <SelectCellEditor
           value={val}
@@ -87,7 +98,7 @@ export default function CellRenderer({
             commitField(rowInPage, colDef, v);
             moveDown(rowInPage, colIdx);
           }}
-          onCancel={clearActive}
+          onCancel={() => stopEditing()}
           onTab={(v) => {
             commitField(rowInPage, colDef, v);
             moveNext(rowInPage, colIdx);
@@ -98,6 +109,7 @@ export default function CellRenderer({
           }}
         />
       );
+    }
   }
 
   if (colDef.type === "select") {

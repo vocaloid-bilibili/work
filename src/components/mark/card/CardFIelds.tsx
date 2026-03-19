@@ -82,7 +82,7 @@ export default function CardFields({
           )}
           {(f.type === "tags" || f.type === "tags-hint") && (
             <MarkingTags
-              value={record[f.prop]}
+              value={String(record[f.prop] ?? "")}
               onChange={(v) => onChange(f.prop, v)}
               onInputChange={(v) => onInputChange(f.prop, v)}
               type={f.search || f.prop}

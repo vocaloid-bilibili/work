@@ -10,10 +10,10 @@ import { Loader2 } from "lucide-react";
 
 export default function MarkContent() {
   const s = useMarkState();
+  const isTable = s.layoutMode === "table";
 
   return (
     <div className="flex flex-col items-center p-4 md:p-6 w-full max-w-7xl mx-auto space-y-5">
-      {/* 顶栏：书签 */}
       <div className="flex justify-between w-full items-center">
         <MarkBookmarkSheet
           open={s.bookmarkOpen}
@@ -22,7 +22,6 @@ export default function MarkContent() {
         />
       </div>
 
-      {/* 控制栏 */}
       <MarkToolbar
         isCollab={s.isCollab}
         collab={s.collab}
@@ -41,7 +40,6 @@ export default function MarkContent() {
         onExport={s.handleExport}
       />
 
-      {/* 搜索 */}
       <MarkSearchDialog
         open={s.openSearch}
         onOpenChange={s.setOpenSearch}
@@ -49,7 +47,6 @@ export default function MarkContent() {
         onJump={s.handleJumpToRecord}
       />
 
-      {/* 导出警告弹窗 */}
       <MarkExportDialogs
         incompleteDialogOpen={s.incompleteDialogOpen}
         onIncompleteDialogChange={s.setIncompleteDialogOpen}
@@ -58,7 +55,6 @@ export default function MarkContent() {
         onAddBookmarks={s.handleAddIncompleteToBookmarks}
       />
 
-      {/* Loading */}
       {s.isLoading && (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
           <Loader2 className="h-8 w-8 animate-spin mb-3" />
@@ -66,7 +62,6 @@ export default function MarkContent() {
         </div>
       )}
 
-      {/* 内容区 */}
       {s.currentRecords.length > 0 && (
         <div className="w-full space-y-4">
           <MarkOverviewBar
@@ -81,6 +76,7 @@ export default function MarkContent() {
           <MarkRecordList
             layoutMode={s.layoutMode}
             pagedData={s.pagedData}
+            allData={s.currentRecords}
             pageOffset={(s.currentPage - 1) * s.pageSize}
             includeEntries={s.currentIncludeEntries}
             blacklistedEntries={s.currentBlacklistedEntries}
@@ -91,7 +87,7 @@ export default function MarkContent() {
             onDirectFieldChange={s.handleDirectFieldChange}
           />
 
-          {s.totalPages > 1 && (
+          {!isTable && s.totalPages > 1 && (
             <MarkPagination
               currentPage={s.currentPage}
               totalPages={s.totalPages}

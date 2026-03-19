@@ -5,6 +5,7 @@ import type { LayoutMode, RecordType } from "./useMarkState";
 interface Props {
   layoutMode: LayoutMode;
   pagedData: RecordType[];
+  allData: RecordType[];
   pageOffset: number;
   includeEntries: boolean[];
   blacklistedEntries: boolean[];
@@ -18,6 +19,7 @@ interface Props {
 export default function MarkRecordList({
   layoutMode,
   pagedData,
+  allData,
   pageOffset,
   includeEntries,
   blacklistedEntries,
@@ -30,8 +32,8 @@ export default function MarkRecordList({
   if (layoutMode === "table") {
     return (
       <MarkingTable
-        data={pagedData}
-        pageOffset={pageOffset}
+        data={allData}
+        pageOffset={0}
         includeEntries={includeEntries}
         blacklistedEntries={blacklistedEntries}
         onIncludeChange={onIncludeChange}
