@@ -7,9 +7,9 @@ import { useDebounce } from "@/hooks/use-debounce";
 import type { SongInfo } from "@/utils/types";
 import { cn } from "@/lib/utils";
 
-interface MarkingNameInputProps {
+interface Props {
   value: string;
-  onChange: (value: string) => void;
+  onChange: (v: string) => void;
   className?: string;
   hasError?: boolean;
 }
@@ -19,7 +19,7 @@ export default function MarkingNameInput({
   onChange,
   className,
   hasError,
-}: MarkingNameInputProps) {
+}: Props) {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value || "");
   const [suggestions, setSuggestions] = useState<SongInfo[]>([]);
@@ -27,58 +27,36 @@ export default function MarkingNameInput({
   const debouncedInput = useDebounce(inputValue, 500);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Sync internal state with prop
   useEffect(() => {
     setInputValue(value || "");
   }, [value]);
-
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(event.target as Node)
-      ) {
+    const h = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node))
         setOpen(false);
-      }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
   }, []);
-
   useEffect(() => {
-    // Only search if input is long enough and user is typing (open is true usually means focus)
     if (debouncedInput && debouncedInput.length >= 1 && open) {
       setLoading(true);
       api
         .search("song", debouncedInput)
-        .then((res: any) => {
-          if (res.data && Array.isArray(res.data)) {
-            setSuggestions(res.data);
-          } else {
-            setSuggestions([]);
-          }
-        })
-        .catch((err: any) => {
-          console.error("Search song failed", err);
-          setSuggestions([]);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } else {
-      setSuggestions([]);
-    }
+        .then((r: any) =>
+          setSuggestions(r.data && Array.isArray(r.data) ? r.data : []),
+        )
+        .catch(() => setSuggestions([]))
+        .finally(() => setLoading(false));
+    } else setSuggestions([]);
   }, [debouncedInput, open]);
 
-  const handleSelect = (song: SongInfo) => {
-    const newValue = song.display_name || song.name;
-    setInputValue(newValue);
-    onChange(newValue);
+  const handleSelect = (s: SongInfo) => {
+    const v = s.display_name || s.name;
+    setInputValue(v);
+    onChange(v);
     setOpen(false);
   };
-
   const exactMatch = suggestions.find(
     (s) => s.name === inputValue || s.display_name === inputValue,
   );
@@ -96,9 +74,7 @@ export default function MarkingNameInput({
             setOpen(true);
           }}
           onBlur={() => {
-            if (inputValue !== value) {
-              onChange(inputValue);
-            }
+            if (inputValue !== value) onChange(inputValue);
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -113,17 +89,15 @@ export default function MarkingNameInput({
           )}
           placeholder="输入歌曲名称..."
         />
-
         {open && (suggestions.length > 0 || loading) && (
-          <div className="absolute top-full left-0 z-50 w-full mt-1 rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden">
+          <div className="absolute top-full left-0 z-50 w-full mt-1 rounded-md border bg-popover shadow-md animate-in fade-in-0 zoom-in-95 overflow-hidden">
             <div className="max-h-75 overflow-y-auto p-1 bg-background">
               {loading && (
                 <div className="flex items-center justify-center p-4 text-sm text-muted-foreground gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>搜索中...</span>
+                  搜索中...
                 </div>
               )}
-
               {!loading && suggestions.length > 0 && (
                 <div className="py-1">
                   <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
@@ -133,7 +107,7 @@ export default function MarkingNameInput({
                     <div
                       key={song.id}
                       onClick={() => handleSelect(song)}
-                      className="cursor-pointer hover:bg-accent hover:text-accent-foreground px-2 py-2 rounded-sm text-sm flex flex-col items-start gap-0.5"
+                      className="cursor-pointer hover:bg-accent px-2 py-2 rounded-sm text-sm flex flex-col gap-0.5"
                     >
                       <div className="font-medium">
                         {song.display_name || song.name}
@@ -145,7 +119,7 @@ export default function MarkingNameInput({
                         {song.producers && song.producers.length > 0 && (
                           <span>
                             P主:{" "}
-                            {song.producers.map((p: any) => p.name).join(", ")}
+                            {song.producers!.map((p: any) => p.name).join(", ")}
                           </span>
                         )}
                       </div>
@@ -153,7 +127,6 @@ export default function MarkingNameInput({
                   ))}
                 </div>
               )}
-
               {!loading && suggestions.length === 0 && inputValue && (
                 <div className="p-2 text-sm text-muted-foreground text-center">
                   未找到相关歌曲
@@ -163,7 +136,6 @@ export default function MarkingNameInput({
           </div>
         )}
       </div>
-
       {exactMatch && (
         <Button
           size="icon"

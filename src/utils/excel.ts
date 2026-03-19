@@ -1,33 +1,25 @@
+// src/utils/excel.ts
+
 import * as XLSX from "xlsx";
 
 export function exportToExcel(
   records: any[],
   includeEntries: boolean[],
-  _svmode: boolean,
+  _unused: boolean, // 保持兼容，不再使用
   keepExcluded: boolean = false,
 ) {
-  // _svmode argument kept for compatibility but logic unified
-
   const mappedRecords = records.map((item, index) => {
     const newItem = { ...item };
     newItem.include = includeEntries[index] ? "收录" : "排除";
-
-    // Remove internal unconfirmed state fields
     Object.keys(newItem).forEach((key) => {
-      if (key.startsWith("_unconfirmed_")) {
-        delete newItem[key];
-      }
+      if (key.startsWith("_unconfirmed_")) delete newItem[key];
     });
-
     return newItem;
   });
 
-  let outputRecords;
-  if (keepExcluded) {
-    outputRecords = mappedRecords;
-  } else {
-    outputRecords = mappedRecords.filter((item) => item.include === "收录");
-  }
+  const outputRecords = keepExcluded
+    ? mappedRecords
+    : mappedRecords.filter((item) => item.include === "收录");
 
   const worksheet = XLSX.utils.json_to_sheet(outputRecords);
   const workbook = XLSX.utils.book_new();

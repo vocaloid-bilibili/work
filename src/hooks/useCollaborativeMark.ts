@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { requestCollabJson, getCollabBase } from "@/utils/collabApi";
 import { getValidAccessToken } from "@/utils/auth";
-import { CollabClient, type ConnectionStatus, type ServerEvent } from "@/utils/collabClient";
+import {
+  CollabClient,
+  type ConnectionStatus,
+  type ServerEvent,
+} from "@/utils/collabClient";
 
-export type MarkAction = "set" | "toggle_include";
+export type MarkAction = "set" | "toggle_include" | "blacklist" | "unblacklist";
 
 export interface MarkOperation {
   opId: string;
@@ -21,14 +25,13 @@ export interface MarkTaskSnapshot {
   version: number;
   records: Array<Record<string, unknown>>;
   includeEntries: boolean[];
+  blacklistedEntries: boolean[];
   serverTime: string;
-  svmode: boolean;
 }
 
 const createOpId = (): string => {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function")
     return crypto.randomUUID();
-  }
   return `op-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
@@ -36,26 +39,47 @@ const applyOperationToLocal = (
   operation: Pick<MarkOperation, "action" | "recordIndex" | "field" | "value">,
   records: Array<Record<string, unknown>>,
   includeEntries: boolean[],
-): { records: Array<Record<string, unknown>>; includeEntries: boolean[] } => {
+  blacklistedEntries: boolean[],
+): {
+  records: Array<Record<string, unknown>>;
+  includeEntries: boolean[];
+  blacklistedEntries: boolean[];
+} => {
   const nextRecords = [...records];
   const nextInclude = [...includeEntries];
+  const nextBlacklist = [...blacklistedEntries];
 
-  if (operation.recordIndex < 0 || operation.recordIndex >= nextRecords.length) {
-    return { records, includeEntries };
+  if (
+    operation.recordIndex < 0 ||
+    operation.recordIndex >= nextRecords.length
+  ) {
+    return { records, includeEntries, blacklistedEntries };
   }
 
-  if (operation.action === "toggle_include") {
-    nextInclude[operation.recordIndex] = Boolean(operation.value);
-    return { records: nextRecords, includeEntries: nextInclude };
+  switch (operation.action) {
+    case "toggle_include":
+      nextInclude[operation.recordIndex] = Boolean(operation.value);
+      break;
+    case "blacklist":
+      nextBlacklist[operation.recordIndex] = true;
+      nextInclude[operation.recordIndex] = false;
+      break;
+    case "unblacklist":
+      nextBlacklist[operation.recordIndex] = false;
+      break;
+    case "set": {
+      const row = { ...nextRecords[operation.recordIndex] };
+      row[operation.field] = operation.value;
+      nextRecords[operation.recordIndex] = row;
+      break;
+    }
   }
 
-  if (operation.action === "set") {
-    const row = { ...nextRecords[operation.recordIndex] };
-    row[operation.field] = operation.value;
-    nextRecords[operation.recordIndex] = row;
-  }
-
-  return { records: nextRecords, includeEntries: nextInclude };
+  return {
+    records: nextRecords,
+    includeEntries: nextInclude,
+    blacklistedEntries: nextBlacklist,
+  };
 };
 
 export function useCollaborativeMark() {
@@ -64,47 +88,60 @@ export function useCollaborativeMark() {
   const [version, setVersion] = useState(0);
   const [records, setRecords] = useState<Array<Record<string, unknown>>>([]);
   const [includeEntries, setIncludeEntries] = useState<boolean[]>([]);
-  const [svmode, setSvmode] = useState(false);
-  const [connectionState, setConnectionState] = useState<ConnectionStatus>("offline");
+  const [blacklistedEntries, setBlacklistedEntries] = useState<boolean[]>([]);
+  const [connectionState, setConnectionState] =
+    useState<ConnectionStatus>("offline");
   const [conflict, setConflict] = useState<string | null>(null);
 
   const clientRef = useRef<CollabClient | null>(null);
   const recordsRef = useRef(records);
   const includeRef = useRef(includeEntries);
+  const blacklistRef = useRef(blacklistedEntries);
   const versionRef = useRef(version);
   const pendingOpsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     recordsRef.current = records;
   }, [records]);
-
   useEffect(() => {
     includeRef.current = includeEntries;
   }, [includeEntries]);
-
+  useEffect(() => {
+    blacklistRef.current = blacklistedEntries;
+  }, [blacklistedEntries]);
   useEffect(() => {
     versionRef.current = version;
   }, [version]);
 
   const pendingCount = pendingOpsRef.current.size;
 
-  const loadSnapshot = useCallback(async (currentTaskId: string) => {
-    const snapshot = await requestCollabJson<MarkTaskSnapshot>(
-      `/mark/tasks/${currentTaskId}/snapshot`,
+  const applySnapshot = useCallback((snap: MarkTaskSnapshot) => {
+    setTaskId(snap.taskId);
+    setVersion(snap.version);
+    setRecords(snap.records);
+    setIncludeEntries(snap.includeEntries);
+    setBlacklistedEntries(
+      snap.blacklistedEntries || new Array(snap.records.length).fill(false),
     );
-    setTaskId(snapshot.taskId);
-    setVersion(snapshot.version);
-    setRecords(snapshot.records);
-    setIncludeEntries(snapshot.includeEntries);
-    setSvmode(snapshot.svmode);
   }, []);
+
+  const loadSnapshot = useCallback(
+    async (currentTaskId: string) => {
+      const snap = await requestCollabJson<MarkTaskSnapshot>(
+        `/mark/tasks/${currentTaskId}/snapshot`,
+      );
+      applySnapshot(snap);
+    },
+    [applySnapshot],
+  );
 
   const initTask = useCallback(async () => {
     setLoading(true);
     try {
-      const active = await requestCollabJson<{ taskId: string; version: number }>(
-        "/mark/tasks/active",
-      );
+      const active = await requestCollabJson<{
+        taskId: string;
+        version: number;
+      }>("/mark/tasks/active");
       await loadSnapshot(active.taskId);
       setConflict(null);
     } finally {
@@ -123,7 +160,9 @@ export function useCollaborativeMark() {
     (event: ServerEvent) => {
       if (event.type === "task_joined") {
         const nextVersion =
-          typeof event.version === "number" ? event.version : versionRef.current;
+          typeof event.version === "number"
+            ? event.version
+            : versionRef.current;
         setVersion(nextVersion);
         return;
       }
@@ -135,41 +174,35 @@ export function useCollaborativeMark() {
           operation,
           recordsRef.current,
           includeRef.current,
+          blacklistRef.current,
         );
         setRecords(result.records);
         setIncludeEntries(result.includeEntries);
-        if (typeof event.version === "number") {
-          setVersion(event.version);
-        }
+        setBlacklistedEntries(result.blacklistedEntries);
+        if (typeof event.version === "number") setVersion(event.version);
         pendingOpsRef.current.delete(operation.opId);
         return;
       }
 
       if (event.type === "operation_conflicted") {
         const opId = typeof event.opId === "string" ? event.opId : "";
-        if (opId) {
-          pendingOpsRef.current.delete(opId);
-        }
-        const message =
-          typeof event.message === "string" ? event.message : "发生冲突";
-        setConflict(message);
+        if (opId) pendingOpsRef.current.delete(opId);
+        setConflict(
+          typeof event.message === "string" ? event.message : "发生冲突",
+        );
         void refreshSnapshot();
         return;
       }
 
       if (event.type === "snapshot_reloaded") {
-        const snapshot = event.snapshot as MarkTaskSnapshot | undefined;
-        if (!snapshot) return;
-        setTaskId(snapshot.taskId);
-        setVersion(snapshot.version);
-        setRecords(snapshot.records);
-        setIncludeEntries(snapshot.includeEntries);
-        setSvmode(snapshot.svmode);
+        const snap = event.snapshot as MarkTaskSnapshot | undefined;
+        if (!snap) return;
+        applySnapshot(snap);
         pendingOpsRef.current.clear();
         setConflict(null);
       }
     },
-    [refreshSnapshot],
+    [refreshSnapshot, applySnapshot],
   );
 
   useEffect(() => {
@@ -196,14 +229,18 @@ export function useCollaborativeMark() {
   }, [connectClient]);
 
   useEffect(() => {
-    if (!clientRef.current || connectionState !== "connected" || !taskId) {
+    if (!clientRef.current || connectionState !== "connected" || !taskId)
       return;
-    }
     clientRef.current.send({ type: "join_task", taskId });
   }, [connectionState, taskId]);
 
   const submitOperation = useCallback(
-    (input: { recordIndex: number; field: string; action: MarkAction; value: unknown }) => {
+    (input: {
+      recordIndex: number;
+      field: string;
+      action: MarkAction;
+      value: unknown;
+    }) => {
       if (!taskId || !clientRef.current) return;
       const operation: MarkOperation = {
         opId: createOpId(),
@@ -219,9 +256,11 @@ export function useCollaborativeMark() {
         operation,
         recordsRef.current,
         includeRef.current,
+        blacklistRef.current,
       );
       setRecords(result.records);
       setIncludeEntries(result.includeEntries);
+      setBlacklistedEntries(result.blacklistedEntries);
       pendingOpsRef.current.add(operation.opId);
       clientRef.current.send({ type: "submit_operation", operation });
     },
@@ -247,17 +286,40 @@ export function useCollaborativeMark() {
     [submitOperation],
   );
 
+  const blacklistRecord = useCallback(
+    (recordIndex: number) => {
+      submitOperation({
+        recordIndex,
+        field: "blacklist",
+        action: "blacklist",
+        value: true,
+      });
+    },
+    [submitOperation],
+  );
+
+  const unblacklistRecord = useCallback(
+    (recordIndex: number) => {
+      submitOperation({
+        recordIndex,
+        field: "blacklist",
+        action: "unblacklist",
+        value: false,
+      });
+    },
+    [submitOperation],
+  );
+
   const updateLocalRecord = useCallback(
-    (recordIndex: number, updater: (row: Record<string, unknown>) => Record<string, unknown>) => {
+    (
+      recordIndex: number,
+      updater: (row: Record<string, unknown>) => Record<string, unknown>,
+    ) => {
       setRecords((prev) => {
-        if (recordIndex < 0 || recordIndex >= prev.length) {
-          return prev;
-        }
+        if (recordIndex < 0 || recordIndex >= prev.length) return prev;
         const next = [...prev];
         const updated = updater(next[recordIndex]);
-        if (updated === next[recordIndex]) {
-          return prev;
-        }
+        if (updated === next[recordIndex]) return prev;
         next[recordIndex] = updated;
         return next;
       });
@@ -265,68 +327,110 @@ export function useCollaborativeMark() {
     [],
   );
 
-  const uploadFile = useCallback(async (file: File, svmodeValue: boolean) => {
-    const token = await getValidAccessToken();
-    if (!token) {
-      throw new Error("未登录");
-    }
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("svmode", String(svmodeValue));
+  const uploadFile = useCallback(
+    async (file: File) => {
+      const token = await getValidAccessToken();
+      if (!token) throw new Error("未登录");
+      const formData = new FormData();
+      formData.append("file", file);
 
-    const response = await fetch(`${getCollabBase()}/mark/tasks`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
-
-    const payload = (await response.json().catch(() => ({}))) as
-      | MarkTaskSnapshot
-      | { message?: string };
-    if (!response.ok) {
-      const message = (payload as { message?: string }).message || "上传失败";
-      throw new Error(message);
-    }
-
-    const snapshot = payload as MarkTaskSnapshot;
-    setTaskId(snapshot.taskId);
-    setVersion(snapshot.version);
-    setRecords(snapshot.records);
-    setIncludeEntries(snapshot.includeEntries);
-    setSvmode(snapshot.svmode);
-    pendingOpsRef.current.clear();
-    setConflict(null);
-  }, []);
-
-  const exportFile = useCallback(async (keepExcluded: boolean) => {
-    const token = await getValidAccessToken();
-    if (!token || !taskId) {
-      throw new Error("未登录或任务未初始化");
-    }
-    const response = await fetch(
-      `${getCollabBase()}/mark/tasks/${taskId}/export?keepExcluded=${keepExcluded ? "true" : "false"}`,
-      {
+      const response = await fetch(`${getCollabBase()}/mark/tasks`, {
+        method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-      },
-    );
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => ({}))) as {
-        message?: string;
-      };
-      throw new Error(payload.message || "导出失败");
-    }
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `export-${taskId}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }, [taskId]);
+        body: formData,
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as
+        | MarkTaskSnapshot
+        | { message?: string };
+      if (!response.ok) {
+        throw new Error(
+          (payload as { message?: string }).message || "上传失败",
+        );
+      }
+      const snap = payload as MarkTaskSnapshot;
+      applySnapshot(snap);
+      pendingOpsRef.current.clear();
+      setConflict(null);
+    },
+    [applySnapshot],
+  );
+
+  const exportFile = useCallback(
+    async (keepExcluded: boolean) => {
+      const token = await getValidAccessToken();
+      if (!token || !taskId) throw new Error("未登录或任务未初始化");
+      const response = await fetch(
+        `${getCollabBase()}/mark/tasks/${taskId}/export?keepExcluded=${keepExcluded}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!response.ok) {
+        const p = (await response.json().catch(() => ({}))) as {
+          message?: string;
+        };
+        throw new Error(p.message || "导出失败");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `export-${taskId}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    },
+    [taskId],
+  );
+
+  const fetchTaskStats = useCallback(
+    async (targetTaskId?: string) => {
+      const id = targetTaskId || taskId;
+      if (!id) throw new Error("任务未初始化");
+      return requestCollabJson<{
+        taskId: string;
+        totalOperations: number;
+        recordCount: number;
+        totalIncluded: number;
+        totalExcluded: number;
+        totalBlacklisted: number;
+        contributors: Array<{
+          user: {
+            id: string;
+            username?: string;
+            nickname?: string;
+            avatar?: string | null;
+          };
+          totalOps: number;
+          includes: number;
+          excludes: number;
+          blacklists: number;
+          unblacklists: number;
+          fieldEdits: number;
+        }>;
+        fieldBreakdown: Record<string, number>;
+      }>(`/mark/tasks/${id}/stats`);
+    },
+    [taskId],
+  );
+
+  const fetchTaskList = useCallback(async () => {
+    return requestCollabJson<{
+      tasks: Array<{
+        taskId: string;
+        recordCount: number;
+        createdAt: string;
+        closedAt?: string;
+        fileMeta?: {
+          originalName: string;
+          storedPath: string;
+          uploadedAt: string;
+        };
+        contributorCount: number;
+        totalOperations: number;
+      }>;
+    }>("/mark/tasks");
+  }, []);
 
   const statusLabel = useMemo(() => {
     if (connectionState === "connected") return "已连接";
@@ -341,17 +445,21 @@ export function useCollaborativeMark() {
     version,
     records,
     includeEntries,
-    svmode,
+    blacklistedEntries,
     conflict,
     connectionState,
     statusLabel,
     pendingCount,
     updateField,
     toggleInclude,
+    blacklistRecord,
+    unblacklistRecord,
     updateLocalRecord,
     refreshSnapshot,
     uploadFile,
     exportFile,
+    fetchTaskStats,
+    fetchTaskList,
     reconnect: () => {
       clientRef.current?.disconnect();
       connectClient();
