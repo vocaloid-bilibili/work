@@ -81,17 +81,12 @@ export default function MarkingTags({
   };
 
   if (!useHint) {
-    const svMap: Record<string, string> = {
-      "1": "SV榜",
-      "2": "国产榜",
-      "3": "UTAU榜",
-    };
     return (
       <div className="flex flex-wrap gap-2 p-2 border rounded-md min-h-10.5 items-center bg-muted/20">
         {tags.length > 0 ? (
           tags.map((t) => (
-            <Badge key={t} variant="secondary">
-              <HighlightSpaces text={svMap[t] || t} />
+            <Badge key={t} variant="secondary" className="text-xs h-7 px-2.5">
+              <HighlightSpaces text={t} />
             </Badge>
           ))
         ) : (
@@ -110,21 +105,25 @@ export default function MarkingTags({
         )}
       >
         {tags.map((t) => (
-          <Badge key={t} variant="secondary" className="pr-1 h-6">
+          <Badge
+            key={t}
+            variant="secondary"
+            className="pr-1.5 h-7 px-2.5 text-xs gap-1"
+          >
             <HighlightSpaces text={t} />
             <button
-              className="ml-1 rounded-full outline-none focus:ring-2 focus:ring-ring"
+              className="rounded-full outline-none focus:ring-2 focus:ring-ring"
               onClick={(e) => {
                 e.stopPropagation();
                 removeTag(t);
               }}
             >
-              <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+              <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
             </button>
           </Badge>
         ))}
         <input
-          className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground min-w-30 text-sm h-6"
+          className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground min-w-30 text-sm h-7"
           placeholder={tags.length === 0 ? "输入标签..." : ""}
           value={inputValue}
           onChange={(e) => {

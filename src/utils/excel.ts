@@ -1,12 +1,10 @@
-// src/utils/excel.ts
-
 import * as XLSX from "xlsx";
 
 export function exportToExcel(
   records: any[],
   includeEntries: boolean[],
-  _unused: boolean, // 保持兼容，不再使用
   keepExcluded: boolean = false,
+  fileName?: string,
 ) {
   const mappedRecords = records.map((item, index) => {
     const newItem = { ...item };
@@ -24,5 +22,5 @@ export function exportToExcel(
   const worksheet = XLSX.utils.json_to_sheet(outputRecords);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
-  XLSX.writeFile(workbook, "output.xlsx");
+  XLSX.writeFile(workbook, fileName || "output.xlsx");
 }

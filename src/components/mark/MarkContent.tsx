@@ -5,7 +5,7 @@ import MarkRecordList from "./MarkRecordList";
 import MarkPagination from "./MarkPagination";
 import MarkBookmarkSheet from "./MarkBookmarkSheet";
 import MarkSearchDialog from "./MarkSearchDialog";
-import MarkExportDialogs from "./MarkExportDialogs";
+import { ExportCheckDialog } from "./export-check";
 import { Loader2 } from "lucide-react";
 
 export default function MarkContent() {
@@ -47,12 +47,12 @@ export default function MarkContent() {
         onJump={s.handleJumpToRecord}
       />
 
-      <MarkExportDialogs
-        incompleteDialogOpen={s.incompleteDialogOpen}
-        onIncompleteDialogChange={s.setIncompleteDialogOpen}
-        incompleteCount={s.incompleteIndices.length}
-        onForceExport={s.performExport}
-        onAddBookmarks={s.handleAddIncompleteToBookmarks}
+      <ExportCheckDialog
+        open={s.exportCheckOpen}
+        onOpenChange={s.setExportCheckOpen}
+        checkResult={s.exportCheckResult}
+        onJump={s.handleJumpToRecord}
+        onExport={s.performExport}
       />
 
       {s.isLoading && (

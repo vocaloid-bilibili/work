@@ -3,6 +3,7 @@ import { useCollaborativeMark } from "@/hooks/useCollaborativeMark";
 import { exportToExcel } from "@/utils/excel";
 import { toast } from "sonner";
 import { useBookmarks } from "@/contexts/BookmarksContext";
+import { runExportChecks, type ExportCheckResult } from "./exportCheck";
 
 export type LayoutMode = "list" | "grid" | "table";
 
@@ -29,6 +30,51 @@ const FIELD_LABELS: Record<string, string> = {
   type: "类别",
 };
 
+const isFilled = (v: unknown): boolean =>
+  v !== undefined && v !== null && String(v).trim() !== "";
+function sanitizeCellValue(val: unknown): unknown {
+  if (val === null || val === undefined) return "";
+
+  if (typeof val === "object" && val !== null && "richText" in (val as any)) {
+    const rt = (val as any).richText;
+    if (Array.isArray(rt)) {
+      return rt.map((seg: any) => seg?.text ?? "").join("");
+    }
+    return "";
+  }
+
+  if (typeof val === "object" && val !== null && "result" in (val as any)) {
+    return sanitizeCellValue((val as any).result);
+  }
+
+  if (typeof val === "object" && val !== null && "hyperlink" in (val as any)) {
+    return (val as any).text || (val as any).hyperlink || "";
+  }
+
+  if (typeof val === "object" && val !== null && !Array.isArray(val)) {
+    try {
+      return String(val);
+    } catch {
+      return "";
+    }
+  }
+
+  if (typeof val === "string") {
+    if (
+      val.startsWith("http://") &&
+      (val.includes(".hdslb.com") ||
+        val.includes(".bilivideo.") ||
+        val.includes("i0.hdslb.com") ||
+        val.includes("i1.hdslb.com") ||
+        val.includes("i2.hdslb.com"))
+    ) {
+      return val.replace(/^http:\/\//, "https://");
+    }
+    return val;
+  }
+
+  return val;
+}
 export function useMarkState() {
   const [allRecords, setAllRecords] = useState<RecordType[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -54,7 +100,18 @@ export function useMarkState() {
   const [keepExcluded, setKeepExcluded] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [incompleteDialogOpen, setIncompleteDialogOpen] = useState(false);
-  const [incompleteIndices, setIncompleteIndices] = useState<number[]>([]);
+  const [incompleteIndices] = useState<number[]>([]);
+
+  const [originalFileName, setOriginalFileName] = useState<string>("");
+  const [exportCheckOpen, setExportCheckOpen] = useState(false);
+  const [exportCheckResult, setExportCheckResult] = useState<ExportCheckResult>(
+    {
+      pending: [],
+      missingFields: [],
+      nameMatchTitle: [],
+      authorMatchUp: [],
+    },
+  );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isCollab = mode === "collab";
@@ -79,7 +136,17 @@ export function useMarkState() {
     : allIncluded;
   const includedCount = currentIncludeEntries.filter(Boolean).length;
   const blacklistedCount = currentBlacklistedEntries.filter(Boolean).length;
-  const pendingCount = currentRecords.length - includedCount;
+
+  const pendingCount = useMemo(
+    () =>
+      currentRecords.reduce((sum: number, _: unknown, i: number) => {
+        if (!currentIncludeEntries[i] && !currentBlacklistedEntries[i])
+          return sum + 1;
+        return sum;
+      }, 0),
+    [currentRecords, currentIncludeEntries, currentBlacklistedEntries],
+  );
+
   const totalPages = Math.ceil(currentRecords.length / pageSize);
 
   const pagedData = useMemo(() => {
@@ -87,7 +154,6 @@ export function useMarkState() {
     return currentRecords.slice(start, start + pageSize);
   }, [currentRecords, currentPage, pageSize]);
 
-  // Persist preferences
   useEffect(() => {
     localStorage.setItem("mark_mode", mode);
   }, [mode]);
@@ -95,7 +161,6 @@ export function useMarkState() {
     localStorage.setItem("mark_layout", layoutMode);
   }, [layoutMode]);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
@@ -111,7 +176,6 @@ export function useMarkState() {
     return () => document.removeEventListener("keydown", down);
   }, []);
 
-  // Unload warning
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       if (currentRecords.length > 0) e.preventDefault();
@@ -128,6 +192,20 @@ export function useMarkState() {
 
   const handleJumpToRecord = useCallback(
     (index: number) => {
+      if (layoutMode === "table") {
+        setOpenSearch(false);
+        const el = document.getElementById(`record-${index}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.classList.add("ring-2", "ring-primary", "ring-offset-2");
+          setTimeout(
+            () =>
+              el.classList.remove("ring-2", "ring-primary", "ring-offset-2"),
+            2000,
+          );
+        }
+        return;
+      }
       const page = Math.floor(index / pageSize) + 1;
       setCurrentPage(page);
       setOpenSearch(false);
@@ -144,7 +222,7 @@ export function useMarkState() {
         }
       }, 100);
     },
-    [pageSize],
+    [layoutMode, pageSize],
   );
 
   const handlePageChange = useCallback(
@@ -160,12 +238,15 @@ export function useMarkState() {
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file) return;
+
+      setOriginalFileName(file.name);
+
       if (isCollab) {
         setCollabUploading(true);
         collab
           .uploadFile(file)
           .then(() => toast.success("上传成功，已进入协同模式"))
-          .catch((err) =>
+          .catch((err: unknown) =>
             toast.error(err instanceof Error ? err.message : "上传失败"),
           )
           .finally(() => setCollabUploading(false));
@@ -180,18 +261,22 @@ export function useMarkState() {
           );
           worker.postMessage({ file: ab });
           worker.onmessage = (ev) => {
-            const records = ev.data;
+            const raw = ev.data;
+            const records = raw.map((r: any) => {
+              const obj: Record<string, any> = {};
+              for (const [key, val] of Object.entries(r)) {
+                obj[key] = sanitizeCellValue(val);
+              }
+              return obj;
+            });
             setAllRecords(records);
-            let init: boolean[] = [];
-            if (records.length > 0) {
-              if (records[0].include)
-                init = records.map((r: any) => r.include === "收录");
-              else if (records[0].status)
-                init = records.map((r: any) =>
-                  ["done", "auto"].includes(r.status),
-                );
-              else init = records.map((r: any) => !!r.synthesizer);
-            }
+
+            const init = records.map(
+              (r: any) =>
+                isFilled(r.vocal) &&
+                isFilled(r.synthesizer) &&
+                isFilled(r.type),
+            );
             setIncludeEntries(init);
             setBlacklistedEntries(new Array(records.length).fill(false));
             setCurrentPage(1);
@@ -209,7 +294,7 @@ export function useMarkState() {
   const handleChangeAll = useCallback(
     (checked: boolean) => {
       if (isCollab) {
-        currentIncludeEntries.forEach((v, i) => {
+        currentIncludeEntries.forEach((v: boolean, i: number) => {
           if (v !== checked && !currentBlacklistedEntries[i])
             collab.toggleInclude(i, checked);
         });
@@ -217,7 +302,9 @@ export function useMarkState() {
       }
       setAllIncluded(checked);
       setIncludeEntries((prev) =>
-        prev.map((_, i) => (blacklistedEntries[i] ? false : checked)),
+        prev.map((_: boolean, i: number) =>
+          blacklistedEntries[i] ? false : checked,
+        ),
       );
     },
     [
@@ -294,8 +381,8 @@ export function useMarkState() {
         if (changed.length === 0) return;
         const local = changed.filter(([f]) => f.startsWith("_unconfirmed_"));
         if (local.length > 0) {
-          collab.updateLocalRecord(index, (row) => {
-            const n = { ...row } as Record<string, unknown>;
+          collab.updateLocalRecord(index, (row: Record<string, unknown>) => {
+            const n = { ...row };
             for (const [f, v] of local) n[f] = v;
             return n;
           });
@@ -315,8 +402,21 @@ export function useMarkState() {
         n[index] = obj;
         return n;
       });
+
+      setIncludeEntries((prev) => {
+        const n = [...prev];
+        const merged =
+          typeof updatedRecord === "function"
+            ? updatedRecord(allRecords[index])
+            : { ...allRecords[index], ...updatedRecord };
+        n[index] =
+          isFilled(merged.vocal) &&
+          isFilled(merged.synthesizer) &&
+          isFilled(merged.type);
+        return n;
+      });
     },
-    [isCollab, collab, currentRecords],
+    [isCollab, collab, currentRecords, allRecords],
   );
 
   const handleDirectFieldChange = useCallback(
@@ -330,66 +430,95 @@ export function useMarkState() {
         n[realIndex] = { ...n[realIndex], [field]: value };
         return n;
       });
+
+      if (["vocal", "synthesizer", "type"].includes(field)) {
+        setIncludeEntries((prev) => {
+          const n = [...prev];
+          const r = { ...allRecords[realIndex], [field]: value };
+          n[realIndex] =
+            isFilled(r.vocal) && isFilled(r.synthesizer) && isFilled(r.type);
+          return n;
+        });
+      }
     },
-    [isCollab, collab],
+    [isCollab, collab, allRecords],
   );
 
   // ── Export ──
 
-  const getProblematicRecords = useCallback(() => {
-    const incomplete: number[] = [];
-    const unconfirmed: number[] = [];
-    currentRecords.forEach((record, index) => {
-      if (currentIncludeEntries[index] && !currentBlacklistedEntries[index]) {
-        if (
-          !REQUIRED_FIELDS.every((f) => {
-            const v = record[f];
-            return v !== undefined && v !== null && v !== "";
-          })
-        )
-          incomplete.push(index);
-        if (
-          TAG_FIELDS.some((f) => {
-            const v = record[`_unconfirmed_${f}`];
-            return !!v && v.trim() !== "";
-          })
-        )
-          unconfirmed.push(index);
-      }
-    });
-    return { incomplete, unconfirmed };
-  }, [currentRecords, currentIncludeEntries, currentBlacklistedEntries]);
+  const getExportFileName = useCallback((): string => {
+    if (originalFileName) {
+      const dot = originalFileName.lastIndexOf(".");
+      const base = dot > 0 ? originalFileName.slice(0, dot) : originalFileName;
+      return `${base}_标注完成.xlsx`;
+    }
+    return `标注导出_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  }, [originalFileName]);
 
   const performExport = useCallback(() => {
-    exportToExcel(currentRecords, currentIncludeEntries, false, keepExcluded);
-    setExportDialogOpen(false);
-    setIncompleteDialogOpen(false);
-  }, [currentRecords, currentIncludeEntries, keepExcluded]);
-
-  const handleExport = useCallback(() => {
     if (isCollab) {
       collab
         .exportFile(keepExcluded)
         .then(() => {
           toast.success("导出成功");
           setExportDialogOpen(false);
+          setExportCheckOpen(false);
         })
-        .catch((err) =>
+        .catch((err: unknown) =>
           toast.error(err instanceof Error ? err.message : "导出失败"),
         );
       return;
     }
-    if (!keepExcluded) {
-      const { incomplete, unconfirmed } = getProblematicRecords();
-      if (incomplete.length > 0 || unconfirmed.length > 0) {
-        setIncompleteIndices([...new Set([...incomplete, ...unconfirmed])]);
-        setExportDialogOpen(false);
-        setIncompleteDialogOpen(true);
-        return;
-      }
+    exportToExcel(
+      currentRecords,
+      currentIncludeEntries,
+      keepExcluded,
+      getExportFileName(),
+    );
+    setExportDialogOpen(false);
+    setExportCheckOpen(false);
+    setIncompleteDialogOpen(false);
+  }, [
+    isCollab,
+    collab,
+    currentRecords,
+    currentIncludeEntries,
+    keepExcluded,
+    getExportFileName,
+  ]);
+
+  // ★ 新导出入口：先检查再导出
+  const handleExport = useCallback(() => {
+    if (currentRecords.length === 0) {
+      toast.error("没有数据可以导出");
+      return;
     }
-    performExport();
-  }, [isCollab, collab, keepExcluded, getProblematicRecords, performExport]);
+
+    const result = runExportChecks(
+      currentRecords,
+      currentIncludeEntries,
+      currentBlacklistedEntries,
+    );
+    setExportCheckResult(result);
+
+    const allClear =
+      result.pending.length === 0 &&
+      result.missingFields.length === 0 &&
+      result.nameMatchTitle.length === 0 &&
+      result.authorMatchUp.length === 0;
+
+    if (allClear) {
+      performExport();
+    } else {
+      setExportDialogOpen(false);
+      setExportCheckOpen(true);
+    }
+  }, [
+    currentRecords,
+    currentIncludeEntries,
+    currentBlacklistedEntries,
+    performExport,
+  ]);
 
   const getRecordIssues = useCallback((record: any) => {
     const issues: string[] = [];
@@ -407,7 +536,7 @@ export function useMarkState() {
   }, []);
 
   const handleAddIncompleteToBookmarks = useCallback(() => {
-    const bm = incompleteIndices.map((idx) => ({
+    const bm = incompleteIndices.map((idx: number) => ({
       index: idx,
       title:
         currentRecords[idx]?.title || currentRecords[idx]?.name || "未命名",
@@ -474,6 +603,11 @@ export function useMarkState() {
     setKeepExcluded,
     exportDialogOpen,
     setExportDialogOpen,
+    getExportFileName,
+    originalFileName,
+    exportCheckOpen,
+    setExportCheckOpen,
+    exportCheckResult,
     incompleteDialogOpen,
     setIncompleteDialogOpen,
     incompleteIndices,

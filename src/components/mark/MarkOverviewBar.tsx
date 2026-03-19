@@ -1,5 +1,3 @@
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Ban } from "lucide-react";
 
@@ -17,22 +15,9 @@ export default function MarkOverviewBar({
   included,
   blacklisted,
   pending,
-  allIncluded,
-  onChangeAll,
 }: Props) {
   return (
     <div className="flex flex-wrap items-center gap-4 pb-3 border-b">
-      <div className="flex items-center gap-2">
-        <Switch
-          id="select-all"
-          checked={allIncluded}
-          onCheckedChange={onChangeAll}
-        />
-        <Label htmlFor="select-all" className="text-sm">
-          全选
-        </Label>
-      </div>
-
       <div className="flex flex-wrap gap-2 ml-auto text-xs">
         <Badge variant="secondary" className="gap-1">
           共 {total} 条
