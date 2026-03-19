@@ -343,7 +343,7 @@ export default function ExportCheckDialog({
                             <Badge
                               key={f}
                               variant="outline"
-                              className="text-[10px] h-[18px] px-1.5 text-red-500 border-red-300 dark:border-red-800"
+                              className="text-[10px] h-4.5 px-1.5 text-red-500 border-red-300 dark:border-red-800"
                             >
                               {FIELD_LABELS[f] || f} 不一致
                             </Badge>

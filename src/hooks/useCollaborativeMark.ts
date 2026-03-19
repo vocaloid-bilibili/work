@@ -370,11 +370,26 @@ export function useCollaborativeMark() {
         };
         throw new Error(p.message || "导出失败");
       }
+
+      let fileName = `标注导出_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      const disposition = response.headers.get("Content-Disposition");
+      if (disposition) {
+        const utf8Match = disposition.match(/filename\*=UTF-8''(.+)/i);
+        if (utf8Match) {
+          fileName = decodeURIComponent(utf8Match[1]);
+        } else {
+          const normalMatch = disposition.match(/filename="?([^";\n]+)"?/i);
+          if (normalMatch) {
+            fileName = decodeURIComponent(normalMatch[1]);
+          }
+        }
+      }
+
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `export-${taskId}.xlsx`;
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
