@@ -203,16 +203,26 @@ export function useCollaborativeMark() {
             const next = [...prev];
             if (operation.action === "unblacklist") {
               next[operation.recordIndex] = {};
-            } else {
+            } else if (
+              operation.action === "toggle_include" &&
+              !Boolean(operation.value)
+            ) {
+              next[operation.recordIndex] = {};
+            } else if (
+              operation.action === "toggle_include" &&
+              Boolean(operation.value)
+            ) {
               next[operation.recordIndex] = {
                 actionBy: (operation as any).userId || undefined,
                 actionByProfile: userProfile,
-                action:
-                  operation.action === "blacklist"
-                    ? "blacklist"
-                    : Boolean(operation.value)
-                      ? "include"
-                      : "exclude",
+                action: "include",
+                actionAt: new Date().toISOString(),
+              };
+            } else if (operation.action === "blacklist") {
+              next[operation.recordIndex] = {
+                actionBy: (operation as any).userId || undefined,
+                actionByProfile: userProfile,
+                action: "blacklist",
                 actionAt: new Date().toISOString(),
               };
             }

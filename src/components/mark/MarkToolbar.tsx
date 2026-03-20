@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { FileDown, LayoutGrid, LayoutList, Table2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import TaskStatsPanel from "@/components/mark/TaskStatsPanel";
+import PublishButton from "@/components/mark/PublishButton";
 import type { LayoutMode } from "./useMarkState";
 
 interface Props {
@@ -81,6 +82,8 @@ export default function MarkToolbar({
             <FileDown className="h-4 w-4" />
             导出
           </Button>
+
+          {isCollab && <PublishButton taskId={collab.taskId} />}
         </div>
       )}
     </div>
