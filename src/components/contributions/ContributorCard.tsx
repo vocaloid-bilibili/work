@@ -9,7 +9,8 @@ interface Props {
 }
 
 export default function ContributorCard({ contributor, rank }: Props) {
-  const { user, includes, blacklists, fieldEdits, taskCount } = contributor;
+  const { user, score, includes, blacklists, fieldEdits, taskCount } =
+    contributor;
   const name = user.nickname || user.username || user.id.slice(0, 8);
   const total = includes + blacklists + fieldEdits;
   const inclPct = total > 0 ? (includes / total) * 100 : 0;
@@ -30,6 +31,10 @@ export default function ContributorCard({ contributor, rank }: Props) {
               @{user.username}
             </div>
           )}
+        </div>
+        <div className="text-right shrink-0">
+          <div className="text-lg font-bold">{score}</div>
+          <div className="text-[10px] text-muted-foreground">积分</div>
         </div>
       </div>
 

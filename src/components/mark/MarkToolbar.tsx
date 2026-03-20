@@ -77,8 +77,6 @@ export default function MarkToolbar({
             <TaskStatsPanel
               currentTaskId={collab.taskId}
               fetchTaskStats={collab.fetchTaskStats}
-              fetchTaskList={collab.fetchTaskList}
-              fetchGlobalStats={collab.fetchGlobalStats}
             />
           )}
 

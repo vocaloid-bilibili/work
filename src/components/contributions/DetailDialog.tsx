@@ -1,4 +1,4 @@
-// src/components/mark/stats/DetailDialog.tsx
+// src/components/contributions/DetailDialog.tsx
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -9,7 +9,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
-import StatsOverview from "./StatsOverview";
+import StatsCards from "./StatsCards";
+import RatioBar from "./RatioBar";
 import ContributorList from "./ContributorList";
 import FieldBreakdown from "./FieldBreakdown";
 import RecentOps from "./RecentOps";
@@ -40,26 +41,24 @@ export default function DetailDialog({
         </DialogHeader>
 
         <div className="px-6 flex gap-1 border-b">
-          <button
-            className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "overview"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-            onClick={() => setActiveTab("overview")}
-          >
-            概览 & 贡献
-          </button>
-          <button
-            className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "ops"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-            onClick={() => setActiveTab("ops")}
-          >
-            操作记录
-          </button>
+          {(
+            [
+              { key: "overview" as const, label: "概览 & 贡献" },
+              { key: "ops" as const, label: "操作记录" },
+            ] as const
+          ).map(({ key, label }) => (
+            <button
+              key={key}
+              className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === key
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => setActiveTab(key)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         <ScrollArea className="flex-1 px-6 pb-6">
@@ -71,7 +70,12 @@ export default function DetailDialog({
             <>
               {activeTab === "overview" && (
                 <div className="space-y-5 pt-2">
-                  <StatsOverview stats={stats} />
+                  <StatsCards stats={stats} />
+                  <RatioBar
+                    recordCount={stats.recordCount}
+                    totalIncluded={stats.totalIncluded}
+                    totalBlacklisted={stats.totalBlacklisted}
+                  />
                   <Separator />
                   <ContributorList
                     contributors={stats.contributors}
