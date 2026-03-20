@@ -3,9 +3,9 @@ import type { TaskStats } from "./types";
 
 export default function StatsCards({ stats }: { stats: TaskStats }) {
   const items = [
-    { label: "当前任务记录", value: stats.recordCount },
     { label: "已收录", value: stats.totalIncluded, color: "text-emerald-600" },
     { label: "已排除", value: stats.totalBlacklisted, color: "text-red-500" },
+    { label: "已编辑", value: stats.totalFieldEdits, color: "text-blue-500" },
     { label: "总操作", value: stats.totalOperations },
   ];
 

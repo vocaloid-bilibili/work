@@ -33,8 +33,8 @@ export interface TaskStats {
   totalOperations: number;
   recordCount: number;
   totalIncluded: number;
-  totalExcluded: number;
   totalBlacklisted: number;
+  totalFieldEdits: number;
   contributors: ContributorStats[];
   fieldBreakdown: Record<string, number>;
   recentOps: EnrichedLogEntry[];
