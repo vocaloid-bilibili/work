@@ -1,3 +1,4 @@
+// src/components/mark/TaskStatsPanel.tsx
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -9,20 +10,33 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { BarChart3, History, Users, Loader2, RefreshCw } from "lucide-react";
+import {
+  BarChart3,
+  History,
+  Users,
+  Loader2,
+  RefreshCw,
+  Trophy,
+} from "lucide-react";
 import { toast } from "sonner";
-import StatsOverview from "./stats/StatsOverview";
-import ContributorList from "./stats/ContributorList";
-import FieldBreakdown from "./stats/FieldBreakdown";
-import RecentOps from "./stats/RecentOps";
-import HistoryDialog from "./stats/HistoryDialog";
-import DetailDialog from "./stats/DetailDialog";
-import type { TaskStats, TaskSummaryItem } from "./stats/types";
+import StatsOverview from "../contributions/StatsOverview";
+import ContributorList from "../contributions/ContributorList";
+import FieldBreakdown from "../contributions/FieldBreakdown";
+import RecentOps from "../contributions/RecentOps";
+import HistoryDialog from "../contributions/HistoryDialog";
+import DetailDialog from "../contributions/DetailDialog";
+import GlobalLeaderboard from "../contributions/GlobalLeaderboard";
+import type {
+  TaskStats,
+  TaskSummaryItem,
+  GlobalStats,
+} from "../contributions/types";
 
 interface Props {
   currentTaskId: string | null;
   fetchTaskStats: (taskId?: string) => Promise<TaskStats>;
   fetchTaskList: () => Promise<{ tasks: TaskSummaryItem[] }>;
+  fetchGlobalStats: () => Promise<GlobalStats>;
 }
 
 type TabKey = "overview" | "ops";
@@ -31,6 +45,7 @@ export default function TaskStatsPanel({
   currentTaskId,
   fetchTaskStats,
   fetchTaskList,
+  fetchGlobalStats,
 }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [statsLoading, setStatsLoading] = useState(false);
@@ -42,6 +57,7 @@ export default function TaskStatsPanel({
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
+  const [globalOpen, setGlobalOpen] = useState(false);
 
   const loadStats = useCallback(async () => {
     if (!currentTaskId) return;
@@ -115,7 +131,6 @@ export default function TaskStatsPanel({
             </SheetTitle>
           </SheetHeader>
 
-          {/* Tab 切换 */}
           <div className="px-6 flex gap-1 border-b">
             <button
               className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
@@ -150,20 +165,33 @@ export default function TaskStatsPanel({
                   <div className="space-y-6 pb-6 pt-4">
                     <StatsOverview stats={currentStats} />
                     <Separator />
-                    <ContributorList stats={currentStats} />
+                    <ContributorList
+                      contributors={currentStats.contributors}
+                      totalOps={currentStats.totalOperations}
+                    />
                     <FieldBreakdown breakdown={currentStats.fieldBreakdown} />
                     <Separator />
-                    <Button
-                      variant="outline"
-                      className="w-full gap-2"
-                      onClick={() => {
-                        setHistoryOpen(true);
-                        void loadHistory();
-                      }}
-                    >
-                      <History className="h-4 w-4" />
-                      查看历史任务
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="flex-1 gap-2"
+                        onClick={() => {
+                          setHistoryOpen(true);
+                          void loadHistory();
+                        }}
+                      >
+                        <History className="h-4 w-4" />
+                        历史任务
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="flex-1 gap-2"
+                        onClick={() => setGlobalOpen(true)}
+                      >
+                        <Trophy className="h-4 w-4" />
+                        全局排行
+                      </Button>
+                    </div>
                   </div>
                 )}
                 {activeTab === "ops" && (
@@ -199,6 +227,11 @@ export default function TaskStatsPanel({
         onOpenChange={setDetailOpen}
         loading={detailLoading}
         stats={detailStats}
+      />
+      <GlobalLeaderboard
+        open={globalOpen}
+        onOpenChange={setGlobalOpen}
+        fetchGlobalStats={fetchGlobalStats}
       />
     </>
   );

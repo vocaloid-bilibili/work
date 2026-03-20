@@ -1,7 +1,7 @@
 import MarkingCard from "@/components/mark/MarkingCard";
 import MarkingTable from "@/components/mark/MarkingTable";
 import type { LayoutMode, RecordType } from "./useMarkState";
-import type { RecordAttribution } from "@/components/mark/stats/types";
+import type { RecordAttribution } from "@/components/contributions/types";
 
 interface Props {
   layoutMode: LayoutMode;

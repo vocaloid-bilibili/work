@@ -1,3 +1,4 @@
+// src/components/mark/stats/DetailDialog.tsx
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -38,7 +39,6 @@ export default function DetailDialog({
           <DialogTitle>任务详细统计</DialogTitle>
         </DialogHeader>
 
-        {/* Tab 切换 */}
         <div className="px-6 flex gap-1 border-b">
           <button
             className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
@@ -73,7 +73,10 @@ export default function DetailDialog({
                 <div className="space-y-5 pt-2">
                   <StatsOverview stats={stats} />
                   <Separator />
-                  <ContributorList stats={stats} />
+                  <ContributorList
+                    contributors={stats.contributors}
+                    totalOps={stats.totalOperations}
+                  />
                   <FieldBreakdown breakdown={stats.fieldBreakdown} />
                 </div>
               )}

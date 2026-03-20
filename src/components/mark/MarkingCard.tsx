@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import CardCover from "./card/CardCover";
 import CardActions from "./card/CardActions";
 import CardFields from "./card/CardFields";
-import type { RecordAttribution } from "./stats/types";
+import type { RecordAttribution } from "../contributions/types";
 
 interface Props {
   record: any;

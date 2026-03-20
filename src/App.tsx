@@ -1,5 +1,4 @@
 // src/App.tsx
-
 import {
   BrowserRouter as Router,
   Routes,
@@ -11,6 +10,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Mark from "@/views/Mark";
 import Upload from "@/views/Upload";
 import Edit from "@/views/Edit";
+import Contributions from "@/views/Contributions";
 import Login from "@/views/Login";
 
 function App() {
@@ -22,18 +22,18 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Upload />
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/mark"
               element={
                 <ProtectedRoute>
                   <Mark />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/upload"
+              element={
+                <ProtectedRoute>
+                  <Upload />
                 </ProtectedRoute>
               }
             />
@@ -45,7 +45,16 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route
+              path="/contributions"
+              element={
+                <ProtectedRoute>
+                  <Contributions />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/" element={<Navigate to="/mark" replace />} />
+            <Route path="*" element={<Navigate to="/mark" replace />} />
           </Routes>
         </main>
       </div>

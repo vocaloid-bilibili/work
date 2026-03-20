@@ -23,7 +23,7 @@ export default function StatsOverview({ stats }: { stats: TaskStats }) {
           icon={<CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />}
         />
         <StatCard
-          label="排除(黑名单)"
+          label="排除"
           value={stats.totalBlacklisted}
           icon={<Ban className="h-3.5 w-3.5 text-red-500" />}
         />
@@ -31,7 +31,6 @@ export default function StatsOverview({ stats }: { stats: TaskStats }) {
       <RatioBar
         recordCount={stats.recordCount}
         totalIncluded={stats.totalIncluded}
-        totalExcluded={stats.totalExcluded}
         totalBlacklisted={stats.totalBlacklisted}
       />
     </>

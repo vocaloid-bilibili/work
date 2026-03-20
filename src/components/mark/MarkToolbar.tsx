@@ -1,3 +1,4 @@
+// src/components/mark/MarkToolbar.tsx
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -33,6 +34,7 @@ export default function MarkToolbar({
           id="collab-mode"
           checked={isCollab}
           onCheckedChange={onModeChange}
+          className="data-[state=checked]:bg-emerald-600"
         />
         <Label htmlFor="collab-mode" className="text-sm">
           协同模式
@@ -46,14 +48,6 @@ export default function MarkToolbar({
 
       {hasRecords && (
         <div className="flex flex-wrap gap-2 items-center">
-          {isCollab && (
-            <TaskStatsPanel
-              currentTaskId={collab.taskId}
-              fetchTaskStats={collab.fetchTaskStats}
-              fetchTaskList={collab.fetchTaskList}
-            />
-          )}
-
           {/* 布局切换 */}
           <div className="flex items-center border rounded-lg overflow-hidden">
             {[
@@ -77,6 +71,16 @@ export default function MarkToolbar({
               </Button>
             ))}
           </div>
+
+          {/* 操作按钮组：统计、导出、发布 紧挨着 */}
+          {isCollab && (
+            <TaskStatsPanel
+              currentTaskId={collab.taskId}
+              fetchTaskStats={collab.fetchTaskStats}
+              fetchTaskList={collab.fetchTaskList}
+              fetchGlobalStats={collab.fetchGlobalStats}
+            />
+          )}
 
           <Button variant="outline" className="gap-2" onClick={onExport}>
             <FileDown className="h-4 w-4" />

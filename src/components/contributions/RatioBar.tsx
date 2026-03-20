@@ -1,3 +1,4 @@
+// src/components/contributions/RatioBar.tsx
 export default function RatioBar({
   recordCount,
   totalIncluded,
@@ -5,13 +6,13 @@ export default function RatioBar({
 }: {
   recordCount: number;
   totalIncluded: number;
-  totalExcluded: number;
   totalBlacklisted: number;
 }) {
   if (recordCount === 0) return null;
   const inclPct = (totalIncluded / recordCount) * 100;
   const blPct = (totalBlacklisted / recordCount) * 100;
   const restPct = 100 - inclPct - blPct;
+
   return (
     <div className="space-y-1.5">
       <div className="flex justify-between text-[11px] text-muted-foreground">
@@ -47,7 +48,7 @@ export default function RatioBar({
         )}
         <span className="flex items-center gap-1">
           <span className="inline-block w-2 h-2 rounded-full bg-muted-foreground/15" />
-          未收录
+          未处理
         </span>
       </div>
     </div>

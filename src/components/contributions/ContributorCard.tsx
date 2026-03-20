@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+// src/components/contributions/ContributorCard.tsx
 import { CheckCircle2, Ban, Pencil } from "lucide-react";
 import UserAvatar from "./UserAvatar";
 import type { ContributorStats } from "./types";
@@ -6,19 +6,15 @@ import type { ContributorStats } from "./types";
 interface Props {
   contributor: ContributorStats;
   rank: number;
-  maxOps: number;
-  colorClass: string;
 }
 
-export default function ContributorCard({
-  contributor,
-  rank,
-  maxOps,
-  colorClass,
-}: Props) {
-  const { user, totalOps, includes, blacklists, fieldEdits } = contributor;
+export default function ContributorCard({ contributor, rank }: Props) {
+  const { user, includes, blacklists, fieldEdits, taskCount } = contributor;
   const name = user.nickname || user.username || user.id.slice(0, 8);
-  const pct = maxOps > 0 ? (totalOps / maxOps) * 100 : 0;
+  const total = includes + blacklists + fieldEdits;
+  const inclPct = total > 0 ? (includes / total) * 100 : 0;
+  const blPct = total > 0 ? (blacklists / total) * 100 : 0;
+  const editPct = total > 0 ? (fieldEdits / total) * 100 : 0;
 
   return (
     <div className="rounded-xl border bg-card p-4 space-y-3 transition-colors hover:bg-muted/30">
@@ -35,16 +31,31 @@ export default function ContributorCard({
             </div>
           )}
         </div>
-        <Badge variant="secondary" className="text-sm font-bold shrink-0">
-          {totalOps}
-        </Badge>
       </div>
-      <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-500 ${colorClass}`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
+
+      {total > 0 && (
+        <div className="w-full h-2 rounded-full bg-muted overflow-hidden flex">
+          {includes > 0 && (
+            <div
+              className="h-full bg-emerald-500 transition-all duration-500"
+              style={{ width: `${inclPct}%` }}
+            />
+          )}
+          {blacklists > 0 && (
+            <div
+              className="h-full bg-red-400 transition-all duration-500"
+              style={{ width: `${blPct}%` }}
+            />
+          )}
+          {fieldEdits > 0 && (
+            <div
+              className="h-full bg-blue-400 transition-all duration-500"
+              style={{ width: `${editPct}%` }}
+            />
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-x-2 gap-y-1.5">
         <div className="flex items-center gap-1.5 text-xs">
           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
@@ -62,6 +73,11 @@ export default function ContributorCard({
           <span className="font-semibold ml-auto">{fieldEdits}</span>
         </div>
       </div>
+      {taskCount !== undefined && taskCount > 1 && (
+        <div className="text-[11px] text-muted-foreground">
+          参与 {taskCount} 个任务
+        </div>
+      )}
     </div>
   );
 }

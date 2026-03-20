@@ -6,7 +6,7 @@ import {
   type ConnectionStatus,
   type ServerEvent,
 } from "@/utils/collabClient";
-import type { RecordAttribution } from "@/components/mark/stats/types";
+import type { RecordAttribution } from "@/components/contributions/types";
 
 export type MarkAction = "set" | "toggle_include" | "blacklist" | "unblacklist";
 
@@ -472,6 +472,9 @@ export function useCollaborativeMark() {
       }>;
     }>("/mark/tasks");
   }, []);
+  const fetchGlobalStats = useCallback(async () => {
+    return requestCollabJson<any>("/mark/tasks/stats/global");
+  }, []);
 
   const statusLabel = useMemo(() => {
     if (connectionState === "connected") return "已连接";
@@ -506,5 +509,6 @@ export function useCollaborativeMark() {
       clientRef.current?.disconnect();
       connectClient();
     },
+    fetchGlobalStats,
   };
 }

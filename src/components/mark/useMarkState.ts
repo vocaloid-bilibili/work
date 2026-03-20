@@ -1,9 +1,10 @@
+// src/components/mark/useMarkState.ts
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useCollaborativeMark } from "@/hooks/useCollaborativeMark";
 import { exportToExcel } from "@/utils/excel";
 import { toast } from "sonner";
 import { runExportChecks, type ExportCheckResult } from "./exportCheck";
-import type { RecordAttribution } from "@/components/mark/stats/types";
+import type { RecordAttribution } from "@/components/contributions/types";
 
 export type LayoutMode = "list" | "grid" | "table";
 
@@ -401,17 +402,6 @@ export function useMarkState() {
     [isCollab, collab, allRecords],
   );
 
-  // ── Export ──
-
-  const getExportFileName = useCallback((): string => {
-    if (originalFileName) {
-      const dot = originalFileName.lastIndexOf(".");
-      const base = dot > 0 ? originalFileName.slice(0, dot) : originalFileName;
-      return `${base}_标注完成.xlsx`;
-    }
-    return `标注导出_${new Date().toISOString().slice(0, 10)}.xlsx`;
-  }, [originalFileName]);
-
   const performExport = useCallback(() => {
     if (isCollab) {
       collab
@@ -425,19 +415,15 @@ export function useMarkState() {
         );
       return;
     }
-    exportToExcel(
-      currentRecords,
-      currentIncludeEntries,
-      false,
-      getExportFileName(),
-    );
+    const fileName = originalFileName;
+    exportToExcel(currentRecords, currentIncludeEntries, false, fileName);
     setExportCheckOpen(false);
   }, [
     isCollab,
     collab,
     currentRecords,
     currentIncludeEntries,
-    getExportFileName,
+    originalFileName,
   ]);
 
   const handleExport = useCallback(() => {
@@ -505,7 +491,6 @@ export function useMarkState() {
     allIncludedValue,
     handleExport,
     performExport,
-    getExportFileName,
     originalFileName,
     exportCheckOpen,
     setExportCheckOpen,

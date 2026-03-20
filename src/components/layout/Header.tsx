@@ -3,7 +3,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import { LogIn, LogOut, User, ChevronDown } from "lucide-react";
+import { LogIn, LogOut, User, ChevronDown, ExternalLink } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,9 +14,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const navs = [
-  { name: "上传", path: "/" },
   { name: "打标", path: "/mark" },
+  { name: "上传", path: "/upload" },
   { name: "编辑", path: "/edit" },
+  { name: "贡献", path: "/contributions" },
 ];
 
 export default function Header() {
@@ -36,6 +37,15 @@ export default function Header() {
         <div className="flex items-center gap-6">
           {isLoggedIn && (
             <nav className="hidden items-center gap-0.5 sm:flex">
+              <a
+                href="https://vocabili.top"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:text-foreground"
+              >
+                主站
+                <ExternalLink className="h-3 w-3" />
+              </a>
               {navs.map((nav) => (
                 <Link
                   key={nav.path}
@@ -118,6 +128,17 @@ export default function Header() {
 
                 {/* 移动端导航 */}
                 <div className="sm:hidden">
+                  <DropdownMenuItem asChild>
+                    <a
+                      href="https://vocabili.top"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between"
+                    >
+                      主站
+                      <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                    </a>
+                  </DropdownMenuItem>
                   {navs.map((nav) => (
                     <DropdownMenuItem
                       key={nav.path}

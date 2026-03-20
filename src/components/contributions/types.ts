@@ -1,3 +1,4 @@
+// src/components/mark/stats/types.ts
 export interface UserProfile {
   id: string;
   username?: string;
@@ -11,6 +12,8 @@ export interface ContributorStats {
   includes: number;
   blacklists: number;
   fieldEdits: number;
+  score: number;
+  taskCount?: number;
 }
 
 export interface EnrichedLogEntry {
@@ -52,4 +55,10 @@ export interface RecordAttribution {
   actionByProfile?: UserProfile;
   action?: "include" | "exclude" | "blacklist";
   actionAt?: string;
+}
+
+export interface GlobalStats {
+  taskCount: number;
+  contributors: ContributorStats[];
+  weights: { include: number; blacklist: number; fieldEdit: number };
 }
