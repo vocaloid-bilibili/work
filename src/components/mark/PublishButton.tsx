@@ -72,8 +72,8 @@ export default function PublishButton({ taskId }: { taskId: string }) {
   }, [logs]);
 
   const runPhase1 = async (): Promise<PublishFile[]> => {
-    const token = localStorage.getItem("token") || "";
-    const res = await fetch(`/api/tasks/${taskId}/publish`, {
+    const token = localStorage.getItem("access_token") || "";
+    const res = await fetch(`/collab/mark/tasks/${taskId}/publish`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -115,12 +115,15 @@ export default function PublishButton({ taskId }: { taskId: string }) {
   };
 
   const processFile = async (file: PublishFile) => {
-    const token = localStorage.getItem("token") || "";
+    const token = localStorage.getItem("access_token") || "";
 
     setFileStatuses((p) => ({ ...p, [file.fileKey]: "downloading" }));
-    const dlRes = await fetch(`/api/tasks/publish/files/${file.fileKey}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const dlRes = await fetch(
+      `/collab/mark/tasks/publish/files/${file.fileKey}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
     if (!dlRes.ok) throw new Error(`下载 ${file.filename} 失败`);
 
     const blob = await dlRes.blob();
@@ -161,7 +164,7 @@ export default function PublishButton({ taskId }: { taskId: string }) {
 
     setFileStatuses((p) => ({ ...p, [file.fileKey]: "done" }));
 
-    fetch(`/api/tasks/publish/files/${file.fileKey}`, {
+    fetch(`/collab/mark/tasks/publish/files/${file.fileKey}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     }).catch(() => {});
