@@ -45,7 +45,6 @@ export default function CheckSection({
             : "border-amber-200/80 dark:border-amber-900/60 bg-amber-50/20 dark:bg-amber-950/10",
       )}
     >
-      {/* 头部 */}
       <button
         type="button"
         className="w-full flex items-center gap-2 px-3 py-2 text-left
@@ -88,7 +87,6 @@ export default function CheckSection({
         )}
       </button>
 
-      {/* 展开内容 */}
       {open && (
         <div className="border-t border-inherit">
           {onConfirm && !isConfirmed && (
@@ -104,8 +102,6 @@ export default function CheckSection({
               </Button>
             </div>
           )}
-
-          {/* 列表 */}
           <div className="px-1 py-1">{children}</div>
         </div>
       )}

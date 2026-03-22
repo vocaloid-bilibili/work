@@ -1,3 +1,5 @@
+// src/components/mark/card/CardFields.tsx
+
 import {
   Select,
   SelectContent,
@@ -67,57 +69,64 @@ export default function CardFields({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
-      {FIELDS.map((f) => (
-        <div key={f.prop} className="flex flex-col space-y-1">
-          <span className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
-            {f.label}
-          </span>
-          {f.type === "string-hint" && (
-            <MarkingNameInput
-              value={record[f.prop]}
-              onChange={(v) => onChange(f.prop, v)}
-              hasError={showErr(f.prop)}
-            />
-          )}
-          {(f.type === "tags" || f.type === "tags-hint") && (
-            <MarkingTags
-              value={String(record[f.prop] ?? "")}
-              onChange={(v) => onChange(f.prop, v)}
-              onInputChange={(v) => onInputChange(f.prop, v)}
-              type={f.search || f.prop}
-              useHint={f.type === "tags-hint"}
-              hasError={showErr(f.prop) || !!record[`_unconfirmed_${f.prop}`]}
-            />
-          )}
-          {f.type === "select" && (
-            <Select
-              value={String(record[f.prop])}
-              onValueChange={(v) => {
-                const n = Number(v);
-                onChange(f.prop, isNaN(n) ? v : n);
-              }}
-            >
-              <SelectTrigger
-                className={cn(
-                  "h-9",
-                  showErr(f.prop) &&
-                    "border-destructive focus:ring-destructive",
-                )}
+    <fieldset disabled={blacklisted} className="contents">
+      <div
+        className={cn(
+          "grid grid-cols-1 lg:grid-cols-2 gap-x-4 gap-y-2.5 text-sm",
+          blacklisted && "pointer-events-none",
+        )}
+      >
+        {FIELDS.map((f) => (
+          <div key={f.prop} className="flex flex-col space-y-1">
+            <span className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
+              {f.label}
+            </span>
+            {f.type === "string-hint" && (
+              <MarkingNameInput
+                value={record[f.prop]}
+                onChange={(v) => onChange(f.prop, v)}
+                hasError={showErr(f.prop)}
+              />
+            )}
+            {(f.type === "tags" || f.type === "tags-hint") && (
+              <MarkingTags
+                value={String(record[f.prop] ?? "")}
+                onChange={(v) => onChange(f.prop, v)}
+                onInputChange={(v) => onInputChange(f.prop, v)}
+                type={f.search || f.prop}
+                useHint={f.type === "tags-hint"}
+                hasError={showErr(f.prop) || !!record[`_unconfirmed_${f.prop}`]}
+              />
+            )}
+            {f.type === "select" && (
+              <Select
+                value={String(record[f.prop])}
+                onValueChange={(v) => {
+                  const n = Number(v);
+                  onChange(f.prop, isNaN(n) ? v : n);
+                }}
               >
-                <SelectValue placeholder="选择..." />
-              </SelectTrigger>
-              <SelectContent>
-                {f.options?.map((o) => (
-                  <SelectItem key={o.value} value={String(o.value)}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
-      ))}
-    </div>
+                <SelectTrigger
+                  className={cn(
+                    "h-9",
+                    showErr(f.prop) &&
+                      "border-destructive focus:ring-destructive",
+                  )}
+                >
+                  <SelectValue placeholder="选择..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {f.options?.map((o) => (
+                    <SelectItem key={o.value} value={String(o.value)}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        ))}
+      </div>
+    </fieldset>
   );
 }

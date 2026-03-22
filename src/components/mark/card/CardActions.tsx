@@ -1,3 +1,5 @@
+// src/components/mark/card/CardActions.tsx
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -10,7 +12,6 @@ import { CheckCircle2, Ban, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  index: number;
   record: any;
   include: boolean;
   blacklisted: boolean;

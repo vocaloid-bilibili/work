@@ -1,3 +1,5 @@
+// src/components/mark/MarkPagination.tsx
+
 import { Input } from "@/components/ui/input";
 import {
   Pagination,
@@ -51,8 +53,8 @@ export default function MarkPagination({
     );
     let start = Math.max(2, currentPage - 2);
     let end = Math.min(totalPages - 1, currentPage + 2);
-    if (currentPage <= 4) end = 5;
-    else if (currentPage >= totalPages - 3) start = totalPages - 4;
+    if (currentPage <= 4) end = Math.min(5, totalPages - 1);
+    else if (currentPage >= totalPages - 3) start = Math.max(2, totalPages - 4);
     if (start > 2)
       items.push(
         <PaginationItem key="s">
@@ -92,50 +94,74 @@ export default function MarkPagination({
   }
 
   return (
-    <Pagination>
-      <PaginationContent>
-        <PaginationItem>
-          <PaginationPrevious
-            onClick={() => onPageChange(currentPage - 1)}
-            className={
-              currentPage === 1
-                ? "pointer-events-none opacity-50"
-                : "cursor-pointer"
-            }
-          />
-        </PaginationItem>
-        {items}
-        <PaginationItem>
-          <PaginationNext
-            onClick={() => onPageChange(currentPage + 1)}
-            className={
-              currentPage === totalPages
-                ? "pointer-events-none opacity-50"
-                : "cursor-pointer"
-            }
-          />
-        </PaginationItem>
-        <div className="flex items-center gap-2 ml-4">
-          <span className="text-sm text-muted-foreground whitespace-nowrap">
-            前往:
-          </span>
-          <Input
-            type="number"
-            min={1}
-            max={totalPages}
-            className="w-16 h-8 text-center px-1"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                const page = parseInt(e.currentTarget.value);
-                if (!isNaN(page) && page >= 1 && page <= totalPages) {
-                  onPageChange(page);
-                  e.currentTarget.value = "";
-                }
+    <div className="flex flex-col sm:flex-row items-center gap-3">
+      <div className="flex items-center gap-2 sm:hidden text-sm">
+        <PaginationPrevious
+          onClick={() => onPageChange(currentPage - 1)}
+          className={
+            currentPage === 1
+              ? "pointer-events-none opacity-50"
+              : "cursor-pointer"
+          }
+        />
+        <span className="tabular-nums text-muted-foreground">
+          {currentPage} / {totalPages}
+        </span>
+        <PaginationNext
+          onClick={() => onPageChange(currentPage + 1)}
+          className={
+            currentPage === totalPages
+              ? "pointer-events-none opacity-50"
+              : "cursor-pointer"
+          }
+        />
+      </div>
+
+      <Pagination className="hidden sm:flex">
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious
+              onClick={() => onPageChange(currentPage - 1)}
+              className={
+                currentPage === 1
+                  ? "pointer-events-none opacity-50"
+                  : "cursor-pointer"
               }
-            }}
-          />
-        </div>
-      </PaginationContent>
-    </Pagination>
+            />
+          </PaginationItem>
+          {items}
+          <PaginationItem>
+            <PaginationNext
+              onClick={() => onPageChange(currentPage + 1)}
+              className={
+                currentPage === totalPages
+                  ? "pointer-events-none opacity-50"
+                  : "cursor-pointer"
+              }
+            />
+          </PaginationItem>
+          <div className="flex items-center gap-2 ml-4">
+            <span className="text-sm text-muted-foreground whitespace-nowrap">
+              前往:
+            </span>
+            <Input
+              type="number"
+              min={1}
+              max={totalPages}
+              className="w-16 h-8 text-center px-1 tabular-nums"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const page = parseInt(e.currentTarget.value);
+                  if (!isNaN(page) && page >= 1 && page <= totalPages) {
+                    onPageChange(page);
+                    e.currentTarget.value = "";
+                  }
+                }
+              }}
+            />
+          </div>
+        </PaginationContent>
+      </Pagination>
+    </div>
   );
 }

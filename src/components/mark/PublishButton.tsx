@@ -243,9 +243,10 @@ export default function PublishButton({ taskId }: { taskId: string }) {
   const busy = phase === "phase1" || phase === "phase2";
 
   const handleOpenChange = (v: boolean) => {
-    if (busy) return; // 进行中不允许关闭
+    if (busy) return;
     setOpen(v);
     if (!v) {
+      startRequested.current = false;
       setPhase("idle");
       setLogs([]);
       setFiles([]);
@@ -255,12 +256,19 @@ export default function PublishButton({ taskId }: { taskId: string }) {
     }
   };
 
+  const startRequested = useRef(false);
+
   const handleClick = () => {
+    startRequested.current = true;
     setOpen(true);
-    // 直接开始
-    setTimeout(() => startPublish(), 0);
   };
 
+  useEffect(() => {
+    if (open && startRequested.current && phase === "idle") {
+      startRequested.current = false;
+      startPublish();
+    }
+  }, [open]);
   return (
     <>
       <Button

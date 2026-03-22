@@ -1,14 +1,7 @@
 // mark/exportCheck.ts
+import { FIELD_LABELS } from "@/components/contributions/constants";
 
-const FIELD_LABELS: Record<string, string> = {
-  name: "歌名",
-  vocal: "歌手",
-  author: "作者",
-  synthesizer: "引擎",
-  copyright: "版权",
-  type: "类别",
-};
-
+export { FIELD_LABELS };
 const REQUIRED_FIELDS = [
   "name",
   "vocal",
@@ -18,9 +11,6 @@ const REQUIRED_FIELDS = [
   "type",
 ];
 const CONSISTENCY_FIELDS = ["vocal", "author", "synthesizer", "type"];
-
-export { FIELD_LABELS };
-
 // ── 现有检查项类型 ──
 
 export interface PendingItem {

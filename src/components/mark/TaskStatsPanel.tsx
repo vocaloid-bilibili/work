@@ -80,7 +80,6 @@ export default function TaskStatsPanel({
           </SheetTitle>
         </SheetHeader>
 
-        {/* Tabs */}
         <div className="px-4 sm:px-6 flex gap-1 border-b shrink-0">
           {(
             [
@@ -103,7 +102,6 @@ export default function TaskStatsPanel({
           ))}
         </div>
 
-        {/* 原生滚动 */}
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <div className="px-4 sm:px-6">
             {statsLoading && !currentStats ? (

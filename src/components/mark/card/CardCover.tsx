@@ -1,3 +1,5 @@
+// src/components/mark/card/CardCover.tsx
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { PlayCircle, Loader2, Ban } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -61,10 +64,11 @@ export default function CardCover({ record, blacklisted }: Props) {
             blacklisted && "opacity-40 grayscale",
           )}
           referrerPolicy="no-referrer"
+          loading="lazy"
         />
       </a>
       {blacklisted && (
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <Badge variant="destructive" className="text-sm px-3 py-1 shadow-lg">
             <Ban className="h-3.5 w-3.5 mr-1" />
             已排除
@@ -82,7 +86,9 @@ export default function CardCover({ record, blacklisted }: Props) {
           <Button
             size="icon"
             variant="secondary"
-            className="absolute bottom-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+            className="absolute bottom-2 right-2 h-8 w-8
+                       sm:opacity-0 sm:group-hover:opacity-100
+                       transition-opacity shadow-md"
             title="预览视频"
           >
             <PlayCircle className="h-5 w-5" />
@@ -90,7 +96,8 @@ export default function CardCover({ record, blacklisted }: Props) {
         </DialogTrigger>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>{record.title}</DialogTitle>
+            <DialogTitle className="line-clamp-1">{record.title}</DialogTitle>
+            <DialogDescription className="sr-only">视频预览</DialogDescription>
           </DialogHeader>
           <div className="aspect-video w-full bg-black flex items-center justify-center rounded-md overflow-hidden">
             {previewLoading ? (
