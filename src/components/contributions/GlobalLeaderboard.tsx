@@ -1,4 +1,5 @@
-// src/components/mark/stats/GlobalLeaderboard.tsx
+// src/components/contributions/GlobalLeaderboard.tsx
+
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -7,8 +8,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import ContributorList from "./ContributorList";
 import type { GlobalStats } from "./types";
 
@@ -37,8 +38,13 @@ export default function GlobalLeaderboard({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] p-0 flex flex-col">
-        <DialogHeader className="px-6 pt-6 pb-2">
+      <DialogContent
+        className={cn(
+          "max-w-lg p-0 flex flex-col gap-0 overflow-hidden",
+          "h-[90dvh] sm:h-auto sm:max-h-[85vh]",
+        )}
+      >
+        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2 shrink-0">
           <DialogTitle>全局贡献排行</DialogTitle>
           <DialogDescription>
             {data
@@ -46,21 +52,24 @@ export default function GlobalLeaderboard({
               : "加载中"}
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="flex-1 px-6 pb-6">
-          {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-7 w-7 animate-spin" />
-            </div>
-          ) : data ? (
-            <div className="pt-2">
-              <ContributorList contributors={data.contributors} />
-            </div>
-          ) : (
-            <div className="text-center text-muted-foreground py-16 text-sm">
-              无数据
-            </div>
-          )}
-        </ScrollArea>
+
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+          <div className="px-4 sm:px-6 pb-6">
+            {loading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-7 w-7 animate-spin" />
+              </div>
+            ) : data ? (
+              <div className="pt-2">
+                <ContributorList contributors={data.contributors} />
+              </div>
+            ) : (
+              <div className="text-center text-muted-foreground py-16 text-sm">
+                无数据
+              </div>
+            )}
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

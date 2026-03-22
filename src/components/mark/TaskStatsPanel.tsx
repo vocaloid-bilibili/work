@@ -135,7 +135,7 @@ export default function TaskStatsPanel({
                         (最新 {currentStats.recentOps?.length || 0} 条)
                       </span>
                     </h3>
-                    <RecentOps ops={currentStats.recentOps || []} compact />
+                    <RecentOps ops={currentStats.recentOps || []} />
                   </div>
                 )}
               </>

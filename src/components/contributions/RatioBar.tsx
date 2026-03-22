@@ -1,4 +1,5 @@
 // src/components/contributions/RatioBar.tsx
+
 export default function RatioBar({
   recordCount,
   totalIncluded,
@@ -9,13 +10,14 @@ export default function RatioBar({
   totalBlacklisted: number;
 }) {
   if (recordCount === 0) return null;
-  const inclPct = (totalIncluded / recordCount) * 100;
-  const blPct = (totalBlacklisted / recordCount) * 100;
-  const restPct = 100 - inclPct - blPct;
+
+  const inclPct = Math.min((totalIncluded / recordCount) * 100, 100);
+  const blPct = Math.min((totalBlacklisted / recordCount) * 100, 100 - inclPct);
+  const restPct = Math.max(0, 100 - inclPct - blPct);
 
   return (
     <div className="space-y-1.5">
-      <div className="flex justify-between text-[11px] text-muted-foreground">
+      <div className="flex justify-between text-[11px] text-muted-foreground tabular-nums">
         <span>收录率 {inclPct.toFixed(1)}%</span>
         {totalBlacklisted > 0 && <span>排除 {totalBlacklisted}</span>}
       </div>
@@ -38,17 +40,20 @@ export default function RatioBar({
       <div className="flex gap-3 text-[10px] text-muted-foreground">
         <span className="flex items-center gap-1">
           <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-          收录
+          收录 <span className="tabular-nums">{totalIncluded}</span>
         </span>
         {totalBlacklisted > 0 && (
           <span className="flex items-center gap-1">
             <span className="inline-block w-2 h-2 rounded-full bg-red-400" />
-            排除
+            排除 <span className="tabular-nums">{totalBlacklisted}</span>
           </span>
         )}
         <span className="flex items-center gap-1">
           <span className="inline-block w-2 h-2 rounded-full bg-muted-foreground/15" />
-          待处理
+          待处理{" "}
+          <span className="tabular-nums">
+            {recordCount - totalIncluded - totalBlacklisted}
+          </span>
         </span>
       </div>
     </div>

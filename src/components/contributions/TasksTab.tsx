@@ -1,20 +1,9 @@
 // src/components/contributions/TasksTab.tsx
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { relativeTime, formatShort } from "./utils";
 import type { TaskSummaryItem } from "./types";
-
-const fmt = (iso: string) => {
-  try {
-    return new Date(iso).toLocaleString("zh-CN", {
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-};
 
 interface Props {
   tasks: TaskSummaryItem[];
@@ -47,14 +36,20 @@ export default function TasksTab({ tasks, onDetail }: Props) {
                   <Badge className="text-[10px] px-1.5 py-0">当前</Badge>
                 )}
               </div>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground tabular-nums">
                 <span>{t.recordCount} 条</span>
                 <span>{t.totalOperations} 次操作</span>
                 <span>{t.contributorCount} 人</span>
               </div>
               <div className="flex gap-x-4 text-[11px] text-muted-foreground/70 mt-1">
-                <span>创建 {fmt(t.createdAt)}</span>
-                {t.closedAt && <span>关闭 {fmt(t.closedAt)}</span>}
+                <span title={formatShort(t.createdAt)}>
+                  创建 {relativeTime(t.createdAt)}
+                </span>
+                {t.closedAt && (
+                  <span title={formatShort(t.closedAt)}>
+                    关闭 {relativeTime(t.closedAt)}
+                  </span>
+                )}
               </div>
             </div>
             <Button

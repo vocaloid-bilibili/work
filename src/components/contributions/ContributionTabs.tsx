@@ -1,4 +1,7 @@
 // src/components/contributions/ContributionTabs.tsx
+
+import { cn } from "@/lib/utils";
+
 export type TabKey = "ranking" | "tasks" | "recent";
 
 const tabs: { key: TabKey; label: string }[] = [
@@ -18,11 +21,12 @@ export default function ContributionTabs({ active, onChange }: Props) {
       {tabs.map(({ key, label }) => (
         <button
           key={key}
-          className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={cn(
+            "px-3 py-2 text-sm font-medium border-b-2 transition-colors",
             active === key
               ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
+              : "border-transparent text-muted-foreground hover:text-foreground active:text-foreground",
+          )}
           onClick={() => onChange(key)}
         >
           {label}
