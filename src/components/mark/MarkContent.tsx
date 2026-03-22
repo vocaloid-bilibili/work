@@ -1,3 +1,5 @@
+// src/components/mark/MarkContent.tsx
+
 import { useMarkState } from "./useMarkState";
 import MarkToolbar from "./MarkToolbar";
 import MarkOverviewBar from "./MarkOverviewBar";
@@ -44,15 +46,16 @@ export default function MarkContent() {
             included={s.includedCount}
             blacklisted={s.blacklistedCount}
             pending={s.pendingCount}
-            allIncluded={s.allIncludedValue}
-            onChangeAll={s.handleChangeAll}
+            filter={s.filter}
+            filteredCount={s.filteredCount}
+            onFilterChange={s.handleFilterChange}
           />
 
           <MarkRecordList
             layoutMode={s.layoutMode}
             pagedData={s.pagedData}
+            pagedRealIndices={s.pagedRealIndices}
             allData={s.currentRecords}
-            pageOffset={(s.currentPage - 1) * s.pageSize}
             includeEntries={s.currentIncludeEntries}
             blacklistedEntries={s.currentBlacklistedEntries}
             recordAttributions={s.currentRecordAttributions}
@@ -61,6 +64,7 @@ export default function MarkContent() {
             onUnblacklist={s.handleUnblacklist}
             onRecordUpdate={s.handleRecordUpdate}
             onDirectFieldChange={s.handleDirectFieldChange}
+            filter={s.filter}
           />
 
           {!isTable && s.totalPages > 1 && (

@@ -1,3 +1,5 @@
+// mark/export-check/ItemRow.tsx
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapPin } from "lucide-react";
@@ -18,8 +20,12 @@ export default function ItemRow({
   onJump,
 }: ItemRowProps) {
   return (
-    <div className="group flex items-start gap-2.5 py-1.5 px-2.5 rounded-md hover:bg-muted/60 transition-colors overflow-hidden">
-      <span className="text-muted-foreground/70 text-[11px] font-mono w-7 shrink-0 text-right pt-0.5 tabular-nums">
+    <div
+      className="group flex items-start gap-2 sm:gap-2.5 py-1.5 px-2 sm:px-2.5
+                 rounded-md hover:bg-muted/60 active:bg-muted/80
+                 transition-colors overflow-hidden"
+    >
+      <span className="text-muted-foreground/70 text-[11px] font-mono w-6 sm:w-7 shrink-0 text-right pt-0.5 tabular-nums">
         {index + 1}
       </span>
 
@@ -28,12 +34,12 @@ export default function ItemRow({
           {title}
         </p>
         {badges && badges.length > 0 && (
-          <div className="flex gap-1.5 flex-wrap mt-0.5">
+          <div className="flex gap-1 sm:gap-1.5 flex-wrap mt-0.5">
             {badges.map((b) => (
               <Badge
                 key={b.label}
                 variant="outline"
-                className={`text-xs h-5 px-2 font-normal shrink-0 ${b.className ?? ""}`}
+                className={`text-[10px] sm:text-xs h-4.5 sm:h-5 px-1.5 sm:px-2 font-normal shrink-0 ${b.className ?? ""}`}
               >
                 {b.label}
               </Badge>
@@ -51,7 +57,12 @@ export default function ItemRow({
         )}
       </div>
 
-      <div className="flex gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity pt-0.5">
+      {/* 跳转按钮：手机始终可见，桌面 hover 显示 */}
+      <div
+        className="flex gap-0.5 shrink-0 pt-0.5
+                      sm:opacity-0 sm:group-hover:opacity-100
+                      transition-opacity"
+      >
         <Button
           variant="ghost"
           size="icon"

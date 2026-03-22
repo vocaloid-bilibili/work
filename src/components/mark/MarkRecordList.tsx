@@ -1,13 +1,16 @@
+// src/components/mark/MarkRecordList.tsx
+
 import MarkingCard from "@/components/mark/MarkingCard";
 import MarkingTable from "@/components/mark/MarkingTable";
 import type { LayoutMode, RecordType } from "./useMarkState";
+import type { MarkFilter } from "./MarkOverviewBar";
 import type { RecordAttribution } from "@/components/contributions/types";
 
 interface Props {
   layoutMode: LayoutMode;
   pagedData: RecordType[];
+  pagedRealIndices: number[];
   allData: RecordType[];
-  pageOffset: number;
   includeEntries: boolean[];
   blacklistedEntries: boolean[];
   recordAttributions: RecordAttribution[];
@@ -16,13 +19,14 @@ interface Props {
   onUnblacklist: (index: number) => void;
   onRecordUpdate: (index: number, updated: any) => void;
   onDirectFieldChange: (index: number, field: string, value: unknown) => void;
+  filter: MarkFilter;
 }
 
 export default function MarkRecordList({
   layoutMode,
   pagedData,
+  pagedRealIndices,
   allData,
-  pageOffset,
   includeEntries,
   blacklistedEntries,
   recordAttributions,
@@ -31,8 +35,10 @@ export default function MarkRecordList({
   onUnblacklist,
   onRecordUpdate,
   onDirectFieldChange,
+  filter,
 }: Props) {
   if (layoutMode === "table") {
+    // 表格模式：暂不支持筛选过滤（全量渲染），或者你也可以传 filteredIndices
     return (
       <MarkingTable
         data={allData}
@@ -47,12 +53,20 @@ export default function MarkRecordList({
     );
   }
 
+  if (pagedData.length === 0 && filter) {
+    return (
+      <div className="text-center text-muted-foreground py-16 text-sm">
+        当前筛选条件下没有记录
+      </div>
+    );
+  }
+
   return (
     <div
       className={`grid gap-4 ${layoutMode === "grid" ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"}`}
     >
       {pagedData.map((record, i) => {
-        const realIndex = pageOffset + i;
+        const realIndex = pagedRealIndices[i];
         return (
           <MarkingCard
             key={realIndex}

@@ -1,3 +1,5 @@
+// src/components/contributions/RecentOps.tsx
+
 import { CheckCircle2, Ban, Pencil, Undo2 } from "lucide-react";
 import UserAvatar from "./UserAvatar";
 import type { EnrichedLogEntry } from "./types";
@@ -11,9 +13,27 @@ const FIELD_LABELS: Record<string, string> = {
   type: "类别",
 };
 
-const fmt = (iso: string) => {
+function relativeTime(iso: string): string {
   try {
-    return new Date(iso).toLocaleString("zh-CN", {
+    const d = new Date(iso);
+    const now = Date.now();
+    const diff = now - d.getTime();
+    if (diff < 60_000) return "刚刚";
+    if (diff < 3600_000) return `${Math.floor(diff / 60_000)}分钟前`;
+    if (diff < 86400_000) return `${Math.floor(diff / 3600_000)}小时前`;
+
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+
+    const hm = d.toLocaleString("zh-CN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    if (d.toDateString() === yesterday.toDateString()) return `昨天 ${hm}`;
+
+    return d.toLocaleString("zh-CN", {
       month: "2-digit",
       day: "2-digit",
       hour: "2-digit",
@@ -22,32 +42,58 @@ const fmt = (iso: string) => {
   } catch {
     return iso;
   }
-};
+}
 
-function ActionIcon({ action }: { action: string }) {
+function ActionBadge({ action }: { action: string }) {
   if (action === "toggle_include")
-    return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />;
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 shrink-0">
+        <CheckCircle2 className="h-3 w-3" />
+        收录
+      </span>
+    );
   if (action === "blacklist")
-    return <Ban className="h-3.5 w-3.5 text-red-500 shrink-0" />;
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-red-500 dark:text-red-400 shrink-0">
+        <Ban className="h-3 w-3" />
+        排除
+      </span>
+    );
   if (action === "unblacklist")
-    return <Undo2 className="h-3.5 w-3.5 text-amber-500 shrink-0" />;
-  return <Pencil className="h-3.5 w-3.5 text-blue-400 shrink-0" />;
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 shrink-0">
+        <Undo2 className="h-3 w-3" />
+        取消排除
+      </span>
+    );
+  return (
+    <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-blue-500 dark:text-blue-400 shrink-0">
+      <Pencil className="h-3 w-3" />
+      编辑
+    </span>
+  );
 }
 
-function actionText(op: EnrichedLogEntry): string {
-  if (op.action === "toggle_include") {
-    return op.value !== undefined
-      ? op.value
-        ? "收录了"
-        : "取消收录"
-      : "切换了收录";
+function editDetail(op: EnrichedLogEntry): string | null {
+  if (op.action !== "set") return null;
+  const label = FIELD_LABELS[op.field] || op.field;
+  const val = String(op.value ?? "");
+  return `${label} → ${val}`;
+}
+
+function toggleDetail(op: EnrichedLogEntry): string | null {
+  if (op.action === "toggle_include" && op.value !== undefined) {
+    return op.value ? "标记收录" : "取消收录";
   }
-  if (op.action === "blacklist") return "排除了";
-  if (op.action === "unblacklist") return "取消排除";
-  return `编辑了 ${FIELD_LABELS[op.field] || op.field}`;
+  return null;
 }
 
-export default function RecentOps({ ops }: { ops: EnrichedLogEntry[] }) {
+interface Props {
+  ops: EnrichedLogEntry[];
+  compact?: boolean;
+}
+
+export default function RecentOps({ ops, compact = false }: Props) {
   if (ops.length === 0) {
     return (
       <div className="text-center text-muted-foreground py-10 text-sm">
@@ -57,38 +103,79 @@ export default function RecentOps({ ops }: { ops: EnrichedLogEntry[] }) {
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-0.5">
       {ops.map((op) => {
         const name =
           op.user.nickname || op.user.username || op.user.id.slice(0, 8);
+        const isEdit = op.action === "set";
+        const detail = editDetail(op);
+        const toggle = toggleDetail(op);
+        const title = op.recordTitle;
+
         return (
           <div
             key={op.opId}
-            className="flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-muted/40 transition-colors"
+            className="flex items-start gap-2.5 py-2 px-2 rounded-lg
+                       hover:bg-muted/40 active:bg-muted/60
+                       transition-colors"
           >
-            <UserAvatar src={op.user.avatar} name={name} size="sm" />
-            <ActionIcon action={op.action} />
-            <div className="flex-1 min-w-0 text-sm">
-              <span className="font-medium">{name}</span>{" "}
-              <span className="text-muted-foreground">{actionText(op)}</span>{" "}
-              {op.action === "set" ? (
-                <>
-                  <span className="font-medium">
-                    → {String(op.value ?? "")}
-                  </span>{" "}
-                  <span className="text-muted-foreground text-xs">
-                    ({op.recordTitle})
-                  </span>
-                </>
-              ) : (
-                <span className="font-medium truncate">
-                  《{op.recordTitle}》
+            <div className="shrink-0 pt-0.5">
+              <UserAvatar src={op.user.avatar} name={name} size="sm" />
+            </div>
+
+            <div className="flex-1 min-w-0 space-y-0.5">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-medium truncate shrink min-w-0">
+                  {name}
                 </span>
+                <ActionBadge action={op.action} />
+
+                {isEdit && detail && (
+                  <span className="text-[13px] text-foreground/80 truncate min-w-0">
+                    {detail}
+                  </span>
+                )}
+
+                {!isEdit && compact && title && (
+                  <span className="text-[13px] text-foreground/80 truncate min-w-0">
+                    《{title}》
+                  </span>
+                )}
+
+                {!isEdit && !compact && toggle && (
+                  <span className="text-xs text-muted-foreground shrink-0">
+                    {toggle}
+                  </span>
+                )}
+
+                {isEdit && compact && title && (
+                  <span className="text-xs text-muted-foreground truncate min-w-0">
+                    《{title}》
+                  </span>
+                )}
+
+                <span className="text-[11px] text-muted-foreground whitespace-nowrap ml-auto shrink-0">
+                  {relativeTime(op.at)}
+                </span>
+              </div>
+
+              {!compact && (
+                <>
+                  {isEdit && title && (
+                    <p className="text-[13px] text-muted-foreground truncate">
+                      《{title}》
+                    </p>
+                  )}
+
+                  {!isEdit && title && (
+                    <p className="text-[13px] text-muted-foreground truncate">
+                      <span className="text-foreground/80">《{title}》</span>
+                      {toggle && <span className="ml-1 text-xs">{toggle}</span>}
+                    </p>
+                  )}
+                </>
               )}
             </div>
-            <span className="text-[11px] text-muted-foreground whitespace-nowrap shrink-0">
-              {fmt(op.at)}
-            </span>
           </div>
         );
       })}

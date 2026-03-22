@@ -1,10 +1,12 @@
 // src/components/mark/useMarkState.ts
+
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useCollaborativeMark } from "@/hooks/useCollaborativeMark";
 import { exportToExcel } from "@/utils/excel";
 import { toast } from "sonner";
 import { runExportChecks, type ExportCheckResult } from "./exportCheck";
 import type { RecordAttribution } from "@/components/contributions/types";
+import type { MarkFilter } from "./MarkOverviewBar"; // ★ NEW
 
 export type LayoutMode = "list" | "grid" | "table";
 
@@ -86,6 +88,8 @@ export function useMarkState() {
     },
   );
 
+  const [filter, setFilter] = useState<MarkFilter>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isCollab = mode === "collab";
   const collab = useCollaborativeMark();
@@ -125,12 +129,46 @@ export function useMarkState() {
     [currentRecords, currentIncludeEntries, currentBlacklistedEntries],
   );
 
-  const totalPages = Math.ceil(currentRecords.length / pageSize);
+  const filteredIndices = useMemo(() => {
+    if (!filter) return null;
+    const indices: number[] = [];
+    for (let i = 0; i < currentRecords.length; i++) {
+      const inc = currentIncludeEntries[i];
+      const bl = currentBlacklistedEntries[i];
+      if (filter === "included" && inc) indices.push(i);
+      else if (filter === "blacklisted" && bl) indices.push(i);
+      else if (filter === "pending" && !inc && !bl) indices.push(i);
+    }
+    return indices;
+  }, [
+    filter,
+    currentRecords,
+    currentIncludeEntries,
+    currentBlacklistedEntries,
+  ]);
 
-  const pagedData = useMemo(() => {
+  const filteredCount = filteredIndices
+    ? filteredIndices.length
+    : currentRecords.length;
+
+  const totalPages = Math.ceil(filteredCount / pageSize);
+
+  const { pagedData, pagedRealIndices } = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return currentRecords.slice(start, start + pageSize);
-  }, [currentRecords, currentPage, pageSize]);
+    if (!filteredIndices) {
+      const data = currentRecords.slice(start, start + pageSize);
+      const indices = Array.from({ length: data.length }, (_, i) => start + i);
+      return { pagedData: data, pagedRealIndices: indices };
+    }
+    const pageIndices = filteredIndices.slice(start, start + pageSize);
+    const data = pageIndices.map((i) => currentRecords[i]);
+    return { pagedData: data, pagedRealIndices: pageIndices };
+  }, [currentRecords, currentPage, pageSize, filteredIndices]);
+
+  const handleFilterChange = useCallback((f: MarkFilter) => {
+    setFilter(f);
+    setCurrentPage(1);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("mark_mode", mode);
@@ -155,17 +193,21 @@ export function useMarkState() {
 
   const handleJumpToRecord = useCallback(
     (index: number) => {
+      setFilter(null);
+
       if (layoutMode === "table") {
-        const el = document.getElementById(`record-${index}`);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "center" });
-          el.classList.add("ring-2", "ring-primary", "ring-offset-2");
-          setTimeout(
-            () =>
-              el.classList.remove("ring-2", "ring-primary", "ring-offset-2"),
-            2000,
-          );
-        }
+        setTimeout(() => {
+          const el = document.getElementById(`record-${index}`);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+            el.classList.add("ring-2", "ring-primary", "ring-offset-2");
+            setTimeout(
+              () =>
+                el.classList.remove("ring-2", "ring-primary", "ring-offset-2"),
+              2000,
+            );
+          }
+        }, 50);
         return;
       }
       const page = Math.floor(index / pageSize) + 1;
@@ -201,6 +243,7 @@ export function useMarkState() {
       if (!file) return;
 
       setOriginalFileName(file.name);
+      setFilter(null);
 
       if (isCollab) {
         setCollabUploading(true);
@@ -462,6 +505,7 @@ export function useMarkState() {
   return {
     currentRecords,
     pagedData,
+    pagedRealIndices,
     currentIncludeEntries,
     currentBlacklistedEntries,
     currentRecordAttributions,
@@ -472,6 +516,9 @@ export function useMarkState() {
     includedCount,
     blacklistedCount,
     pendingCount,
+    filteredCount,
+    filter,
+    handleFilterChange,
     isCollab,
     collab,
     isLoading,

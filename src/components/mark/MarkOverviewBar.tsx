@@ -1,13 +1,19 @@
+// src/components/mark/MarkOverviewBar.tsx
+
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Ban } from "lucide-react";
+import { CheckCircle2, Ban, CircleDot, FilterX } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+export type MarkFilter = "included" | "blacklisted" | "pending" | null;
 
 interface Props {
   total: number;
   included: number;
   blacklisted: number;
   pending: number;
-  allIncluded: boolean;
-  onChangeAll: (checked: boolean) => void;
+  filter: MarkFilter;
+  filteredCount: number;
+  onFilterChange: (filter: MarkFilter) => void;
 }
 
 export default function MarkOverviewBar({
@@ -15,30 +21,85 @@ export default function MarkOverviewBar({
   included,
   blacklisted,
   pending,
+  filter,
+  filteredCount,
+  onFilterChange,
 }: Props) {
+  const toggle = (key: MarkFilter) => {
+    onFilterChange(filter === key ? null : key);
+  };
+
   return (
-    <div className="flex flex-wrap items-center gap-4 pb-3 border-b">
-      <div className="flex flex-wrap gap-2 ml-auto text-xs">
-        <Badge variant="secondary" className="gap-1">
+    <div className="flex flex-wrap items-center gap-3 pb-3 border-b">
+      {filter && (
+        <button
+          className="flex items-center gap-1.5 text-xs text-muted-foreground
+                     hover:text-foreground active:text-foreground
+                     transition-colors rounded-md px-2 py-1
+                     hover:bg-muted/60 active:bg-muted/80"
+          onClick={() => onFilterChange(null)}
+        >
+          <FilterX className="h-3.5 w-3.5" />
+          <span>
+            显示 <strong className="text-foreground">{filteredCount}</strong> /{" "}
+            {total} 条
+          </span>
+        </button>
+      )}
+
+      <div className="flex flex-wrap gap-1.5 ml-auto text-xs">
+        <Badge
+          variant="secondary"
+          className="gap-1 tabular-nums pointer-events-none"
+        >
           共 {total} 条
         </Badge>
+
         <Badge
           variant="outline"
-          className="gap-1 border-emerald-300 text-emerald-700 dark:text-emerald-400"
+          className={cn(
+            "gap-1 cursor-pointer select-none tabular-nums transition-all",
+            "hover:bg-emerald-50 dark:hover:bg-emerald-950/30 active:scale-95",
+            filter === "included"
+              ? "bg-emerald-100 border-emerald-500 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-500 shadow-sm shadow-emerald-200 dark:shadow-emerald-900/30"
+              : "border-emerald-300 text-emerald-700 dark:text-emerald-400",
+            filter && filter !== "included" && "opacity-40",
+          )}
+          onClick={() => toggle("included")}
         >
           <CheckCircle2 className="h-3 w-3" />
           收录 {included}
         </Badge>
-        {blacklisted > 0 && (
-          <Badge
-            variant="outline"
-            className="gap-1 border-red-300 text-red-600 dark:text-red-400"
-          >
-            <Ban className="h-3 w-3" />
-            排除 {blacklisted}
-          </Badge>
-        )}
-        <Badge variant="outline" className="gap-1 text-muted-foreground">
+
+        <Badge
+          variant="outline"
+          className={cn(
+            "gap-1 cursor-pointer select-none tabular-nums transition-all",
+            "hover:bg-red-50 dark:hover:bg-red-950/30 active:scale-95",
+            filter === "blacklisted"
+              ? "bg-red-100 border-red-500 text-red-600 dark:bg-red-950/50 dark:text-red-300 dark:border-red-500 shadow-sm shadow-red-200 dark:shadow-red-900/30"
+              : "border-red-300 text-red-600 dark:text-red-400",
+            filter && filter !== "blacklisted" && "opacity-40",
+          )}
+          onClick={() => toggle("blacklisted")}
+        >
+          <Ban className="h-3 w-3" />
+          排除 {blacklisted}
+        </Badge>
+
+        <Badge
+          variant="outline"
+          className={cn(
+            "gap-1 cursor-pointer select-none tabular-nums transition-all",
+            "hover:bg-amber-50 dark:hover:bg-amber-950/30 active:scale-95",
+            filter === "pending"
+              ? "bg-amber-100 border-amber-500 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-500 shadow-sm shadow-amber-200 dark:shadow-amber-900/30"
+              : "border-amber-300/60 text-muted-foreground",
+            filter && filter !== "pending" && "opacity-40",
+          )}
+          onClick={() => toggle("pending")}
+        >
+          <CircleDot className="h-3 w-3" />
           待处理 {pending}
         </Badge>
       </div>

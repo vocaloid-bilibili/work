@@ -48,7 +48,7 @@ export default function RatioBar({
         )}
         <span className="flex items-center gap-1">
           <span className="inline-block w-2 h-2 rounded-full bg-muted-foreground/15" />
-          未处理
+          待处理
         </span>
       </div>
     </div>

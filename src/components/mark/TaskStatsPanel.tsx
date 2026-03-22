@@ -1,7 +1,7 @@
 // src/components/mark/TaskStatsPanel.tsx
+
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/sheet";
 import { BarChart3, Users, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import StatsCards from "@/components/contributions/StatsCards";
 import RatioBar from "@/components/contributions/RatioBar";
 import ContributorList from "@/components/contributions/ContributorList";
@@ -58,8 +59,8 @@ export default function TaskStatsPanel({
           统计
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-95 sm:w-110 p-0 flex flex-col">
-        <SheetHeader className="px-6 pt-6 pb-2">
+      <SheetContent className="w-95 sm:w-110 max-w-full p-0 flex flex-col">
+        <SheetHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2 shrink-0">
           <SheetTitle className="flex items-center justify-between">
             <span className="flex items-center gap-2">
               <Users className="h-5 w-5" />
@@ -73,75 +74,78 @@ export default function TaskStatsPanel({
               disabled={statsLoading}
             >
               <RefreshCw
-                className={`h-4 w-4 ${statsLoading ? "animate-spin" : ""}`}
+                className={cn("h-4 w-4", statsLoading && "animate-spin")}
               />
             </Button>
           </SheetTitle>
         </SheetHeader>
 
-        <div className="px-6 flex gap-1 border-b">
-          <button
-            className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "overview"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-            onClick={() => setActiveTab("overview")}
-          >
-            概览
-          </button>
-          <button
-            className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "ops"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-            onClick={() => setActiveTab("ops")}
-          >
-            操作记录
-          </button>
+        {/* Tabs */}
+        <div className="px-4 sm:px-6 flex gap-1 border-b shrink-0">
+          {(
+            [
+              { key: "overview" as const, label: "概览" },
+              { key: "ops" as const, label: "操作记录" },
+            ] as const
+          ).map(({ key, label }) => (
+            <button
+              key={key}
+              className={cn(
+                "px-3 py-2 text-sm font-medium border-b-2 transition-colors",
+                activeTab === key
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => setActiveTab(key)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
-        <ScrollArea className="flex-1 px-6">
-          {statsLoading && !currentStats ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
-            </div>
-          ) : currentStats ? (
-            <>
-              {activeTab === "overview" && (
-                <div className="space-y-6 pb-6 pt-4">
-                  <StatsCards stats={currentStats} />
-                  <RatioBar
-                    recordCount={currentStats.recordCount}
-                    totalIncluded={currentStats.totalIncluded}
-                    totalBlacklisted={currentStats.totalBlacklisted}
-                  />
-                  <Separator />
-                  <ContributorList
-                    contributors={currentStats.contributors}
-                    totalOps={currentStats.totalOperations}
-                  />
-                </div>
-              )}
-              {activeTab === "ops" && (
-                <div className="pb-6 pt-4">
-                  <h3 className="text-sm font-semibold mb-3">
-                    最近操作
-                    <span className="text-muted-foreground font-normal ml-1">
-                      (最新 {currentStats.recentOps?.length || 0} 条)
-                    </span>
-                  </h3>
-                  <RecentOps ops={currentStats.recentOps || []} />
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="text-center text-muted-foreground py-20 text-sm">
-              {currentTaskId ? "点击刷新" : "暂无活跃任务"}
-            </div>
-          )}
-        </ScrollArea>
+        {/* 原生滚动 */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+          <div className="px-4 sm:px-6">
+            {statsLoading && !currentStats ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
+              </div>
+            ) : currentStats ? (
+              <>
+                {activeTab === "overview" && (
+                  <div className="space-y-5 pb-6 pt-3">
+                    <StatsCards stats={currentStats} />
+                    <RatioBar
+                      recordCount={currentStats.recordCount}
+                      totalIncluded={currentStats.totalIncluded}
+                      totalBlacklisted={currentStats.totalBlacklisted}
+                    />
+                    <Separator />
+                    <ContributorList
+                      contributors={currentStats.contributors}
+                      totalOps={currentStats.totalOperations}
+                    />
+                  </div>
+                )}
+                {activeTab === "ops" && (
+                  <div className="pb-6 pt-3">
+                    <h3 className="text-sm font-semibold mb-3">
+                      最近操作
+                      <span className="text-muted-foreground font-normal ml-1">
+                        (最新 {currentStats.recentOps?.length || 0} 条)
+                      </span>
+                    </h3>
+                    <RecentOps ops={currentStats.recentOps || []} compact />
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center text-muted-foreground py-20 text-sm">
+                {currentTaskId ? "点击刷新" : "暂无活跃任务"}
+              </div>
+            )}
+          </div>
+        </div>
       </SheetContent>
     </Sheet>
   );

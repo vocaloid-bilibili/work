@@ -1,3 +1,5 @@
+// mark/export-check/CheckSection.tsx
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,24 +48,29 @@ export default function CheckSection({
       {/* 头部 */}
       <button
         type="button"
-        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-black/2 dark:hover:bg-white/2 transition-colors"
+        className="w-full flex items-center gap-2 px-3 py-2 text-left
+                   hover:bg-black/3 dark:hover:bg-white/3
+                   active:bg-black/5 dark:active:bg-white/5
+                   transition-colors"
         onClick={() => setOpen((v) => !v)}
       >
         <span className="shrink-0">{icon}</span>
-        <span className="text-sm font-medium flex-1 truncate">{label}</span>
+        <span className="text-sm font-medium flex-1 min-w-0 truncate">
+          {label}
+        </span>
 
         <Badge
           variant={
             isError ? "destructive" : isConfirmed ? "secondary" : "outline"
           }
-          className="text-[11px] h-5 px-1.5 tabular-nums"
+          className="text-[11px] h-5 px-1.5 tabular-nums shrink-0"
         >
           {count}
         </Badge>
 
         <span
           className={cn(
-            "text-[10px] font-medium px-1.5 py-0.5 rounded",
+            "text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0 hidden sm:inline",
             isError
               ? "text-red-600 dark:text-red-400 bg-red-100/60 dark:bg-red-900/30"
               : isConfirmed
@@ -99,7 +106,7 @@ export default function CheckSection({
           )}
 
           {/* 列表 */}
-          <div className="max-h-52 overflow-y-auto px-1 py-1">{children}</div>
+          <div className="px-1 py-1">{children}</div>
         </div>
       )}
     </div>

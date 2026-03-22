@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   XCircle,
   AlertTriangle,
@@ -161,8 +160,14 @@ export default function ExportCheckDialog({
         if (!v) resetConfirmed();
       }}
     >
-      <DialogContent className="max-w-lg max-h-[80vh] p-0 flex flex-col gap-0 overflow-hidden">
-        <DialogHeader className="px-5 pt-5 pb-3 space-y-2">
+      <DialogContent
+        className={cn(
+          "max-w-lg p-0 flex flex-col gap-0 overflow-hidden",
+
+          "h-[90dvh] sm:h-auto sm:max-h-[80vh]",
+        )}
+      >
+        <DialogHeader className="px-4 sm:px-5 pt-4 sm:pt-5 pb-3 space-y-2 shrink-0">
           <DialogTitle className="flex items-center gap-2 text-base">
             {allClear ? (
               <CheckCircle2 className="h-5 w-5 text-emerald-500" />
@@ -188,13 +193,15 @@ export default function ExportCheckDialog({
                   />
                 ))}
               </div>
-              <div className="flex gap-3 flex-wrap">
+              <div className="flex gap-2 sm:gap-3 flex-wrap">
                 {summarySegments.map((seg, i) => (
                   <span
                     key={i}
                     className="flex items-center gap-1 text-[11px] text-muted-foreground"
                   >
-                    <span className={cn("w-2 h-2 rounded-full", seg.color)} />
+                    <span
+                      className={cn("w-2 h-2 rounded-full shrink-0", seg.color)}
+                    />
                     {seg.label}
                     <span className="font-medium text-foreground/80">
                       {seg.count}
@@ -206,8 +213,9 @@ export default function ExportCheckDialog({
           )}
         </DialogHeader>
 
-        <ScrollArea className="flex-1 min-h-0">
-          <div className="px-5 pb-4">
+        {/* 用原生滚动替代 ScrollArea，兼容性更好 */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+          <div className="px-4 sm:px-5 pb-4">
             {allClear ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
                 <CheckCircle2 className="h-10 w-10 text-emerald-500 mb-2" />
@@ -389,24 +397,24 @@ export default function ExportCheckDialog({
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter className="px-5 py-3 border-t bg-muted/20">
+        <DialogFooter className="px-4 sm:px-5 py-3 border-t bg-muted/20 shrink-0">
           <div className="flex items-center justify-between w-full">
             <div className="text-xs">
               {hasMandatory ? (
                 <span className="text-red-500 flex items-center gap-1.5">
-                  <XCircle className="h-3.5 w-3.5" />
+                  <XCircle className="h-3.5 w-3.5 shrink-0" />
                   {mandatoryCount} 项阻止导出
                 </span>
               ) : hasAdvisory && !advisoryConfirmed ? (
                 <span className="text-amber-500 flex items-center gap-1.5">
-                  <AlertTriangle className="h-3.5 w-3.5" />
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                   请确认提醒项
                 </span>
               ) : (
                 <span className="text-emerald-600 flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                   可以导出
                 </span>
               )}
