@@ -1,3 +1,5 @@
+// src/utils/collabClient.ts
+
 export type ConnectionStatus =
   | "connecting"
   | "connected"
@@ -29,6 +31,10 @@ export interface ServerEvent {
   [key: string]: unknown;
 }
 
+const HEARTBEAT_INTERVAL = 15_000;
+const STALE_TIMEOUT = 45_000;
+const MAX_QUEUE_SIZE = 200;
+
 export class CollabClient {
   private readonly baseProvider: () => string;
   private readonly tokenProvider: () => Promise<string | null>;
@@ -40,6 +46,9 @@ export class CollabClient {
   private reconnectAttempt = 0;
   private heartbeatTimer: number | null = null;
   private reconnectTimer: number | null = null;
+  private lastPongAt = 0;
+  private staleCheckTimer: number | null = null;
+  private messageQueue: string[] = [];
 
   constructor(options: CollabClientOptions) {
     this.baseProvider = options.baseProvider;
@@ -61,28 +70,36 @@ export class CollabClient {
     }
 
     const wsUrl = this.makeWsUrl(token);
-    this.socket = new WebSocket(wsUrl);
+
+    try {
+      this.socket = new WebSocket(wsUrl);
+    } catch {
+      this.scheduleReconnect();
+      return;
+    }
 
     this.socket.onopen = () => {
       this.reconnectAttempt = 0;
+      this.lastPongAt = Date.now();
       this.onStatusChange("connected");
       this.startHeartbeat();
+      this.flushQueue();
     };
 
     this.socket.onmessage = (event) => {
       try {
         const parsed = JSON.parse(String(event.data)) as ServerEvent;
-        if (parsed && parsed.type) {
-          this.onMessage(parsed);
+        if (!parsed || !parsed.type) return;
+
+        if (parsed.type === "pong") {
+          this.lastPongAt = Date.now();
         }
-      } catch {
-        this.onMessage({ type: "error", message: "消息解析失败" });
-      }
+
+        this.onMessage(parsed);
+      } catch {}
     };
 
-    this.socket.onerror = () => {
-      this.onStatusChange("reconnecting");
-    };
+    this.socket.onerror = () => {};
 
     this.socket.onclose = () => {
       this.stopHeartbeat();
@@ -101,16 +118,37 @@ export class CollabClient {
       window.clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+    this.messageQueue = [];
     this.socket?.close();
     this.socket = null;
     this.onStatusChange("offline");
   }
 
   send(event: ClientEvent): void {
-    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+    const msg = JSON.stringify(event);
+
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(msg);
       return;
     }
-    this.socket.send(JSON.stringify(event));
+
+    if (event.type !== "ping" && this.messageQueue.length < MAX_QUEUE_SIZE) {
+      this.messageQueue.push(msg);
+    }
+  }
+
+  private flushQueue(): void {
+    if (
+      !this.socket ||
+      this.socket.readyState !== WebSocket.OPEN ||
+      this.messageQueue.length === 0
+    ) {
+      return;
+    }
+    const queue = this.messageQueue.splice(0);
+    for (const msg of queue) {
+      this.socket.send(msg);
+    }
   }
 
   private makeWsUrl(token: string): string {
@@ -133,15 +171,30 @@ export class CollabClient {
 
   private startHeartbeat(): void {
     this.stopHeartbeat();
+    this.lastPongAt = Date.now();
+
     this.heartbeatTimer = window.setInterval(() => {
-      this.send({ type: "ping" });
-    }, 15000);
+      if (this.socket?.readyState === WebSocket.OPEN) {
+        this.socket.send(JSON.stringify({ type: "ping" }));
+      }
+    }, HEARTBEAT_INTERVAL);
+
+    this.staleCheckTimer = window.setInterval(() => {
+      if (Date.now() - this.lastPongAt > STALE_TIMEOUT) {
+        console.warn("[CollabClient] 连接僵死，强制重连");
+        this.socket?.close();
+      }
+    }, STALE_TIMEOUT);
   }
 
   private stopHeartbeat(): void {
     if (this.heartbeatTimer) {
       window.clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;
+    }
+    if (this.staleCheckTimer) {
+      window.clearInterval(this.staleCheckTimer);
+      this.staleCheckTimer = null;
     }
   }
 }

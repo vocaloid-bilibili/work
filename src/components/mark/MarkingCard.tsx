@@ -1,5 +1,6 @@
 // src/components/mark/MarkingCard.tsx
 
+import { memo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import CardCover from "./card/CardCover";
@@ -20,7 +21,7 @@ interface Props {
   onUpdate: (record: any) => void;
 }
 
-export default function MarkingCard({
+function MarkingCardInner({
   record,
   include,
   blacklisted,
@@ -88,7 +89,6 @@ export default function MarkingCard({
               onBlacklist={onBlacklist}
               onUnblacklist={onUnblacklist}
             />
-            {/* 归属标识  */}
             {profile && actionLabel && (
               <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground px-1">
                 <UserAvatar
@@ -138,3 +138,5 @@ export default function MarkingCard({
     </Card>
   );
 }
+
+export default memo(MarkingCardInner);

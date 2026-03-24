@@ -1,3 +1,6 @@
+// src/components/mark/table/TableRow.tsx
+
+import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -8,7 +11,6 @@ import { CheckCircle2, Ban, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { COLUMNS, type ColDef } from "./columns";
 import CellRenderer from "./CellRenderer";
-import type { CellAddress } from "./useTableNav";
 
 interface Props {
   record: any;
@@ -17,7 +19,8 @@ interface Props {
   isIncluded: boolean;
   isBlacklisted: boolean;
   isSelected: boolean;
-  activeCell: CellAddress | null;
+  isActiveRow: boolean;
+  activeCol: number | null;
   isEditing: boolean;
   initialChar?: string;
   onIncludeChange: (i: number, v: boolean) => void;
@@ -37,14 +40,15 @@ interface Props {
   onRowDragEnter: (row: number) => void;
 }
 
-export default function TableRowComp({
+function TableRowComp({
   record,
   rowInPage,
   pageOffset,
   isIncluded,
   isBlacklisted,
   isSelected,
-  activeCell,
+  isActiveRow,
+  activeCol,
   isEditing,
   initialChar,
   onIncludeChange,
@@ -77,7 +81,7 @@ export default function TableRowComp({
           : isIncluded
             ? "hover:bg-emerald-50/30 dark:hover:bg-emerald-950/10"
             : "hover:bg-muted/30",
-        activeCell?.row === rowInPage && !isSelected && "bg-primary/5",
+        isActiveRow && !isSelected && "bg-primary/5",
       )}
     >
       <td
@@ -187,8 +191,9 @@ export default function TableRowComp({
           </a>
         </div>
       </td>
+
       {COLUMNS.map((col, ci) => {
-        const active = activeCell?.row === rowInPage && activeCell?.col === ci;
+        const active = isActiveRow && activeCol === ci;
         const editing = active && isEditing;
 
         return (
@@ -242,3 +247,24 @@ export default function TableRowComp({
     </tr>
   );
 }
+
+export default memo(TableRowComp, (prev, next) => {
+  if (prev.record !== next.record) return false;
+  if (prev.isIncluded !== next.isIncluded) return false;
+  if (prev.isBlacklisted !== next.isBlacklisted) return false;
+  if (prev.isSelected !== next.isSelected) return false;
+
+  if (prev.isActiveRow !== next.isActiveRow) return false;
+  if (prev.isActiveRow || next.isActiveRow) {
+    if (prev.activeCol !== next.activeCol) return false;
+    if (prev.isEditing !== next.isEditing) return false;
+    if (prev.initialChar !== next.initialChar) return false;
+  }
+
+  if (prev.rowInPage !== next.rowInPage) return false;
+  if (prev.pageOffset !== next.pageOffset) return false;
+
+  if (prev.getWidth !== next.getWidth) return false;
+
+  return true;
+});

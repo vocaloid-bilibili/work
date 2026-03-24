@@ -1,3 +1,6 @@
+// src/components/mark/table/BulkActionBar.tsx
+
+import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Ban, X, MousePointerClick } from "lucide-react";
@@ -11,7 +14,7 @@ interface Props {
   onClear: () => void;
 }
 
-export default function BulkActionBar({
+function BulkActionBarInner({
   count,
   totalPending,
   onIncludeAll,
@@ -77,3 +80,5 @@ export default function BulkActionBar({
     </div>
   );
 }
+
+export default memo(BulkActionBarInner);

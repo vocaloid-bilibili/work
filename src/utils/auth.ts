@@ -29,9 +29,25 @@ export interface TokenPayload {
   exp: number;
 }
 
+const parsedCache = new WeakMap<object, TokenPayload>();
+const tokenObjMap = new Map<string, object>();
+
 export function parseToken(token: string): TokenPayload | null {
   try {
-    return JSON.parse(atob(token.split(".")[1]));
+    let key = tokenObjMap.get(token);
+    if (key) {
+      const cached = parsedCache.get(key);
+      if (cached) return cached;
+    }
+    const payload = JSON.parse(atob(token.split(".")[1])) as TokenPayload;
+    key = {};
+    tokenObjMap.set(token, key);
+    parsedCache.set(key, payload);
+    if (tokenObjMap.size > 10) {
+      const first = tokenObjMap.keys().next().value;
+      if (first) tokenObjMap.delete(first);
+    }
+    return payload;
   } catch {
     return null;
   }

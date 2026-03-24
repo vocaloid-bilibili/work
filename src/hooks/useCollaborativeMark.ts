@@ -1,3 +1,5 @@
+// src/hooks/useCollaborativeMark.ts
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { requestCollabJson, getCollabBase } from "@/utils/collabApi";
 import { getValidAccessToken } from "@/utils/auth";
@@ -37,6 +39,41 @@ const createOpId = (): string => {
   return `op-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
+function sanitizeCellValue(val: unknown): unknown {
+  if (val === null || val === undefined) return "";
+  if (typeof val === "object" && val !== null && "richText" in (val as any)) {
+    const rt = (val as any).richText;
+    return Array.isArray(rt)
+      ? rt.map((seg: any) => String(seg?.text ?? "")).join("")
+      : "";
+  }
+  if (typeof val === "object" && val !== null && "result" in (val as any)) {
+    return sanitizeCellValue((val as any).result);
+  }
+  if (typeof val === "object" && val !== null && "hyperlink" in (val as any)) {
+    return (val as any).text || (val as any).hyperlink || "";
+  }
+  if (typeof val === "object" && val !== null && !Array.isArray(val)) {
+    try {
+      return JSON.stringify(val);
+    } catch {
+      return "";
+    }
+  }
+  if (typeof val === "string" && val.startsWith("http://")) {
+    return val.replace(/^http:\/\//, "https://");
+  }
+  return val;
+}
+
+function sanitizeRecord(r: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const k in r) {
+    out[k] = sanitizeCellValue(r[k]);
+  }
+  return out;
+}
+
 const applyOperationToLocal = (
   operation: Pick<MarkOperation, "action" | "recordIndex" | "field" | "value">,
   records: Array<Record<string, unknown>>,
@@ -47,41 +84,43 @@ const applyOperationToLocal = (
   includeEntries: boolean[];
   blacklistedEntries: boolean[];
 } => {
-  const nextRecords = [...records];
-  const nextInclude = [...includeEntries];
-  const nextBlacklist = [...blacklistedEntries];
-
-  if (
-    operation.recordIndex < 0 ||
-    operation.recordIndex >= nextRecords.length
-  ) {
+  const idx = operation.recordIndex;
+  if (idx < 0 || idx >= records.length) {
     return { records, includeEntries, blacklistedEntries };
   }
 
   switch (operation.action) {
-    case "toggle_include":
-      nextInclude[operation.recordIndex] = Boolean(operation.value);
-      break;
-    case "blacklist":
-      nextBlacklist[operation.recordIndex] = true;
-      nextInclude[operation.recordIndex] = false;
-      break;
-    case "unblacklist":
-      nextBlacklist[operation.recordIndex] = false;
-      break;
+    case "toggle_include": {
+      const next = [...includeEntries];
+      next[idx] = Boolean(operation.value);
+      return { records, includeEntries: next, blacklistedEntries };
+    }
+    case "blacklist": {
+      const nextBl = [...blacklistedEntries];
+      const nextInc = [...includeEntries];
+      nextBl[idx] = true;
+      nextInc[idx] = false;
+      return {
+        records,
+        includeEntries: nextInc,
+        blacklistedEntries: nextBl,
+      };
+    }
+    case "unblacklist": {
+      const next = [...blacklistedEntries];
+      next[idx] = false;
+      return { records, includeEntries, blacklistedEntries: next };
+    }
     case "set": {
-      const row = { ...nextRecords[operation.recordIndex] };
-      row[operation.field] = operation.value;
-      nextRecords[operation.recordIndex] = row;
-      break;
+      const nextRecords = [...records];
+      nextRecords[idx] = {
+        ...records[idx],
+        [operation.field]: operation.value,
+      };
+      return { records: nextRecords, includeEntries, blacklistedEntries };
     }
   }
-
-  return {
-    records: nextRecords,
-    includeEntries: nextInclude,
-    blacklistedEntries: nextBlacklist,
-  };
+  return { records, includeEntries, blacklistedEntries };
 };
 
 export function useCollaborativeMark() {
@@ -123,7 +162,7 @@ export function useCollaborativeMark() {
   const applySnapshot = useCallback((snap: MarkTaskSnapshot) => {
     setTaskId(snap.taskId);
     setVersion(snap.version);
-    setRecords(snap.records);
+    setRecords(snap.records.map(sanitizeRecord));
     setIncludeEntries(snap.includeEntries);
     setBlacklistedEntries(
       snap.blacklistedEntries || new Array(snap.records.length).fill(false),
@@ -184,9 +223,15 @@ export function useCollaborativeMark() {
           includeRef.current,
           blacklistRef.current,
         );
-        setRecords(result.records);
-        setIncludeEntries(result.includeEntries);
-        setBlacklistedEntries(result.blacklistedEntries);
+        if (result.records !== recordsRef.current) {
+          setRecords(result.records);
+        }
+        if (result.includeEntries !== includeRef.current) {
+          setIncludeEntries(result.includeEntries);
+        }
+        if (result.blacklistedEntries !== blacklistRef.current) {
+          setBlacklistedEntries(result.blacklistedEntries);
+        }
         if (typeof event.version === "number") setVersion(event.version);
         pendingOpsRef.current.delete(operation.opId);
 
@@ -306,9 +351,15 @@ export function useCollaborativeMark() {
         includeRef.current,
         blacklistRef.current,
       );
-      setRecords(result.records);
-      setIncludeEntries(result.includeEntries);
-      setBlacklistedEntries(result.blacklistedEntries);
+      if (result.records !== recordsRef.current) {
+        setRecords(result.records);
+      }
+      if (result.includeEntries !== includeRef.current) {
+        setIncludeEntries(result.includeEntries);
+      }
+      if (result.blacklistedEntries !== blacklistRef.current) {
+        setBlacklistedEntries(result.blacklistedEntries);
+      }
       pendingOpsRef.current.add(operation.opId);
       clientRef.current.send({ type: "submit_operation", operation });
     },
@@ -365,9 +416,9 @@ export function useCollaborativeMark() {
     ) => {
       setRecords((prev) => {
         if (recordIndex < 0 || recordIndex >= prev.length) return prev;
+        const updated = updater(prev[recordIndex]);
+        if (updated === prev[recordIndex]) return prev;
         const next = [...prev];
-        const updated = updater(next[recordIndex]);
-        if (updated === next[recordIndex]) return prev;
         next[recordIndex] = updated;
         return next;
       });
@@ -454,6 +505,7 @@ export function useCollaborativeMark() {
     },
     [taskId],
   );
+
   const fetchTaskOps = useCallback(
     async (
       targetTaskId: string,
@@ -503,6 +555,7 @@ export function useCollaborativeMark() {
       }>;
     }>("/mark/tasks");
   }, []);
+
   const fetchGlobalStats = useCallback(async () => {
     return requestCollabJson<any>("/mark/tasks/stats/global");
   }, []);

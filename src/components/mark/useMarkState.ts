@@ -6,7 +6,7 @@ import { exportToExcel } from "@/utils/excel";
 import { toast } from "sonner";
 import { runExportChecks, type ExportCheckResult } from "./exportCheck";
 import type { RecordAttribution } from "@/components/contributions/types";
-import type { MarkFilter } from "./MarkOverviewBar"; // ★ NEW
+import type { MarkFilter } from "./MarkOverviewBar";
 
 export type LayoutMode = "list" | "grid" | "table";
 
@@ -94,10 +94,8 @@ export function useMarkState() {
   const isCollab = mode === "collab";
   const collab = useCollaborativeMark();
 
-  // Derived
   const currentRecords = useMemo(() => {
-    const raw = isCollab ? (collab.records as RecordType[]) : allRecords;
-    return raw.map(sanitizeRecord);
+    return isCollab ? (collab.records as RecordType[]) : allRecords;
   }, [isCollab, collab.records, allRecords]);
 
   const currentIncludeEntries = isCollab
@@ -266,13 +264,7 @@ export function useMarkState() {
           worker.postMessage({ file: ab });
           worker.onmessage = (ev) => {
             const raw = ev.data;
-            const records = raw.map((r: any) => {
-              const obj: Record<string, any> = {};
-              for (const [key, val] of Object.entries(r)) {
-                obj[key] = sanitizeCellValue(val);
-              }
-              return obj;
-            });
+            const records = raw.map((r: any) => sanitizeRecord(r));
             setAllRecords(records);
             const init = records.map(
               (r: any) =>

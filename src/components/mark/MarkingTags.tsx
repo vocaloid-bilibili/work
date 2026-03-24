@@ -1,3 +1,5 @@
+// src/components/mark/MarkingTags.tsx
+
 import { useState, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -32,7 +34,7 @@ export default function MarkingTags({
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const debouncedInput = useDebounce(inputValue, 300);
+  const debouncedInput = useDebounce(inputValue, 400);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const onInputChangeRef = useRef(onInputChange);
   useEffect(() => {

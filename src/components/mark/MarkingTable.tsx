@@ -1,3 +1,5 @@
+// src/components/mark/MarkingTable.tsx
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
@@ -76,7 +78,6 @@ export default function MarkingTable({
     return c;
   }, [data.length, pageOffset, includeEntries, blacklistedEntries]);
 
-  // 批量收录
   const handleBulkInclude = useCallback(() => {
     for (const row of sel.selected) {
       const ri = pageOffset + row;
@@ -85,7 +86,6 @@ export default function MarkingTable({
     sel.selectNone();
   }, [sel, pageOffset, blacklistedEntries, onIncludeChange]);
 
-  // 批量排除：跳过已收录的和已排除的
   const handleBulkBlacklist = useCallback(() => {
     for (const row of sel.selected) {
       const ri = pageOffset + row;
@@ -204,6 +204,9 @@ export default function MarkingTable({
     ...COLUMNS.map((c) => ({ key: c.key, label: c.label })),
   ];
 
+  const activeRow = nav.activeCell?.row ?? -1;
+  const activeCol = nav.activeCell?.col ?? null;
+
   return (
     <TooltipProvider delayDuration={200}>
       <div
@@ -252,6 +255,7 @@ export default function MarkingTable({
             <tbody>
               {data.map((record, i) => {
                 const ri = pageOffset + i;
+                const isActiveRow = activeRow === i;
                 return (
                   <TableRowComp
                     key={ri}
@@ -261,11 +265,10 @@ export default function MarkingTable({
                     isIncluded={includeEntries[ri]}
                     isBlacklisted={blacklistedEntries[ri] || false}
                     isSelected={sel.selected.has(i)}
-                    activeCell={nav.activeCell}
-                    isEditing={nav.isEditing}
-                    initialChar={
-                      nav.activeCell?.row === i ? initialChar : undefined
-                    }
+                    isActiveRow={isActiveRow}
+                    activeCol={isActiveRow ? activeCol : null}
+                    isEditing={isActiveRow ? nav.isEditing : false}
+                    initialChar={isActiveRow ? initialChar : undefined}
                     onIncludeChange={onIncludeChange}
                     onBlacklist={onBlacklist}
                     onUnblacklist={onUnblacklist}
