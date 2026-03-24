@@ -49,6 +49,10 @@ export default function MarkContent() {
             filter={s.filter}
             filteredCount={s.filteredCount}
             onFilterChange={s.handleFilterChange}
+            records={s.currentRecords}
+            includeEntries={s.currentIncludeEntries}
+            blacklistedEntries={s.currentBlacklistedEntries}
+            onJump={s.handleJumpToRecord}
           />
 
           <MarkRecordList

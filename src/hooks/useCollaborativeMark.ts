@@ -454,6 +454,37 @@ export function useCollaborativeMark() {
     },
     [taskId],
   );
+  const fetchTaskOps = useCallback(
+    async (
+      targetTaskId: string,
+      limit: number,
+      offset: number,
+    ): Promise<{
+      ops: Array<{
+        opId: string;
+        action: string;
+        field: string;
+        recordIndex: number;
+        recordTitle?: string;
+        bvid?: string;
+        value?: unknown;
+        user: {
+          id: string;
+          username?: string;
+          nickname?: string;
+          avatar?: string | null;
+        };
+        at: string;
+      }>;
+      total: number;
+      hasMore: boolean;
+    }> => {
+      return requestCollabJson(
+        `/mark/tasks/${targetTaskId}/ops?limit=${limit}&offset=${offset}`,
+      );
+    },
+    [],
+  );
 
   const fetchTaskList = useCallback(async () => {
     return requestCollabJson<{
@@ -504,6 +535,7 @@ export function useCollaborativeMark() {
     uploadFile,
     exportFile,
     fetchTaskStats,
+    fetchTaskOps,
     fetchTaskList,
     reconnect: () => {
       clientRef.current?.disconnect();

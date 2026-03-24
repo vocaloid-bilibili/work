@@ -1,6 +1,8 @@
 // src/components/contributions/RecentOps.tsx
 
-import { CheckCircle2, Ban, Pencil, Undo2 } from "lucide-react";
+import { useState } from "react";
+import { CheckCircle2, Ban, Pencil, Undo2, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import UserAvatar from "./UserAvatar";
 import { FIELD_LABELS, FIELD_COLORS } from "./constants";
 import { relativeTime } from "./utils";
@@ -49,7 +51,16 @@ function EditDetail({ field, value }: { field: string; value: string }) {
   );
 }
 
-export default function RecentOps({ ops }: { ops: EnrichedLogEntry[] }) {
+interface Props {
+  ops: EnrichedLogEntry[];
+  total?: number;
+  hasMore?: boolean;
+  onLoadMore?: () => Promise<void>;
+}
+
+export default function RecentOps({ ops, total, hasMore, onLoadMore }: Props) {
+  const [loading, setLoading] = useState(false);
+
   if (ops.length === 0) {
     return (
       <div className="text-center text-muted-foreground py-10 text-sm">
@@ -57,6 +68,16 @@ export default function RecentOps({ ops }: { ops: EnrichedLogEntry[] }) {
       </div>
     );
   }
+
+  const handleLoadMore = async () => {
+    if (!onLoadMore) return;
+    setLoading(true);
+    try {
+      await onLoadMore();
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-0.5">
@@ -104,6 +125,28 @@ export default function RecentOps({ ops }: { ops: EnrichedLogEntry[] }) {
           </div>
         );
       })}
+
+      {hasMore && onLoadMore ? (
+        <div className="flex justify-center pt-4 pb-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs text-muted-foreground gap-1.5"
+            onClick={handleLoadMore}
+            disabled={loading}
+          >
+            {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            {loading ? "加载中..." : "加载更多"}
+          </Button>
+        </div>
+      ) : (
+        ops.length >= 20 && (
+          <div className="text-center text-[11px] text-muted-foreground/50 pt-3 pb-1 tabular-nums">
+            已显示全部 {ops.length} 条
+            {total !== undefined && total > ops.length && ` / 共 ${total} 条`}
+          </div>
+        )
+      )}
     </div>
   );
 }

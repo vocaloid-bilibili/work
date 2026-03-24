@@ -1,6 +1,6 @@
 // src/components/contributions/DetailDialog.tsx
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
@@ -15,7 +15,7 @@ import RatioBar from "./RatioBar";
 import ContributorList from "./ContributorList";
 import FieldBreakdown from "./FieldBreakdown";
 import RecentOps from "./RecentOps";
-import type { TaskStats } from "./types";
+import type { TaskStats, EnrichedLogEntry } from "./types";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -23,6 +23,16 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   loading: boolean;
   stats: TaskStats | null;
+  /** 加载更多操作记录 */
+  fetchOps?: (
+    taskId: string,
+    limit: number,
+    offset: number,
+  ) => Promise<{
+    ops: EnrichedLogEntry[];
+    total: number;
+    hasMore: boolean;
+  }>;
 }
 
 type TabKey = "overview" | "ops";
@@ -32,16 +42,66 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "ops", label: "操作记录" },
 ];
 
+const PAGE_SIZE = 100;
+
 export default function DetailDialog({
   open,
   onOpenChange,
   loading,
   stats,
+  fetchOps,
 }: Props) {
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
 
+  // 分页操作记录状态
+  const [allOps, setAllOps] = useState<EnrichedLogEntry[]>([]);
+  const [opsTotal, setOpsTotal] = useState(0);
+  const [opsHasMore, setOpsHasMore] = useState(false);
+  const [opsInited, setOpsInited] = useState(false);
+
+  // 切换到操作记录 tab 时，用 stats.recentOps 做初始数据
+  const handleTabChange = useCallback(
+    (key: TabKey) => {
+      setActiveTab(key);
+      if (key === "ops" && !opsInited && stats) {
+        const initial = stats.recentOps || [];
+        setAllOps(initial);
+        // 如果初始数据刚好是 200 条（旧 LIMIT），大概率还有更多
+        setOpsHasMore(initial.length >= 200);
+        setOpsTotal(initial.length);
+        setOpsInited(true);
+      }
+    },
+    [opsInited, stats],
+  );
+
+  // 加载更多
+  const handleLoadMore = useCallback(async () => {
+    if (!fetchOps || !stats) return;
+    const offset = allOps.length;
+    const result = await fetchOps(stats.taskId, PAGE_SIZE, offset);
+    setAllOps((prev) => [...prev, ...result.ops]);
+    setOpsTotal(result.total);
+    setOpsHasMore(result.hasMore);
+  }, [fetchOps, stats, allOps.length]);
+
+  // dialog 关闭时重置分页状态
+  const handleOpenChange = useCallback(
+    (v: boolean) => {
+      onOpenChange(v);
+      if (!v) {
+        setOpsInited(false);
+        setAllOps([]);
+        setOpsTotal(0);
+        setOpsHasMore(false);
+        setActiveTab("overview");
+      }
+    },
+    [onOpenChange],
+  );
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         className={cn(
           "max-w-lg p-0 flex flex-col gap-0 overflow-hidden",
@@ -66,14 +126,13 @@ export default function DetailDialog({
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground",
               )}
-              onClick={() => setActiveTab(key)}
+              onClick={() => handleTabChange(key)}
             >
               {label}
             </button>
           ))}
         </div>
 
-        {/* 原生滚动 */}
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <div className="px-4 sm:px-6 pb-6">
             {loading ? (
@@ -101,12 +160,18 @@ export default function DetailDialog({
                 {activeTab === "ops" && (
                   <div className="pt-3">
                     <h3 className="text-sm font-semibold mb-3">
-                      最近操作
-                      <span className="text-muted-foreground font-normal ml-1">
-                        (最新 {stats.recentOps?.length || 0} 条)
+                      操作记录
+                      <span className="text-muted-foreground font-normal ml-1 tabular-nums">
+                        ({allOps.length}
+                        {opsTotal > allOps.length && ` / ${opsTotal}`} 条)
                       </span>
                     </h3>
-                    <RecentOps ops={stats.recentOps || []} />
+                    <RecentOps
+                      ops={allOps}
+                      total={opsTotal}
+                      hasMore={opsHasMore}
+                      onLoadMore={fetchOps ? handleLoadMore : undefined}
+                    />
                   </div>
                 )}
               </>

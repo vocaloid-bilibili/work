@@ -3,6 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Ban, CircleDot, FilterX } from "lucide-react";
 import { cn } from "@/lib/utils";
+import MarkSearchBar from "./MarkSearchBar";
 
 export type MarkFilter = "included" | "blacklisted" | "pending" | null;
 
@@ -14,6 +15,11 @@ interface Props {
   filter: MarkFilter;
   filteredCount: number;
   onFilterChange: (filter: MarkFilter) => void;
+  // 搜索跳转
+  records: Array<Record<string, unknown>>;
+  includeEntries: boolean[];
+  blacklistedEntries: boolean[];
+  onJump: (index: number) => void;
 }
 
 export default function MarkOverviewBar({
@@ -24,30 +30,45 @@ export default function MarkOverviewBar({
   filter,
   filteredCount,
   onFilterChange,
+  records,
+  includeEntries,
+  blacklistedEntries,
+  onJump,
 }: Props) {
   const toggle = (key: MarkFilter) => {
     onFilterChange(filter === key ? null : key);
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-3 pb-3 border-b">
-      {filter && (
-        <button
-          className="flex items-center gap-1.5 text-xs text-muted-foreground
-                     hover:text-foreground active:text-foreground
-                     transition-colors rounded-md px-2 py-1
-                     hover:bg-muted/60 active:bg-muted/80"
-          onClick={() => onFilterChange(null)}
-        >
-          <FilterX className="h-3.5 w-3.5" />
-          <span>
-            显示 <strong className="text-foreground">{filteredCount}</strong> /{" "}
-            {total} 条
-          </span>
-        </button>
-      )}
+    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pb-3 border-b">
+      {/* 左侧：搜索 + 筛选状态 */}
+      <div className="flex items-center gap-3 flex-1 min-w-0 w-full sm:w-auto">
+        <MarkSearchBar
+          records={records}
+          includeEntries={includeEntries}
+          blacklistedEntries={blacklistedEntries}
+          onJump={onJump}
+        />
 
-      <div className="flex flex-wrap gap-1.5 ml-auto text-xs">
+        {filter && (
+          <button
+            className="flex items-center gap-1.5 text-xs text-muted-foreground
+                       hover:text-foreground active:text-foreground
+                       transition-colors rounded-md px-2 py-1
+                       hover:bg-muted/60 active:bg-muted/80 shrink-0"
+            onClick={() => onFilterChange(null)}
+          >
+            <FilterX className="h-3.5 w-3.5" />
+            <span>
+              显示 <strong className="text-foreground">{filteredCount}</strong>{" "}
+              / {total} 条
+            </span>
+          </button>
+        )}
+      </div>
+
+      {/* 右侧：筛选 badge */}
+      <div className="flex flex-wrap gap-1.5 text-xs shrink-0">
         <Badge
           variant="secondary"
           className="gap-1 tabular-nums pointer-events-none"

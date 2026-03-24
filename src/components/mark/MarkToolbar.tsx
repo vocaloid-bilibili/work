@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { FileDown, LayoutGrid, LayoutList, Table2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import TaskStatsPanel from "@/components/mark/TaskStatsPanel";
-import PublishButton from "@/components/mark/PublishButton";
+import { PublishButton } from "@/components/mark/publish";
 import type { LayoutMode } from "./useMarkState";
 
 interface Props {
@@ -77,6 +77,7 @@ export default function MarkToolbar({
             <TaskStatsPanel
               currentTaskId={collab.taskId}
               fetchTaskStats={collab.fetchTaskStats}
+              fetchTaskOps={collab.fetchTaskOps}
             />
           )}
 
