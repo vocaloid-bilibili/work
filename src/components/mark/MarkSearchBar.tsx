@@ -172,12 +172,6 @@ export default function MarkSearchBar({
             <X className="h-3.5 w-3.5" />
           </button>
         )}
-        {/* Cmd+K 提示 */}
-        {!query && (
-          <kbd className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/50 font-mono border rounded px-1 py-0.5 bg-muted/50">
-            ⌘K
-          </kbd>
-        )}
       </div>
 
       {/* 下拉结果 */}
