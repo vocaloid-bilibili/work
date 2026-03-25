@@ -8,9 +8,9 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { RotateCcw } from "lucide-react";
 import FileRow from "./FileRow";
 import PublishLogs from "./PublishLogs";
+import { MODE_OPTIONS } from "./types";
 import type { usePublish } from "./usePublish";
 
 type PublishState = ReturnType<typeof usePublish>;
@@ -22,9 +22,10 @@ interface Props {
 }
 
 const PHASE_DESC: Record<string, string> = {
-  idle: "准备发布",
+  idle: "选择发布模式",
   checking: "正在检查发布锁...",
-  running: "发布中...",
+  phase1: "服务器处理中...",
+  phase2: "正在导入数据库...",
   done: "发布完成",
   error: "发布出错",
 };
@@ -47,6 +48,33 @@ export default function PublishDialog({ open, onOpenChange, state: s }: Props) {
         </DialogHeader>
 
         <div className="space-y-3">
+          {/* 模式选择 */}
+          {s.phase === "idle" && (
+            <div className="space-y-2">
+              {MODE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.mode}
+                  onClick={() => s.startPublish(opt.mode)}
+                  className="w-full flex flex-col gap-0.5 p-3 rounded-lg border hover:bg-accent transition-colors text-left"
+                >
+                  <span className="font-medium text-sm">{opt.label}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {opt.desc}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* 取消按钮 */}
+          {s.busy && (
+            <div className="flex justify-end">
+              <Button size="sm" variant="outline" onClick={s.abort}>
+                取消
+              </Button>
+            </div>
+          )}
+
           {/* 文件状态列表 */}
           {s.files.length > 0 && (
             <div className="space-y-1.5">
@@ -56,6 +84,11 @@ export default function PublishDialog({ open, onOpenChange, state: s }: Props) {
                   file={file}
                   status={s.fileStatuses[file.fileKey] || "pending"}
                   error={s.fileErrors[file.fileKey]}
+                  onRetry={
+                    s.fileStatuses[file.fileKey] === "error" && !s.busy
+                      ? () => s.retryFile(file)
+                      : undefined
+                  }
                 />
               ))}
             </div>
@@ -64,13 +97,12 @@ export default function PublishDialog({ open, onOpenChange, state: s }: Props) {
           {/* 日志 */}
           <PublishLogs logs={s.logs} />
 
-          {/* 全局错误 + 重试 */}
+          {/* 全局错误 */}
           {s.globalError && s.phase === "error" && (
             <div className="flex items-center justify-between text-sm">
               <span className="text-red-600">{s.globalError}</span>
-              <Button size="sm" variant="ghost" onClick={s.startPublish}>
-                <RotateCcw className="h-3 w-3 mr-1" />
-                重试
+              <Button size="sm" variant="ghost" onClick={s.reset}>
+                返回
               </Button>
             </div>
           )}

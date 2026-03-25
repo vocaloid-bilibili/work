@@ -1,6 +1,6 @@
 // src/components/mark/publish/FileRow.tsx
 
-import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { STATUS_LABEL, type PublishFile, type FileStatus } from "./types";
 
@@ -8,10 +8,14 @@ interface Props {
   file: PublishFile;
   status: FileStatus;
   error?: string;
+  onRetry?: () => void;
 }
 
-export default function FileRow({ file, status, error }: Props) {
-  const loading = status === "uploading" || status === "importing";
+export default function FileRow({ file, status, error, onRetry }: Props) {
+  const loading =
+    status === "downloading" ||
+    status === "uploading" ||
+    status === "importing";
 
   return (
     <div>
@@ -33,9 +37,20 @@ export default function FileRow({ file, status, error }: Props) {
           {status === "pending" && <div className="h-3.5 w-3.5 shrink-0" />}
           <span className="truncate">{file.filename}</span>
         </div>
-        <span className="text-xs text-muted-foreground shrink-0 ml-3">
-          {STATUS_LABEL[status]}
-        </span>
+        <div className="flex items-center gap-2 shrink-0 ml-3">
+          <span className="text-xs text-muted-foreground">
+            {STATUS_LABEL[status]}
+          </span>
+          {onRetry && (
+            <button
+              onClick={onRetry}
+              className="text-xs text-blue-600 hover:underline flex items-center gap-0.5"
+            >
+              <RotateCcw className="h-3 w-3" />
+              重试
+            </button>
+          )}
+        </div>
       </div>
       {error && <p className="text-xs text-red-600 mt-0.5 px-3">{error}</p>}
     </div>
