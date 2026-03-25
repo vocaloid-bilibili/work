@@ -15,6 +15,7 @@ import { PlayCircle, Loader2, Ban } from "lucide-react";
 import { cn } from "@/lib/utils";
 import axios from "axios";
 import { toast } from "sonner";
+import CachedImg from "@/components/ui/cached-img";
 
 interface Props {
   record: any;
@@ -56,14 +57,13 @@ export default function CardCover({ record, blacklisted }: Props) {
         rel="noreferrer"
         className="block"
       >
-        <img
+        <CachedImg
           src={record.image_url}
           alt={record.title}
           className={cn(
             "w-full object-cover aspect-video transition-all",
             blacklisted && "opacity-40 grayscale",
           )}
-          referrerPolicy="no-referrer"
           loading="lazy"
         />
       </a>

@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useCachedSrc } from "@/components/ui/cached-img";
 
 const navs = [
   { name: "打标", path: "/mark" },
@@ -25,6 +26,7 @@ export default function Header() {
   const navigate = useNavigate();
   const { role, nickname, username, avatarUrl, logout } = useAuth();
   const isLoggedIn = role !== "guest";
+  const cachedAvatar = useCachedSrc(avatarUrl ?? undefined);
 
   const handleLogout = () => {
     logout();
@@ -76,9 +78,9 @@ export default function Header() {
                   type="button"
                   className="flex items-center gap-2 rounded-full border bg-background px-1.5 py-1 pr-3 text-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  {avatarUrl ? (
+                  {cachedAvatar ? (
                     <img
-                      src={avatarUrl}
+                      src={cachedAvatar}
                       alt=""
                       className="h-7 w-7 rounded-full object-cover"
                     />
@@ -97,9 +99,9 @@ export default function Header() {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex items-center gap-3 py-1">
-                    {avatarUrl ? (
+                    {cachedAvatar ? (
                       <img
-                        src={avatarUrl}
+                        src={cachedAvatar}
                         alt=""
                         className="h-10 w-10 shrink-0 rounded-full object-cover"
                       />

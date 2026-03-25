@@ -1,6 +1,7 @@
 // src/components/contributions/UserAvatar.tsx
 
 import { cn } from "@/lib/utils";
+import CachedImg from "@/components/ui/cached-img";
 
 export default function UserAvatar({
   src,
@@ -24,11 +25,10 @@ export default function UserAvatar({
       )}
     >
       {src ? (
-        <img
+        <CachedImg
           src={src}
           alt={name}
           className="h-full w-full object-cover"
-          referrerPolicy="no-referrer"
           loading="lazy"
         />
       ) : (

@@ -11,6 +11,7 @@ import { CheckCircle2, Ban, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { COLUMNS, type ColDef } from "./columns";
 import CellRenderer from "./CellRenderer";
+import CachedImg from "@/components/ui/cached-img";
 
 interface Props {
   record: any;
@@ -170,14 +171,13 @@ function TableRowComp({
       >
         <div className="flex items-center gap-2 min-w-0">
           {record.image_url && (
-            <img
+            <CachedImg
               src={record.image_url}
               alt=""
               className={cn(
                 "w-10 h-7 object-cover rounded shrink-0",
                 isBlacklisted && "opacity-30 grayscale",
               )}
-              referrerPolicy="no-referrer"
             />
           )}
           <a
