@@ -140,6 +140,17 @@ export default function MarkingTags({
         <div className="absolute top-full left-0 z-50 w-full mt-1 rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 overflow-hidden">
           <Command className="w-full">
             <CommandList className="max-h-50 overflow-y-auto p-1">
+              {inputValue && !suggestions.includes(inputValue) && (
+                <CommandGroup heading="操作">
+                  <CommandItem
+                    value={inputValue}
+                    onSelect={() => addTag(inputValue)}
+                    className="cursor-pointer"
+                  >
+                    添加 "<HighlightSpaces text={inputValue} />"
+                  </CommandItem>
+                </CommandGroup>
+              )}
               {suggestions.length > 0 && (
                 <CommandGroup heading="建议">
                   {suggestions.map((s) => (
@@ -152,17 +163,6 @@ export default function MarkingTags({
                       <HighlightSpaces text={s} />
                     </CommandItem>
                   ))}
-                </CommandGroup>
-              )}
-              {inputValue && !suggestions.includes(inputValue) && (
-                <CommandGroup heading="操作">
-                  <CommandItem
-                    value={inputValue}
-                    onSelect={() => addTag(inputValue)}
-                    className="cursor-pointer"
-                  >
-                    添加 "<HighlightSpaces text={inputValue} />"
-                  </CommandItem>
                 </CommandGroup>
               )}
             </CommandList>

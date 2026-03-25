@@ -175,14 +175,6 @@ export function useMarkState() {
     localStorage.setItem("mark_layout", layoutMode);
   }, [layoutMode]);
 
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (currentRecords.length > 0) e.preventDefault();
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [currentRecords]);
-
   // ── Handlers ──
 
   const handleModeChange = useCallback((checked: boolean) => {

@@ -47,12 +47,10 @@ function sanitizeCellValue(val: unknown): unknown {
       ? rt.map((seg: any) => String(seg?.text ?? "")).join("")
       : "";
   }
-  if (typeof val === "object" && val !== null && "result" in (val as any)) {
+  if (typeof val === "object" && val !== null && "result" in (val as any))
     return sanitizeCellValue((val as any).result);
-  }
-  if (typeof val === "object" && val !== null && "hyperlink" in (val as any)) {
+  if (typeof val === "object" && val !== null && "hyperlink" in (val as any))
     return (val as any).text || (val as any).hyperlink || "";
-  }
   if (typeof val === "object" && val !== null && !Array.isArray(val)) {
     try {
       return JSON.stringify(val);
@@ -60,17 +58,14 @@ function sanitizeCellValue(val: unknown): unknown {
       return "";
     }
   }
-  if (typeof val === "string" && val.startsWith("http://")) {
+  if (typeof val === "string" && val.startsWith("http://"))
     return val.replace(/^http:\/\//, "https://");
-  }
   return val;
 }
 
 function sanitizeRecord(r: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  for (const k in r) {
-    out[k] = sanitizeCellValue(r[k]);
-  }
+  for (const k in r) out[k] = sanitizeCellValue(r[k]);
   return out;
 }
 
@@ -79,15 +74,10 @@ const applyOperationToLocal = (
   records: Array<Record<string, unknown>>,
   includeEntries: boolean[],
   blacklistedEntries: boolean[],
-): {
-  records: Array<Record<string, unknown>>;
-  includeEntries: boolean[];
-  blacklistedEntries: boolean[];
-} => {
+) => {
   const idx = operation.recordIndex;
-  if (idx < 0 || idx >= records.length) {
+  if (idx < 0 || idx >= records.length)
     return { records, includeEntries, blacklistedEntries };
-  }
 
   switch (operation.action) {
     case "toggle_include": {
@@ -100,11 +90,7 @@ const applyOperationToLocal = (
       const nextInc = [...includeEntries];
       nextBl[idx] = true;
       nextInc[idx] = false;
-      return {
-        records,
-        includeEntries: nextInc,
-        blacklistedEntries: nextBl,
-      };
+      return { records, includeEntries: nextInc, blacklistedEntries: nextBl };
     }
     case "unblacklist": {
       const next = [...blacklistedEntries];
@@ -122,6 +108,36 @@ const applyOperationToLocal = (
   }
   return { records, includeEntries, blacklistedEntries };
 };
+
+// ★ 核心：同步更新 refs + 调度 setState
+function commitLocal(
+  result: ReturnType<typeof applyOperationToLocal>,
+  refs: {
+    records: React.MutableRefObject<Array<Record<string, unknown>>>;
+    include: React.MutableRefObject<boolean[]>;
+    blacklist: React.MutableRefObject<boolean[]>;
+  },
+  setters: {
+    setRecords: React.Dispatch<
+      React.SetStateAction<Array<Record<string, unknown>>>
+    >;
+    setInclude: React.Dispatch<React.SetStateAction<boolean[]>>;
+    setBlacklist: React.Dispatch<React.SetStateAction<boolean[]>>;
+  },
+) {
+  if (result.records !== refs.records.current) {
+    refs.records.current = result.records; // ★ 同步！
+    setters.setRecords(result.records);
+  }
+  if (result.includeEntries !== refs.include.current) {
+    refs.include.current = result.includeEntries; // ★ 同步！
+    setters.setInclude(result.includeEntries);
+  }
+  if (result.blacklistedEntries !== refs.blacklist.current) {
+    refs.blacklist.current = result.blacklistedEntries; // ★ 同步！
+    setters.setBlacklist(result.blacklistedEntries);
+  }
+}
 
 export function useCollaborativeMark() {
   const [loading, setLoading] = useState(true);
@@ -142,8 +158,10 @@ export function useCollaborativeMark() {
   const includeRef = useRef(includeEntries);
   const blacklistRef = useRef(blacklistedEntries);
   const versionRef = useRef(version);
+  const taskIdRef = useRef(taskId);
   const pendingOpsRef = useRef<Set<string>>(new Set());
 
+  // ★ 保留 useEffect 同步作为后备（snapshot 加载等非 submitOperation 路径）
   useEffect(() => {
     recordsRef.current = records;
   }, [records]);
@@ -156,17 +174,42 @@ export function useCollaborativeMark() {
   useEffect(() => {
     versionRef.current = version;
   }, [version]);
+  useEffect(() => {
+    taskIdRef.current = taskId;
+  }, [taskId]);
+
+  const refs = {
+    records: recordsRef,
+    include: includeRef,
+    blacklist: blacklistRef,
+  };
+  const setters = {
+    setRecords,
+    setInclude: setIncludeEntries,
+    setBlacklist: setBlacklistedEntries,
+  };
 
   const pendingCount = pendingOpsRef.current.size;
 
   const applySnapshot = useCallback((snap: MarkTaskSnapshot) => {
+    const recs = snap.records.map(sanitizeRecord);
+    const inc = snap.includeEntries;
+    const bl =
+      snap.blacklistedEntries || new Array(snap.records.length).fill(false);
+
     setTaskId(snap.taskId);
+    taskIdRef.current = snap.taskId;
     setVersion(snap.version);
-    setRecords(snap.records.map(sanitizeRecord));
-    setIncludeEntries(snap.includeEntries);
-    setBlacklistedEntries(
-      snap.blacklistedEntries || new Array(snap.records.length).fill(false),
-    );
+    versionRef.current = snap.version;
+
+    // ★ 同步更新 refs
+    recordsRef.current = recs;
+    setRecords(recs);
+    includeRef.current = inc;
+    setIncludeEntries(inc);
+    blacklistRef.current = bl;
+    setBlacklistedEntries(bl);
+
     setRecordAttributions(
       snap.recordAttributions || new Array(snap.records.length).fill({}),
     );
@@ -182,60 +225,50 @@ export function useCollaborativeMark() {
     [applySnapshot],
   );
 
-  const initTask = useCallback(async () => {
-    setLoading(true);
-    try {
-      const active = await requestCollabJson<{
-        taskId: string;
-        version: number;
-      }>("/mark/tasks/active");
-      await loadSnapshot(active.taskId);
-      setConflict(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [loadSnapshot]);
-
   const refreshSnapshot = useCallback(async () => {
-    if (!taskId) return;
-    await loadSnapshot(taskId);
+    const tid = taskIdRef.current;
+    if (!tid) return;
+    await loadSnapshot(tid);
     pendingOpsRef.current.clear();
     setConflict(null);
-  }, [loadSnapshot, taskId]);
+  }, [loadSnapshot]);
+
+  const refreshSnapshotRef = useRef(refreshSnapshot);
+  useEffect(() => {
+    refreshSnapshotRef.current = refreshSnapshot;
+  }, [refreshSnapshot]);
 
   const handleServerEvent = useCallback(
     (event: ServerEvent) => {
       if (event.type === "task_joined") {
-        const nextVersion =
+        const v =
           typeof event.version === "number"
             ? event.version
             : versionRef.current;
-        setVersion(nextVersion);
+        versionRef.current = Math.max(versionRef.current, v);
+        setVersion((prev) => Math.max(prev, v));
         return;
       }
 
       if (event.type === "operation_committed") {
         const operation = event.operation as MarkOperation | undefined;
         if (!operation) return;
+
         const result = applyOperationToLocal(
           operation,
           recordsRef.current,
           includeRef.current,
           blacklistRef.current,
         );
-        if (result.records !== recordsRef.current) {
-          setRecords(result.records);
+        commitLocal(result, refs, setters);
+
+        if (typeof event.version === "number") {
+          const v = event.version;
+          versionRef.current = Math.max(versionRef.current, v);
+          setVersion(v);
         }
-        if (result.includeEntries !== includeRef.current) {
-          setIncludeEntries(result.includeEntries);
-        }
-        if (result.blacklistedEntries !== blacklistRef.current) {
-          setBlacklistedEntries(result.blacklistedEntries);
-        }
-        if (typeof event.version === "number") setVersion(event.version);
         pendingOpsRef.current.delete(operation.opId);
 
-        // 更新归属
         const userProfile = (event as any).userProfile as
           | RecordAttribution["actionByProfile"]
           | undefined;
@@ -280,10 +313,12 @@ export function useCollaborativeMark() {
       if (event.type === "operation_conflicted") {
         const opId = typeof event.opId === "string" ? event.opId : "";
         if (opId) pendingOpsRef.current.delete(opId);
+        if (typeof event.currentVersion === "number")
+          versionRef.current = event.currentVersion as number;
         setConflict(
           typeof event.message === "string" ? event.message : "发生冲突",
         );
-        void refreshSnapshot();
+        void refreshSnapshotRef.current();
         return;
       }
 
@@ -293,25 +328,64 @@ export function useCollaborativeMark() {
         applySnapshot(snap);
         pendingOpsRef.current.clear();
         setConflict(null);
+        return;
+      }
+
+      if (event.type === "error") {
+        const msg = typeof event.message === "string" ? event.message : "";
+        if (
+          msg.includes("join_task") &&
+          taskIdRef.current &&
+          clientRef.current
+        ) {
+          clientRef.current.send({
+            type: "join_task",
+            taskId: taskIdRef.current,
+          });
+        }
+        return;
       }
     },
-    [refreshSnapshot, applySnapshot],
+    [applySnapshot],
   );
 
+  const handleServerEventRef = useRef(handleServerEvent);
   useEffect(() => {
-    void initTask();
-  }, [initTask]);
+    handleServerEventRef.current = handleServerEvent;
+  }, [handleServerEvent]);
+
+  const initTask = useCallback(async () => {
+    setLoading(true);
+    try {
+      const active = await requestCollabJson<{
+        taskId: string;
+        version: number;
+      }>("/mark/tasks/active");
+      if (!active.taskId) {
+        setLoading(false);
+        return;
+      }
+      await loadSnapshot(active.taskId);
+      setConflict(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [loadSnapshot]);
 
   const connectClient = useCallback(() => {
     const client = new CollabClient({
       baseProvider: getCollabBase,
       tokenProvider: getValidAccessToken,
-      onMessage: handleServerEvent,
+      onMessage: (evt) => handleServerEventRef.current(evt),
       onStatusChange: (status) => setConnectionState(status),
     });
     clientRef.current = client;
     void client.connect();
-  }, [handleServerEvent]);
+  }, []);
+
+  useEffect(() => {
+    void initTask();
+  }, [initTask]);
 
   useEffect(() => {
     connectClient();
@@ -334,10 +408,12 @@ export function useCollaborativeMark() {
       action: MarkAction;
       value: unknown;
     }) => {
-      if (!taskId || !clientRef.current) return;
+      if (!taskIdRef.current || !clientRef.current) {
+        return;
+      }
       const operation: MarkOperation = {
         opId: createOpId(),
-        taskId,
+        taskId: taskIdRef.current,
         recordIndex: input.recordIndex,
         field: input.field,
         action: input.action,
@@ -345,25 +421,21 @@ export function useCollaborativeMark() {
         baseVersion: versionRef.current,
         clientTime: new Date().toISOString(),
       };
+
+      versionRef.current += 1;
+
       const result = applyOperationToLocal(
         operation,
         recordsRef.current,
         includeRef.current,
         blacklistRef.current,
       );
-      if (result.records !== recordsRef.current) {
-        setRecords(result.records);
-      }
-      if (result.includeEntries !== includeRef.current) {
-        setIncludeEntries(result.includeEntries);
-      }
-      if (result.blacklistedEntries !== blacklistRef.current) {
-        setBlacklistedEntries(result.blacklistedEntries);
-      }
+      commitLocal(result, refs, setters);
+
       pendingOpsRef.current.add(operation.opId);
       clientRef.current.send({ type: "submit_operation", operation });
     },
-    [taskId],
+    [],
   );
 
   const updateField = useCallback(
@@ -414,14 +486,14 @@ export function useCollaborativeMark() {
       recordIndex: number,
       updater: (row: Record<string, unknown>) => Record<string, unknown>,
     ) => {
-      setRecords((prev) => {
-        if (recordIndex < 0 || recordIndex >= prev.length) return prev;
-        const updated = updater(prev[recordIndex]);
-        if (updated === prev[recordIndex]) return prev;
-        const next = [...prev];
-        next[recordIndex] = updated;
-        return next;
-      });
+      const prev = recordsRef.current;
+      if (recordIndex < 0 || recordIndex >= prev.length) return;
+      const updated = updater(prev[recordIndex]);
+      if (updated === prev[recordIndex]) return;
+      const next = [...prev];
+      next[recordIndex] = updated;
+      recordsRef.current = next; // ★ 同步
+      setRecords(next);
     },
     [],
   );
@@ -432,21 +504,18 @@ export function useCollaborativeMark() {
       if (!token) throw new Error("未登录");
       const formData = new FormData();
       formData.append("file", file);
-
       const response = await fetch(`${getCollabBase()}/mark/tasks`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
-
       const payload = (await response.json().catch(() => ({}))) as
         | MarkTaskSnapshot
         | { message?: string };
-      if (!response.ok) {
+      if (!response.ok)
         throw new Error(
           (payload as { message?: string }).message || "上传失败",
         );
-      }
       const snap = payload as MarkTaskSnapshot;
       applySnapshot(snap);
       pendingOpsRef.current.clear();
@@ -455,83 +524,50 @@ export function useCollaborativeMark() {
     [applySnapshot],
   );
 
-  const exportFile = useCallback(
-    async (keepExcluded: boolean) => {
-      const token = await getValidAccessToken();
-      if (!token || !taskId) throw new Error("未登录或任务未初始化");
-      const response = await fetch(
-        `${getCollabBase()}/mark/tasks/${taskId}/export?keepExcluded=${keepExcluded}`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      if (!response.ok) {
-        const p = (await response.json().catch(() => ({}))) as {
-          message?: string;
-        };
-        throw new Error(p.message || "导出失败");
+  const exportFile = useCallback(async (keepExcluded: boolean) => {
+    const token = await getValidAccessToken();
+    const tid = taskIdRef.current;
+    if (!token || !tid) throw new Error("未登录或任务未初始化");
+    const response = await fetch(
+      `${getCollabBase()}/mark/tasks/${tid}/export?keepExcluded=${keepExcluded}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!response.ok) {
+      const p = (await response.json().catch(() => ({}))) as {
+        message?: string;
+      };
+      throw new Error(p.message || "导出失败");
+    }
+    let fileName = `标注导出_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const disposition = response.headers.get("Content-Disposition");
+    if (disposition) {
+      const m = disposition.match(/filename\*=UTF-8''(.+)/i);
+      if (m) fileName = decodeURIComponent(m[1]);
+      else {
+        const n = disposition.match(/filename="?([^";\n]+)"?/i);
+        if (n) fileName = decodeURIComponent(n[1]);
       }
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, []);
 
-      let fileName = `标注导出_${new Date().toISOString().slice(0, 10)}.xlsx`;
-      const disposition = response.headers.get("Content-Disposition");
-      if (disposition) {
-        const utf8Match = disposition.match(/filename\*=UTF-8''(.+)/i);
-        if (utf8Match) {
-          fileName = decodeURIComponent(utf8Match[1]);
-        } else {
-          const normalMatch = disposition.match(/filename="?([^";\n]+)"?/i);
-          if (normalMatch) {
-            fileName = decodeURIComponent(normalMatch[1]);
-          }
-        }
-      }
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    },
-    [taskId],
-  );
-
-  const fetchTaskStats = useCallback(
-    async (targetTaskId?: string) => {
-      const id = targetTaskId || taskId;
-      if (!id) throw new Error("任务未初始化");
-      return requestCollabJson<any>(`/mark/tasks/${id}/stats`);
-    },
-    [taskId],
-  );
+  const fetchTaskStats = useCallback(async (targetTaskId?: string) => {
+    const id = targetTaskId || taskIdRef.current;
+    if (!id) return null;
+    return requestCollabJson<any>(`/mark/tasks/${id}/stats`);
+  }, []);
 
   const fetchTaskOps = useCallback(
-    async (
-      targetTaskId: string,
-      limit: number,
-      offset: number,
-    ): Promise<{
-      ops: Array<{
-        opId: string;
-        action: string;
-        field: string;
-        recordIndex: number;
-        recordTitle?: string;
-        bvid?: string;
-        value?: unknown;
-        user: {
-          id: string;
-          username?: string;
-          nickname?: string;
-          avatar?: string | null;
-        };
-        at: string;
-      }>;
-      total: number;
-      hasMore: boolean;
-    }> => {
-      return requestCollabJson(
+    async (targetTaskId: string, limit: number, offset: number) => {
+      return requestCollabJson<{ ops: any[]; total: number; hasMore: boolean }>(
         `/mark/tasks/${targetTaskId}/ops?limit=${limit}&offset=${offset}`,
       );
     },
@@ -539,21 +575,7 @@ export function useCollaborativeMark() {
   );
 
   const fetchTaskList = useCallback(async () => {
-    return requestCollabJson<{
-      tasks: Array<{
-        taskId: string;
-        recordCount: number;
-        createdAt: string;
-        closedAt?: string;
-        fileMeta?: {
-          originalName: string;
-          storedPath: string;
-          uploadedAt: string;
-        };
-        contributorCount: number;
-        totalOperations: number;
-      }>;
-    }>("/mark/tasks");
+    return requestCollabJson<{ tasks: any[] }>("/mark/tasks");
   }, []);
 
   const fetchGlobalStats = useCallback(async () => {

@@ -49,6 +49,7 @@ export class CollabClient {
   private lastPongAt = 0;
   private staleCheckTimer: number | null = null;
   private messageQueue: string[] = [];
+  private joined = false;
 
   constructor(options: CollabClientOptions) {
     this.baseProvider = options.baseProvider;
@@ -59,10 +60,13 @@ export class CollabClient {
 
   async connect(): Promise<void> {
     this.manualClose = false;
+    this.joined = false;
     this.onStatusChange(
       this.reconnectAttempt > 0 ? "reconnecting" : "connecting",
     );
-
+    if (this.reconnectAttempt > 0) {
+      this.messageQueue = [];
+    }
     const token = await this.tokenProvider();
     if (!token) {
       this.onStatusChange("offline");
@@ -83,7 +87,6 @@ export class CollabClient {
       this.lastPongAt = Date.now();
       this.onStatusChange("connected");
       this.startHeartbeat();
-      this.flushQueue();
     };
 
     this.socket.onmessage = (event) => {
@@ -95,6 +98,11 @@ export class CollabClient {
           this.lastPongAt = Date.now();
         }
 
+        if (parsed.type === "task_joined") {
+          this.joined = true;
+          this.flushQueue();
+        }
+
         this.onMessage(parsed);
       } catch {}
     };
@@ -103,6 +111,7 @@ export class CollabClient {
 
     this.socket.onclose = () => {
       this.stopHeartbeat();
+      this.joined = false;
       if (this.manualClose) {
         this.onStatusChange("offline");
         return;
@@ -113,6 +122,7 @@ export class CollabClient {
 
   disconnect(): void {
     this.manualClose = true;
+    this.joined = false;
     this.stopHeartbeat();
     if (this.reconnectTimer) {
       window.clearTimeout(this.reconnectTimer);
@@ -127,7 +137,18 @@ export class CollabClient {
   send(event: ClientEvent): void {
     const msg = JSON.stringify(event);
 
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+    if (event.type === "join_task") {
+      if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+        this.socket.send(msg);
+      }
+      return;
+    }
+
+    if (
+      this.joined &&
+      this.socket &&
+      this.socket.readyState === WebSocket.OPEN
+    ) {
       this.socket.send(msg);
       return;
     }
