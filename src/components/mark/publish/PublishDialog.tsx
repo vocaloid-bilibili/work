@@ -24,8 +24,7 @@ interface Props {
 const PHASE_DESC: Record<string, string> = {
   idle: "准备发布",
   checking: "正在检查发布锁...",
-  phase1: "服务器处理中...",
-  phase2: "正在上传和导入...",
+  running: "发布中...",
   done: "发布完成",
   error: "发布出错",
 };
@@ -57,7 +56,6 @@ export default function PublishDialog({ open, onOpenChange, state: s }: Props) {
                   file={file}
                   status={s.fileStatuses[file.fileKey] || "pending"}
                   error={s.fileErrors[file.fileKey]}
-                  onRetry={() => s.retryFile(file)}
                 />
               ))}
             </div>

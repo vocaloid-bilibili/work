@@ -1,12 +1,19 @@
 // src/components/mark/publish/usePublish.ts
 
 import { useState, useCallback, useRef } from "react";
-import api from "@/utils/api";
 import type { PublishFile, FileStatus, PublishPhase } from "./types";
 
 interface UsePublishOptions {
   taskId: string;
 }
+
+const STEP_TO_STATUS: Record<string, FileStatus> = {
+  import_upload: "uploading",
+  import_start: "importing",
+  import_progress: "importing",
+  import_done: "done",
+  import_error: "error",
+};
 
 export function usePublish({ taskId }: UsePublishOptions) {
   const [phase, setPhase] = useState<PublishPhase>("idle");
@@ -18,10 +25,9 @@ export function usePublish({ taskId }: UsePublishOptions) {
   const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
   const [globalError, setGlobalError] = useState("");
 
-  // 防止 React 18 Strict Mode 双触发
   const runningRef = useRef(false);
 
-  const busy = phase === "checking" || phase === "phase1" || phase === "phase2";
+  const busy = phase === "checking" || phase === "running";
 
   const log = useCallback((msg: string) => {
     setLogs((prev) => [...prev, msg]);
@@ -37,7 +43,7 @@ export function usePublish({ taskId }: UsePublishOptions) {
     runningRef.current = false;
   }, []);
 
-  // ── Phase 0: 检查发布锁 ──
+  // ── 检查发布锁 ──
 
   const checkLock = async (): Promise<boolean> => {
     const token = localStorage.getItem("access_token") || "";
@@ -53,109 +59,62 @@ export function usePublish({ taskId }: UsePublishOptions) {
     }
   };
 
-  // ── Phase 1: 服务器处理（流式） ──
+  // ── 处理单条 NDJSON 事件 ──
 
-  const runPhase1 = async (): Promise<PublishFile[]> => {
-    const token = localStorage.getItem("access_token") || "";
-    const res = await fetch(`/collab/mark/tasks/${taskId}/publish`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
+  const handleEvent = useCallback(
+    (event: {
+      step: string;
+      message: string;
+      error?: boolean;
+      fileKey?: string;
+      files?: PublishFile[];
+    }) => {
+      log(event.message);
 
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({ message: "请求失败" }));
-      throw new Error(body.message || `HTTP ${res.status}`);
-    }
+      // Phase 1 完成，拿到文件列表
+      if (event.step === "done" && event.files) {
+        setFiles(event.files);
+        setFileStatuses(
+          Object.fromEntries(
+            event.files.map((f) => [f.fileKey, "pending" as const]),
+          ),
+        );
+      }
 
-    const reader = res.body!.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let fileList: PublishFile[] = [];
+      // 文件级进度
+      const fileKey = event.fileKey;
+      const status = STEP_TO_STATUS[event.step];
+      if (fileKey && status) {
+        setFileStatuses((prev) => ({ ...prev, [fileKey]: status }));
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        try {
-          const event = JSON.parse(line);
-          log(event.message);
-          if (event.step === "done" && event.files) fileList = event.files;
-          if (event.error) throw new Error(event.message);
-        } catch (e) {
-          if (e instanceof SyntaxError) continue;
-          throw e;
+        if (event.step === "import_error") {
+          setFileErrors((prev) => ({
+            ...prev,
+            [fileKey]: event.message,
+          }));
         }
       }
-    }
 
-    if (fileList.length === 0) throw new Error("服务器未返回文件列表");
-    return fileList;
-  };
+      // 全部完成
+      if (event.step === "all_done") {
+        setPhase("done");
+      }
 
-  // ── Phase 2: 逐文件下载→上传→导入 ──
+      // 全局错误
+      if (event.error && !fileKey) {
+        throw new Error(event.message);
+      }
 
-  const processFile = async (file: PublishFile) => {
-    const token = localStorage.getItem("access_token") || "";
+      // 部分失败警告
+      if (event.step === "warning") {
+        setPhase("error");
+        setGlobalError(event.message);
+      }
+    },
+    [log],
+  );
 
-    setFileStatuses((p) => ({ ...p, [file.fileKey]: "downloading" }));
-    const dlRes = await fetch(
-      `/collab/mark/tasks/publish/files/${file.fileKey}`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
-    if (!dlRes.ok) throw new Error(`下载 ${file.filename} 失败`);
-
-    const blob = await dlRes.blob();
-    const fileObj = new File([blob], file.filename, { type: blob.type });
-
-    setFileStatuses((p) => ({ ...p, [file.fileKey]: "uploading" }));
-    log(`上传 ${file.filename}`);
-    await api.uploadFile(fileObj, { onProgress: () => {} });
-
-    setFileStatuses((p) => ({ ...p, [file.fileKey]: "importing" }));
-
-    if (file.type === "board") {
-      const label = file.part === "new" ? "新曲榜" : "主榜";
-      log(`导入${label}第${file.issue}期`);
-      await new Promise<void>((resolve, reject) => {
-        api.updateRanking(file.board, file.part, file.issue, false, {
-          onProgress: (msg: string) => log(`  ${msg}`),
-          onComplete: () => {
-            log(`${label}第${file.issue}期导入完成`);
-            resolve();
-          },
-          onError: (err: any) => reject(new Error(err?.message || "导入失败")),
-        });
-      });
-    } else {
-      log(`导入快照 ${file.date}`);
-      await new Promise<void>((resolve, reject) => {
-        api.updateSnapshot(file.date, false, {
-          onProgress: (msg: string) => log(`  ${msg}`),
-          onComplete: () => {
-            log(`快照 ${file.date} 导入完成`);
-            resolve();
-          },
-          onError: (err: any) => reject(new Error(err?.message || "导入失败")),
-        });
-      });
-    }
-
-    setFileStatuses((p) => ({ ...p, [file.fileKey]: "done" }));
-
-    // 清理临时文件（fire-and-forget）
-    fetch(`/collab/mark/tasks/publish/files/${file.fileKey}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    }).catch(() => {});
-  };
-
-  // ── 主流程 ──
+  // ── 主流程：一条流搞定 ──
 
   const startPublish = useCallback(async () => {
     if (runningRef.current) return;
@@ -167,7 +126,7 @@ export function usePublish({ taskId }: UsePublishOptions) {
     setFileErrors({});
     setGlobalError("");
 
-    // Phase 0: 检查锁
+    // 检查锁
     setPhase("checking");
     const canProceed = await checkLock();
     if (!canProceed) {
@@ -178,41 +137,48 @@ export function usePublish({ taskId }: UsePublishOptions) {
       return;
     }
 
-    // Phase 1
-    setPhase("phase1");
-    try {
-      const fileList = await runPhase1();
-      setFiles(fileList);
-      setFileStatuses(
-        Object.fromEntries(
-          fileList.map((f) => [f.fileKey, "pending" as const]),
-        ),
-      );
+    setPhase("running");
 
-      // Phase 2
-      setPhase("phase2");
-      let allDone = true;
-      for (const file of fileList) {
-        try {
-          await processFile(file);
-        } catch (err: any) {
-          allDone = false;
-          setFileStatuses((p) => ({ ...p, [file.fileKey]: "error" }));
-          setFileErrors((p) => ({
-            ...p,
-            [file.fileKey]: err.message || "失败",
-          }));
-          log(`${file.filename} 失败: ${err.message}`);
+    try {
+      const token = localStorage.getItem("access_token") || "";
+      const res = await fetch(`/collab/mark/tasks/${taskId}/publish`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ message: "请求失败" }));
+        throw new Error(body.message || `HTTP ${res.status}`);
+      }
+
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            handleEvent(JSON.parse(line));
+          } catch (e) {
+            if (e instanceof SyntaxError) continue;
+            throw e;
+          }
         }
       }
 
-      if (allDone) {
-        setPhase("done");
-        log("全部发布完成");
-      } else {
-        setPhase("error");
-        setGlobalError("部分文件处理失败");
-      }
+      // 流结束后，如果 phase 没被设为 done/error，根据文件状态判断
+      setPhase((prev) => {
+        if (prev === "done" || prev === "error") return prev;
+        return "done";
+      });
     } catch (err: any) {
       setPhase("error");
       setGlobalError(err.message || "发布失败");
@@ -221,39 +187,7 @@ export function usePublish({ taskId }: UsePublishOptions) {
       runningRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskId]);
-
-  // ── 重试单个文件 ──
-
-  const retryFile = useCallback(
-    async (file: PublishFile) => {
-      setFileErrors((p) => {
-        const next = { ...p };
-        delete next[file.fileKey];
-        return next;
-      });
-      try {
-        await processFile(file);
-        setFileStatuses((prev) => {
-          const next = { ...prev, [file.fileKey]: "done" as const };
-          if (Object.values(next).every((s) => s === "done")) {
-            setPhase("done");
-            log("全部发布完成");
-          }
-          return next;
-        });
-      } catch (err: any) {
-        setFileStatuses((p) => ({ ...p, [file.fileKey]: "error" }));
-        setFileErrors((p) => ({
-          ...p,
-          [file.fileKey]: err.message || "失败",
-        }));
-        log(`${file.filename} 失败: ${err.message}`);
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
+  }, [taskId, handleEvent]);
 
   return {
     phase,
@@ -264,7 +198,6 @@ export function usePublish({ taskId }: UsePublishOptions) {
     globalError,
     busy,
     startPublish,
-    retryFile,
     reset,
   };
 }

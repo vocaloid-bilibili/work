@@ -20,23 +20,15 @@ export type PublishFile = BoardFile | SnapshotFile;
 
 export type FileStatus =
   | "pending"
-  | "downloading"
   | "uploading"
   | "importing"
   | "done"
   | "error";
 
-export type PublishPhase =
-  | "idle"
-  | "checking"
-  | "phase1"
-  | "phase2"
-  | "done"
-  | "error";
+export type PublishPhase = "idle" | "checking" | "running" | "done" | "error";
 
 export const STATUS_LABEL: Record<FileStatus, string> = {
   pending: "等待中",
-  downloading: "下载中",
   uploading: "上传中",
   importing: "导入中",
   done: "完成",
