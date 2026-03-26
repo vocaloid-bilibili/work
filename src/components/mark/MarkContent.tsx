@@ -2,6 +2,7 @@
 
 import { useMarkState } from "./useMarkState";
 import MarkToolbar from "./MarkToolbar";
+import MarkUploadArea from "./MarkUploadArea";
 import MarkOverviewBar from "./MarkOverviewBar";
 import MarkRecordList from "./MarkRecordList";
 import MarkPagination from "./MarkPagination";
@@ -11,6 +12,7 @@ import { Loader2 } from "lucide-react";
 export default function MarkContent() {
   const s = useMarkState();
   const isTable = s.layoutMode === "table";
+  const hasRecords = s.currentRecords.length > 0;
 
   return (
     <div className="flex flex-col items-center p-4 md:p-6 w-full max-w-7xl mx-auto space-y-5">
@@ -20,7 +22,7 @@ export default function MarkContent() {
         onModeChange={s.handleModeChange}
         layoutMode={s.layoutMode}
         onLayoutChange={s.setLayoutMode}
-        hasRecords={s.currentRecords.length > 0}
+        hasRecords={hasRecords}
         onExport={s.handleExport}
       />
 
@@ -32,6 +34,7 @@ export default function MarkContent() {
         onExport={s.performExport}
       />
 
+      {/* 加载中 */}
       {s.isLoading && (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
           <Loader2 className="h-8 w-8 animate-spin mb-3" />
@@ -39,7 +42,20 @@ export default function MarkContent() {
         </div>
       )}
 
-      {s.currentRecords.length > 0 && (
+      {!hasRecords && !s.isLoading && !s.isCollab && (
+        <MarkUploadArea
+          fileInputRef={s.fileInputRef}
+          onFileChange={s.handleFileChange}
+        />
+      )}
+
+      {!hasRecords && !s.isLoading && s.isCollab && (
+        <div className="text-center text-muted-foreground py-16 text-sm">
+          暂无活跃的协同任务
+        </div>
+      )}
+
+      {hasRecords && (
         <div className="w-full space-y-4">
           <MarkOverviewBar
             total={s.currentRecords.length}
