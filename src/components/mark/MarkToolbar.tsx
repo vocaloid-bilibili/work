@@ -1,8 +1,9 @@
 // src/components/mark/MarkToolbar.tsx
+
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { FileDown, LayoutGrid, LayoutList, Table2 } from "lucide-react";
+import { FileDown, LayoutGrid, LayoutList, Table2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import TaskStatsPanel from "@/components/mark/TaskStatsPanel";
 import { PublishButton } from "@/components/mark/publish";
@@ -16,6 +17,7 @@ interface Props {
   onLayoutChange: (m: LayoutMode) => void;
   hasRecords: boolean;
   onExport: () => void;
+  onReset?: () => void;
 }
 
 export default function MarkToolbar({
@@ -26,6 +28,7 @@ export default function MarkToolbar({
   onLayoutChange,
   hasRecords,
   onExport,
+  onReset, // ← 新增
 }: Props) {
   return (
     <div className="flex flex-col sm:flex-row items-center gap-3 w-full justify-center">
@@ -72,7 +75,7 @@ export default function MarkToolbar({
             ))}
           </div>
 
-          {/* 操作按钮组：统计、导出、发布 紧挨着 */}
+          {/* 操作按钮组 */}
           {isCollab && (
             <TaskStatsPanel
               currentTaskId={collab.taskId}
@@ -87,6 +90,18 @@ export default function MarkToolbar({
           </Button>
 
           {isCollab && <PublishButton taskId={collab.taskId} />}
+
+          {!isCollab && onReset && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              onClick={onReset}
+              title="关闭文件"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       )}
     </div>

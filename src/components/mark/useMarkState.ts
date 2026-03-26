@@ -485,6 +485,17 @@ export function useMarkState() {
     currentBlacklistedEntries,
     performExport,
   ]);
+  const handleReset = useCallback(() => {
+    setAllRecords([]);
+    setIncludeEntries([]);
+    setBlacklistedEntries([]);
+    setAllIncluded(false);
+    setCurrentPage(1);
+    setStatus("waiting");
+    setFilter(null);
+    setOriginalFileName("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, []);
 
   return {
     currentRecords,
@@ -521,6 +532,7 @@ export function useMarkState() {
     handleJumpToRecord,
     allIncludedValue,
     handleExport,
+    handleReset,
     performExport,
     originalFileName,
     exportCheckOpen,

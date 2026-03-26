@@ -24,6 +24,7 @@ export default function MarkContent() {
         onLayoutChange={s.setLayoutMode}
         hasRecords={hasRecords}
         onExport={s.handleExport}
+        onReset={s.handleReset}
       />
 
       <ExportCheckDialog
