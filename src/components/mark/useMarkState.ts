@@ -459,6 +459,10 @@ export function useMarkState() {
       return;
     }
 
+    if (!isCollab) {
+      performExport();
+      return;
+    }
     const result = runExportChecks(
       currentRecords,
       currentIncludeEntries,
@@ -480,11 +484,13 @@ export function useMarkState() {
       setExportCheckOpen(true);
     }
   }, [
+    isCollab,
     currentRecords,
     currentIncludeEntries,
     currentBlacklistedEntries,
     performExport,
   ]);
+
   const handleReset = useCallback(() => {
     setAllRecords([]);
     setIncludeEntries([]);
