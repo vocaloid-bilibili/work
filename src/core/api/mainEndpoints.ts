@@ -90,3 +90,14 @@ export const checkRanking = (board: string, part: string, issue: number) =>
   http
     .get("/update/check_ranking", { params: { board, part, issue } })
     .then((r) => r.data);
+
+// ── 榜单视频 ──
+export const getBoardVideo = (board: string, issue: number) =>
+  http
+    .get("/select/ranking/video", { params: { board, issue } })
+    .then(
+      (r) => r.data as { board: string; issue: number; bvid: string } | null,
+    );
+
+export const setBoardVideo = (board: string, issue: number, bvid: string) =>
+  http.post("/edit/ranking/video", { board, issue, bvid }).then((r) => r.data);
