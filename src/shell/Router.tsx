@@ -1,11 +1,23 @@
 // src/shell/Router.tsx
 import { Routes, Route, Navigate } from "react-router-dom";
+import { lazy, Suspense } from "react";
+import { Loader2 } from "lucide-react";
 import AuthGate from "./AuthGate";
 import LoginPage from "./LoginPage";
 import MarkPage from "@/modules/marking/MarkPage";
 import IngestPage from "@/modules/ingest/IngestPage";
 import CatalogPage from "@/modules/catalog/CatalogPage";
-import StatsPage from "@/modules/stats/StatsPage";
+
+const StatsPage = lazy(() => import("@/modules/stats/StatsPage"));
+const TaskDetailPage = lazy(() => import("@/modules/stats/TaskDetailPage"));
+
+function Fb() {
+  return (
+    <div className="flex items-center justify-center py-24">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
 
 export default function Router() {
   return (
@@ -16,6 +28,26 @@ export default function Router() {
         element={
           <AuthGate>
             <MarkPage />
+          </AuthGate>
+        }
+      />
+      <Route
+        path="/stats"
+        element={
+          <AuthGate>
+            <Suspense fallback={<Fb />}>
+              <StatsPage />
+            </Suspense>
+          </AuthGate>
+        }
+      />
+      <Route
+        path="/stats/:taskId"
+        element={
+          <AuthGate>
+            <Suspense fallback={<Fb />}>
+              <TaskDetailPage />
+            </Suspense>
           </AuthGate>
         }
       />
@@ -35,14 +67,7 @@ export default function Router() {
           </AuthGate>
         }
       />
-      <Route
-        path="/contributions"
-        element={
-          <AuthGate>
-            <StatsPage />
-          </AuthGate>
-        }
-      />
+      <Route path="/contributions" element={<Navigate to="/stats" replace />} />
       <Route path="/" element={<Navigate to="/mark" replace />} />
       <Route path="*" element={<Navigate to="/mark" replace />} />
     </Routes>

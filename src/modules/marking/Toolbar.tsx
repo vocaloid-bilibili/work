@@ -1,10 +1,17 @@
 // src/modules/marking/Toolbar.tsx
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/ui/button";
 import { Switch } from "@/ui/switch";
 import { Label } from "@/ui/label";
-import { FileDown, LayoutGrid, LayoutList, Table2, X } from "lucide-react";
+import {
+  FileDown,
+  LayoutGrid,
+  LayoutList,
+  Table2,
+  X,
+  BarChart3,
+} from "lucide-react";
 import { cn } from "@/ui/cn";
-import StatsSheet from "./StatsSheet";
 import { PublishButton } from "./publish/PublishButton";
 import type { LayoutMode } from "./state/useMarkCore";
 
@@ -29,6 +36,8 @@ export default function Toolbar({
   onExport,
   onReset,
 }: P) {
+  const nav = useNavigate();
+
   return (
     <div className="flex flex-col sm:flex-row items-center gap-3 w-full justify-center">
       <div className="flex items-center space-x-2">
@@ -74,11 +83,14 @@ export default function Toolbar({
             ))}
           </div>
           {isCollab && (
-            <StatsSheet
-              taskId={collab.taskId}
-              fetchStats={collab.fetchTaskStats}
-              fetchOps={collab.fetchTaskOps}
-            />
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => nav("/stats")}
+            >
+              <BarChart3 className="h-4 w-4" />
+              统计
+            </Button>
           )}
           <Button variant="outline" className="gap-2" onClick={onExport}>
             <FileDown className="h-4 w-4" />

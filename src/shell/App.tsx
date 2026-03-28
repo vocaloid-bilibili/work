@@ -3,6 +3,7 @@ import { BrowserRouter } from "react-router-dom";
 import Header from "./Header";
 import Router from "./Router";
 import { Toaster } from "@/ui/sonner";
+import BackToTop from "@/shared/ui/BackToTop";
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
           <Router />
         </main>
       </div>
+      <BackToTop />
       <Toaster />
     </BrowserRouter>
   );

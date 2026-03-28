@@ -6,6 +6,13 @@ export interface UserProfile {
   avatar?: string | null;
 }
 
+export interface Attribution {
+  actionByProfile?: UserProfile;
+  action?: "include" | "exclude" | "blacklist";
+  actionAt?: string;
+  actionBy?: string;
+}
+
 export interface ContributorStats {
   user: UserProfile;
   totalOps: number;
@@ -18,7 +25,7 @@ export interface ContributorStats {
 
 export interface LogEntry {
   opId: string;
-  action: "set" | "toggle_include" | "blacklist" | "unblacklist";
+  action: string;
   field: string;
   recordIndex: number;
   recordTitle?: string;
@@ -33,21 +40,12 @@ export interface TaskStats {
   totalOperations: number;
   recordCount: number;
   totalIncluded: number;
+  totalPending: number;
   totalBlacklisted: number;
   totalFieldEdits: number;
   contributors: ContributorStats[];
   fieldBreakdown: Record<string, number>;
   recentOps: LogEntry[];
-}
-
-export interface TaskSummary {
-  taskId: string;
-  recordCount: number;
-  createdAt: string;
-  closedAt?: string;
-  fileMeta?: { originalName: string; storedPath: string; uploadedAt: string };
-  contributorCount: number;
-  totalOperations: number;
 }
 
 export interface GlobalStats {
@@ -56,9 +54,16 @@ export interface GlobalStats {
   weights: { include: number; blacklist: number; fieldEdit: number };
 }
 
-export interface Attribution {
-  actionBy?: string;
-  actionByProfile?: UserProfile;
-  action?: "include" | "exclude" | "blacklist";
-  actionAt?: string;
+export interface TaskSummary {
+  taskId: string;
+  recordCount: number;
+  createdAt: string;
+  closedAt?: string;
+  fileMeta?: {
+    originalName: string;
+    storedPath: string;
+    uploadedAt: string;
+  };
+  contributorCount: number;
+  totalOperations: number;
 }

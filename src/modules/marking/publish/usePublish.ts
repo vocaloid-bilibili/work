@@ -12,6 +12,9 @@ export function usePublish({ taskId }: { taskId: string }) {
   const [fStatus, setFStatus] = useState<Record<string, FileStatus>>({});
   const [fErrors, setFErrors] = useState<Record<string, string>>({});
   const [globalError, setGlobalError] = useState("");
+  const [fileSelection, setFileSelection] = useState<Record<string, boolean>>(
+    {},
+  );
   const running = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const busy = phase === "checking" || phase === "phase1" || phase === "phase2";
@@ -24,9 +27,11 @@ export function usePublish({ taskId }: { taskId: string }) {
     setFStatus({});
     setFErrors({});
     setGlobalError("");
+    setFileSelection({});
     running.current = false;
     abortRef.current = null;
   }, []);
+
   const abort = useCallback(() => {
     abortRef.current?.abort();
     running.current = false;
@@ -34,6 +39,24 @@ export function usePublish({ taskId }: { taskId: string }) {
     setGlobalError("已手动取消");
     log("已手动取消");
   }, [log]);
+
+  const toggleFile = useCallback((key: string, v: boolean) => {
+    setFileSelection((p) => ({ ...p, [key]: v }));
+  }, []);
+
+  const selectAllFiles = useCallback(() => {
+    setFileSelection((p) => {
+      const n = { ...p };
+      for (const f of files) {
+        if (fStatus[f.fileKey] !== "done") n[f.fileKey] = true;
+      }
+      return n;
+    });
+  }, [files, fStatus]);
+
+  const deselectAll = useCallback(() => {
+    setFileSelection({});
+  }, []);
 
   const checkLock = async () => {
     const t = await validToken();
@@ -151,6 +174,7 @@ export function usePublish({ taskId }: { taskId: string }) {
       setFStatus({});
       setFErrors({});
       setGlobalError("");
+      setFileSelection({});
       setPhase("checking");
       if (!(await checkLock())) {
         setPhase("error");
@@ -185,7 +209,7 @@ export function usePublish({ taskId }: { taskId: string }) {
           log("全部发布完成");
         } else {
           setPhase("error");
-          setGlobalError("部分文件失败");
+          setGlobalError("部分文件失败，可勾选后重新处理");
         }
       } catch (err: any) {
         if (err.name === "AbortError") return;
@@ -226,6 +250,42 @@ export function usePublish({ taskId }: { taskId: string }) {
     [log],
   );
 
+  const retrySelected = useCallback(async () => {
+    const toProcess = files.filter(
+      (f) => fileSelection[f.fileKey] && fStatus[f.fileKey] !== "done",
+    );
+    if (!toProcess.length) return;
+    running.current = true;
+    setPhase("phase2");
+    setGlobalError("");
+    let allOk = true;
+    for (const f of toProcess) {
+      try {
+        await processFile(f);
+      } catch (err: any) {
+        allOk = false;
+        setFStatus((p) => ({ ...p, [f.fileKey]: "error" }));
+        setFErrors((p) => ({ ...p, [f.fileKey]: err.message || "失败" }));
+        log(`${f.filename} 失败: ${err.message}`);
+      }
+    }
+    running.current = false;
+    setFileSelection({});
+    setFStatus((prev) => {
+      const allDone = Object.values(prev).every((s) => s === "done");
+      if (allDone) {
+        setPhase("done");
+        log("全部发布完成");
+      } else if (!allOk) {
+        setPhase("error");
+        setGlobalError("部分文件仍然失败");
+      }
+      return prev;
+    });
+  }, [files, fileSelection, fStatus, log]);
+
+  const selectedCount = Object.values(fileSelection).filter(Boolean).length;
+
   return {
     phase,
     logs,
@@ -234,8 +294,14 @@ export function usePublish({ taskId }: { taskId: string }) {
     fileErrors: fErrors,
     globalError,
     busy,
+    fileSelection,
+    selectedCount,
     startPublish,
     retryFile,
+    retrySelected,
+    toggleFile,
+    selectAllFiles,
+    deselectAll,
     abort,
     reset,
   };

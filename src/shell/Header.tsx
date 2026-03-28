@@ -17,8 +17,13 @@ const NAV = [
   { name: "打标", path: "/mark" },
   { name: "上传", path: "/upload" },
   { name: "编辑", path: "/edit" },
-  { name: "贡献", path: "/contributions" },
+  { name: "统计", path: "/stats" },
 ];
+
+function isActive(pathname: string, navPath: string) {
+  if (navPath === "/") return pathname === "/";
+  return pathname === navPath || pathname.startsWith(navPath + "/");
+}
 
 export default function Header() {
   const loc = useLocation();
@@ -42,23 +47,26 @@ export default function Header() {
                 主站
                 <ExternalLink className="h-3 w-3" />
               </a>
-              {NAV.map((n) => (
-                <Link
-                  key={n.path}
-                  to={n.path}
-                  className={cn(
-                    "relative rounded-md px-3 py-1.5 text-sm font-medium transition",
-                    loc.pathname === n.path
-                      ? "text-foreground"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {n.name}
-                  {loc.pathname === n.path && (
-                    <span className="absolute inset-x-1 -bottom-2.25 h-0.5 rounded-full bg-foreground" />
-                  )}
-                </Link>
-              ))}
+              {NAV.map((n) => {
+                const active = isActive(loc.pathname, n.path);
+                return (
+                  <Link
+                    key={n.path}
+                    to={n.path}
+                    className={cn(
+                      "relative rounded-md px-3 py-1.5 text-sm font-medium transition",
+                      active
+                        ? "text-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {n.name}
+                    {active && (
+                      <span className="absolute inset-x-1 -bottom-2.25 h-0.5 rounded-full bg-foreground" />
+                    )}
+                  </Link>
+                );
+              })}
             </nav>
           )}
         </div>
@@ -135,7 +143,8 @@ export default function Header() {
                       key={n.path}
                       onClick={() => nav(n.path)}
                       className={cn(
-                        loc.pathname === n.path && "bg-accent font-medium",
+                        isActive(loc.pathname, n.path) &&
+                          "bg-accent font-medium",
                       )}
                     >
                       {n.name}

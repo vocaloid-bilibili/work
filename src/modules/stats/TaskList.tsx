@@ -1,65 +1,60 @@
 // src/modules/stats/TaskList.tsx
-import { Button } from "@/ui/button";
-import { Badge } from "@/ui/badge";
-import { relativeTime, shortDate } from "@/core/helpers/time";
+import { ChevronRight } from "lucide-react";
+import { cn } from "@/ui/cn";
+import { Empty } from "./statsAtoms";
+import { taskName } from "./statsApi";
 import type { TaskSummary } from "@/core/types/stats";
 
 interface P {
   tasks: TaskSummary[];
-  onDetail: (taskId: string) => void;
+  activeId: string | null;
+  onSelect: (id: string) => void;
 }
 
-export default function TaskList({ tasks, onDetail }: P) {
-  if (tasks.length === 0)
-    return (
-      <div className="text-center text-muted-foreground py-16 text-sm">
-        暂无历史任务
-      </div>
-    );
+export default function TaskList({ tasks, activeId, onSelect }: P) {
+  if (!tasks.length) return <Empty text="暂无历史任务" />;
+
   return (
-    <div className="space-y-3">
-      {tasks.map((t) => (
-        <div
-          key={t.taskId}
-          className="rounded-xl border p-4 transition-colors hover:bg-muted/40"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="font-medium text-sm truncate">
-                  {t.fileMeta?.originalName || t.taskId.slice(0, 16)}
+    <div className="space-y-2">
+      {tasks.map((t) => {
+        const active = t.taskId === activeId;
+        return (
+          <button
+            key={t.taskId}
+            onClick={() => onSelect(t.taskId)}
+            className={cn(
+              "w-full text-left p-4 rounded-xl border transition-all group",
+              "hover:bg-muted/40 hover:shadow-sm active:scale-[0.995]",
+              active && "border-emerald-300/60 dark:border-emerald-700/60",
+            )}
+          >
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-base font-semibold truncate">
+                  {taskName(t)}
                 </span>
-                {!t.closedAt && (
-                  <Badge className="text-[10px] px-1.5 py-0">当前</Badge>
+                {active && (
+                  <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md shrink-0">
+                    活跃
+                  </span>
                 )}
-              </div>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground tabular-nums">
-                <span>{t.recordCount} 条</span>
-                <span>{t.totalOperations} 次操作</span>
-                <span>{t.contributorCount} 人</span>
-              </div>
-              <div className="flex gap-x-4 text-[11px] text-muted-foreground/70 mt-1">
-                <span title={shortDate(t.createdAt)}>
-                  创建 {relativeTime(t.createdAt)}
-                </span>
-                {t.closedAt && (
-                  <span title={shortDate(t.closedAt)}>
-                    关闭 {relativeTime(t.closedAt)}
+                {t.closedAt && !active && (
+                  <span className="text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-md shrink-0">
+                    已关闭
                   </span>
                 )}
               </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground transition shrink-0" />
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="shrink-0"
-              onClick={() => onDetail(t.taskId)}
-            >
-              详情
-            </Button>
-          </div>
-        </div>
-      ))}
+            <div className="flex gap-4 text-sm text-muted-foreground tabular-nums">
+              <span>{t.createdAt?.slice(0, 10)}</span>
+              <span>{t.recordCount} 条记录</span>
+              <span>{t.contributorCount} 位贡献者</span>
+              <span>{t.totalOperations} 次操作</span>
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }

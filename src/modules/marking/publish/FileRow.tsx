@@ -1,20 +1,33 @@
 // src/modules/marking/publish/FileRow.tsx
 import { Loader2, CheckCircle2, XCircle, RotateCcw } from "lucide-react";
 import { cn } from "@/ui/cn";
+import { Checkbox } from "@/ui/checkbox";
 import { STATUS_LABEL, type PubFile, type FileStatus } from "./types";
 
 interface P {
   file: PubFile;
   status: FileStatus;
   error?: string;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelectChange?: (v: boolean) => void;
   onRetry?: () => void;
 }
 
-export default function FileRow({ file, status, error, onRetry }: P) {
+export default function FileRow({
+  file,
+  status,
+  error,
+  selectable,
+  selected,
+  onSelectChange,
+  onRetry,
+}: P) {
   const loading =
     status === "downloading" ||
     status === "uploading" ||
     status === "importing";
+
   return (
     <div>
       <div
@@ -25,6 +38,13 @@ export default function FileRow({ file, status, error, onRetry }: P) {
         )}
       >
         <div className="flex items-center gap-2 min-w-0">
+          {selectable && (
+            <Checkbox
+              checked={selected ?? false}
+              onCheckedChange={(v) => onSelectChange?.(Boolean(v))}
+              disabled={loading || status === "done"}
+            />
+          )}
           {loading && <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />}
           {status === "done" && (
             <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
@@ -32,7 +52,9 @@ export default function FileRow({ file, status, error, onRetry }: P) {
           {status === "error" && (
             <XCircle className="h-3.5 w-3.5 text-red-600 shrink-0" />
           )}
-          {status === "pending" && <div className="h-3.5 w-3.5 shrink-0" />}
+          {status === "pending" && !selectable && (
+            <div className="h-3.5 w-3.5 shrink-0" />
+          )}
           <span className="truncate">{file.filename}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0 ml-3">
