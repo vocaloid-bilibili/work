@@ -1,0 +1,64 @@
+// src/modules/marking/table/useClipboard.ts
+import { useCallback } from "react";
+import { COLUMNS, type ColDef, COPYRIGHT_LABELS } from "./columns";
+import type { Cell } from "./useGridNav";
+import { toast } from "sonner";
+
+function fmt(rec: any, col: ColDef): string {
+  const v = rec[col.key];
+  if (v == null) return "";
+  if (col.key === "copyright") return COPYRIGHT_LABELS[Number(v)] || String(v);
+  return String(v);
+}
+
+function parse(col: ColDef, text: string): unknown {
+  if (col.type === "select" && col.key === "copyright") {
+    const rev: Record<string, number> = {};
+    for (const [k, v] of Object.entries(COPYRIGHT_LABELS)) rev[v] = Number(k);
+    if (rev[text] !== undefined) return rev[text];
+    const n = Number(text);
+    return isNaN(n) ? text : n;
+  }
+  return text;
+}
+
+export function useClipboard(
+  data: any[],
+  offset: number,
+  cell: Cell | null,
+  onChange: (i: number, f: string, v: unknown) => void,
+) {
+  const copy = useCallback(async () => {
+    if (!cell) return;
+    const r = data[cell.row];
+    const c = COLUMNS[cell.col];
+    if (!r || !c) return;
+    const t = fmt(r, c);
+    try {
+      await navigator.clipboard.writeText(t);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = t;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    toast.success("已复制", { duration: 1200 });
+  }, [data, cell]);
+
+  const paste = useCallback(async () => {
+    if (!cell) return;
+    const c = COLUMNS[cell.col];
+    if (!c) return;
+    try {
+      const t = await navigator.clipboard.readText();
+      onChange(offset + cell.row, c.key, parse(c, t.trim()));
+      toast.success("已粘贴", { duration: 1200 });
+    } catch {
+      toast.error("无法读取剪贴板");
+    }
+  }, [cell, offset, onChange]);
+
+  return { copy, paste };
+}

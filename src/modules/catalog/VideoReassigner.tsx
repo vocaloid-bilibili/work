@@ -1,0 +1,214 @@
+// src/modules/catalog/VideoReassigner.tsx
+import { useState } from "react";
+import { Button } from "@/ui/button";
+import { Input } from "@/ui/input";
+import { Label } from "@/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/ui/select";
+import { toast } from "sonner";
+import * as api from "@/core/api/mainEndpoints";
+import EntityPicker from "@/shared/ui/EntityPicker";
+import ConfirmDialog from "@/shared/ui/ConfirmDialog";
+import type { Video } from "@/core/types/catalog";
+
+export default function VideoReassigner() {
+  const [bvid, setBvid] = useState("");
+  const [videoInfo, setVideoInfo] = useState<Video | null>(null);
+  const [mode, setMode] = useState<"existing" | "new">("existing");
+  const [targetSong, setTargetSong] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
+  const [newSongName, setNewSongName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const fetchVideo = async () => {
+    if (!bvid.trim()) {
+      toast.warning("请输入BV号");
+      return;
+    }
+    try {
+      const result = await api.selectVideo(bvid);
+      setVideoInfo(result.data);
+      toast.success("视频信息获取成功");
+    } catch {
+      setVideoInfo(null);
+      toast.error("获取视频信息失败");
+    }
+  };
+
+  const handleReassign = () => {
+    if (!videoInfo) {
+      toast.warning("请先查询视频");
+      return;
+    }
+    if (mode === "existing" && !targetSong) {
+      toast.warning("请选择目标歌曲");
+      return;
+    }
+    if (mode === "new" && !newSongName.trim()) {
+      toast.warning("请输入新歌曲名称");
+      return;
+    }
+    setOpen(true);
+  };
+
+  const confirm = async () => {
+    if (!videoInfo) return;
+    try {
+      setLoading(true);
+      await api.reassignVideo(
+        videoInfo.bvid,
+        mode === "existing" ? targetSong?.id : undefined,
+        mode === "new" ? newSongName : undefined,
+      );
+      toast.success("视频移动成功");
+      setOpen(false);
+      setBvid("");
+      setVideoInfo(null);
+      setTargetSong(null);
+      setNewSongName("");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || "移动失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="p-5 max-w-2xl mx-auto">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-center">
+            拆分/移动视频
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="text-sm text-muted-foreground text-center">
+            将视频移动到另一首歌曲（历史排名不变动）
+          </div>
+
+          <div className="space-y-2">
+            <Label>视频BV号</Label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="输入BV号"
+                value={bvid}
+                onChange={(e) => setBvid(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && fetchVideo()}
+              />
+              <Button variant="outline" onClick={fetchVideo}>
+                查询
+              </Button>
+            </div>
+            {videoInfo && (
+              <div className="p-3 bg-muted rounded text-sm">
+                <div className="font-medium">{videoInfo.title}</div>
+                <div className="text-muted-foreground">
+                  当前歌曲ID: {videoInfo.song_id}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {videoInfo && (
+            <>
+              <div className="space-y-2">
+                <Label>目标类型</Label>
+                <Select
+                  value={mode}
+                  onValueChange={(v: "existing" | "new") => {
+                    setMode(v);
+                    setTargetSong(null);
+                    setNewSongName("");
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="existing">移到已有歌曲</SelectItem>
+                    <SelectItem value="new">创建新歌曲</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {mode === "existing" && (
+                <div className="space-y-2">
+                  <Label>目标歌曲</Label>
+                  <EntityPicker
+                    kind="song"
+                    value={targetSong}
+                    onChange={setTargetSong}
+                    placeholder="搜索目标歌曲"
+                  />
+                </div>
+              )}
+
+              {mode === "new" && (
+                <div className="space-y-2">
+                  <Label>新歌曲名称</Label>
+                  <Input
+                    placeholder="输入新歌曲名称"
+                    value={newSongName}
+                    onChange={(e) => setNewSongName(e.target.value)}
+                  />
+                </div>
+              )}
+
+              <Button
+                className="w-full"
+                onClick={handleReassign}
+                disabled={
+                  (mode === "existing" && !targetSong) ||
+                  (mode === "new" && !newSongName.trim())
+                }
+              >
+                移动视频
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <ConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title="确认移动视频"
+        loading={loading}
+        onConfirm={confirm}
+        confirm="确认移动"
+      >
+        <div className="space-y-3">
+          <div className="p-3 bg-muted rounded">
+            <div className="text-sm text-muted-foreground">视频</div>
+            <div className="font-medium">{videoInfo?.title}</div>
+            <div className="text-xs text-muted-foreground">
+              {videoInfo?.bvid}
+            </div>
+          </div>
+          <div className="p-3 bg-primary/10 rounded">
+            <div className="text-sm text-muted-foreground">目标</div>
+            <div className="font-medium">
+              {mode === "existing"
+                ? targetSong?.name
+                : `新歌曲: ${newSongName}`}
+            </div>
+            {mode === "existing" && targetSong && (
+              <div className="text-xs text-muted-foreground">
+                ID: {targetSong.id}
+              </div>
+            )}
+          </div>
+        </div>
+      </ConfirmDialog>
+    </div>
+  );
+}
