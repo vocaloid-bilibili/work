@@ -6,6 +6,7 @@ import { Button } from "@/ui/button";
 import { cn } from "@/ui/cn";
 import { useAuth } from "@/shell/AuthProvider";
 import { useOverview, useOpsLog, useBackNav } from "./useStats";
+import type { OpsScope } from "./useStats";
 import { TabBar } from "./statsAtoms";
 import TaskList from "./TaskList";
 import CurrentTab from "./tabs/CurrentTab";
@@ -37,7 +38,7 @@ export default function StatsPage() {
     (t: Tab) => {
       setTab(t);
       if (t !== "ops") setSelectedUser(null);
-      if (t === "ops" && ov.activeId) opsLog.init();
+      if (t === "ops" && ov.activeId) opsLog.init("task");
     },
     [ov.activeId, opsLog],
   );
@@ -48,11 +49,12 @@ export default function StatsPage() {
       setSelectedUser(cleared ? null : id);
       if (!cleared && tab !== "ops") {
         prevTab.current = tab;
+        const scope: OpsScope = tab === "global" ? "global" : "task";
         setTab("ops");
-        if (ov.activeId) opsLog.init();
+        opsLog.init(scope);
       }
     },
-    [tab, ov.activeId, opsLog, selectedUser],
+    [tab, opsLog, selectedUser],
   );
 
   const refresh = useCallback(() => {
@@ -78,17 +80,22 @@ export default function StatsPage() {
   }
 
   const contributors =
-    (tab === "global" ? ov.global?.contributors : ov.task?.contributors) ??
+    (opsLog.scope === "global" || tab === "global"
+      ? ov.global?.contributors
+      : ov.task?.contributors) ??
     ov.global?.contributors ??
     [];
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 sm:px-6 lg:px-8 pb-24 space-y-8">
-      <div className="flex items-center justify-end">
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0">
+          <TabBar tabs={TABS} active={tab} onChange={switchTab} />
+        </div>
         <Button
           variant="ghost"
           size="icon"
-          className="h-9 w-9"
+          className="h-9 w-9 shrink-0"
           onClick={refresh}
           disabled={ov.refreshing}
         >
@@ -97,8 +104,6 @@ export default function StatsPage() {
           />
         </Button>
       </div>
-
-      <TabBar tabs={TABS} active={tab} onChange={switchTab} />
 
       {tab === "current" && (
         <CurrentTab

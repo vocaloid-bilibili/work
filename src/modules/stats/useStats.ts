@@ -41,13 +41,16 @@ export function useOverview() {
   return { loading, refreshing, task, global, tasks, activeId, load };
 }
 
+export type OpsScope = "task" | "global";
+
 export interface OpsLogState {
   ops: LogEntry[];
   total: number;
   hasMore: boolean;
   loading: boolean;
+  scope: OpsScope;
   load: (reset?: boolean) => Promise<void>;
-  init: () => void;
+  init: (forceScope?: OpsScope) => void;
   reset: () => void;
 }
 
@@ -56,14 +59,26 @@ export function useOpsLog(taskId: string | null): OpsLogState {
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [scope, setScope] = useState<OpsScope>("task");
+
+  const scopeRef = useRef<OpsScope>("task");
+  const opsRef = useRef(ops);
   const ready = useRef(false);
+
+  scopeRef.current = scope;
+  opsRef.current = ops;
 
   const load = useCallback(
     async (reset = false) => {
-      if (!taskId) return;
+      const s = scopeRef.current;
+      if (s === "task" && !taskId) return;
       setLoading(true);
       try {
-        const r = await api.fetchOps(taskId, reset ? 0 : ops.length);
+        const offset = reset ? 0 : opsRef.current.length;
+        const r =
+          s === "global"
+            ? await api.fetchGlobalOps(offset)
+            : await api.fetchOps(taskId!, offset);
         reset ? setOps(r.ops) : setOps((p) => [...p, ...r.ops]);
         setTotal(r.total);
         setHasMore(r.hasMore);
@@ -71,23 +86,36 @@ export function useOpsLog(taskId: string | null): OpsLogState {
         setLoading(false);
       }
     },
-    [taskId, ops.length],
+    [taskId],
   );
 
-  const init = useCallback(() => {
-    if (ready.current) return;
-    ready.current = true;
-    void load(true);
-  }, [load]);
+  const init = useCallback(
+    (forceScope?: OpsScope) => {
+      if (forceScope != null && forceScope !== scopeRef.current) {
+        scopeRef.current = forceScope;
+        setScope(forceScope);
+        ready.current = false;
+        setOps([]);
+        setTotal(0);
+        setHasMore(false);
+      }
+      if (ready.current) return;
+      ready.current = true;
+      setTimeout(() => void load(true), 0);
+    },
+    [load],
+  );
 
   const reset = useCallback(() => {
     ready.current = false;
+    scopeRef.current = "task";
+    setScope("task");
     setOps([]);
     setTotal(0);
     setHasMore(false);
   }, []);
 
-  return { ops, total, hasMore, loading, load, init, reset };
+  return { ops, total, hasMore, loading, scope, load, init, reset };
 }
 
 export function useTaskDetail(taskId?: string) {

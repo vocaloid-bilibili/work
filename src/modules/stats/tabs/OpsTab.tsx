@@ -35,15 +35,21 @@ export default function OpsTab({
   );
 
   const displayTotal = selectedUser ? filteredOps.length : opsLog.total;
+  const scopeLabel = opsLog.scope === "global" ? "全局" : "当前任务";
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground tabular-nums">
-          {selectedUser
-            ? `已筛选 ${filteredOps.length} 条`
-            : `已加载 ${opsLog.ops.length} / 共 ${opsLog.total} 条`}
-        </p>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground tabular-nums">
+          <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-muted">
+            {scopeLabel}
+          </span>
+          <span>
+            {selectedUser
+              ? `已筛选 ${filteredOps.length} 条`
+              : `已加载 ${opsLog.ops.length} / 共 ${opsLog.total} 条`}
+          </span>
+        </div>
         <UserChip user={selectedProfile} onClear={onClearUser} />
       </div>
       <Timeline

@@ -30,6 +30,12 @@ export async function fetchOps(taskId: string, offset: number, limit = 100) {
   );
 }
 
+export async function fetchGlobalOps(offset: number, limit = 100) {
+  return collabGet<{ ops: LogEntry[]; total: number; hasMore: boolean }>(
+    `/mark/tasks/ops/all?limit=${limit}&offset=${offset}`,
+  );
+}
+
 export function taskName(t: TaskSummary): string {
   return (
     t.fileMeta?.originalName?.replace(/\.(xlsx|xls)$/i, "") ||
