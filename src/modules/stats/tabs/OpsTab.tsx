@@ -18,14 +18,6 @@ export default function OpsTab({
   contributors,
   onClearUser,
 }: P) {
-  const filteredOps = useMemo(
-    () =>
-      selectedUser
-        ? opsLog.ops.filter((o) => o.user?.id === selectedUser)
-        : opsLog.ops,
-    [opsLog.ops, selectedUser],
-  );
-
   const selectedProfile = useMemo(
     () =>
       selectedUser
@@ -34,7 +26,6 @@ export default function OpsTab({
     [contributors, selectedUser],
   );
 
-  const displayTotal = selectedUser ? filteredOps.length : opsLog.total;
   const scopeLabel = opsLog.scope === "global" ? "全局" : "当前任务";
 
   return (
@@ -46,16 +37,16 @@ export default function OpsTab({
           </span>
           <span>
             {selectedUser
-              ? `已筛选 ${filteredOps.length} 条`
+              ? `${opsLog.ops.length} / 共 ${opsLog.total} 条`
               : `已加载 ${opsLog.ops.length} / 共 ${opsLog.total} 条`}
           </span>
         </div>
         <UserChip user={selectedProfile} onClear={onClearUser} />
       </div>
       <Timeline
-        ops={filteredOps}
-        total={displayTotal}
-        hasMore={selectedUser ? false : opsLog.hasMore}
+        ops={opsLog.ops}
+        total={opsLog.total}
+        hasMore={opsLog.hasMore}
         loading={opsLog.loading}
         onLoadMore={() => opsLog.load(false)}
       />

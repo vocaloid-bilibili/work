@@ -24,15 +24,34 @@ export async function fetchTaskStats(taskId: string) {
   return collabGet<TaskStats>(`/mark/tasks/${taskId}/stats`);
 }
 
-export async function fetchOps(taskId: string, offset: number, limit = 100) {
+export async function fetchOps(
+  taskId: string,
+  offset: number,
+  limit = 100,
+  userId?: string,
+) {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+  if (userId) params.set("userId", userId);
   return collabGet<{ ops: LogEntry[]; total: number; hasMore: boolean }>(
-    `/mark/tasks/${taskId}/ops?limit=${limit}&offset=${offset}`,
+    `/mark/tasks/${taskId}/ops?${params}`,
   );
 }
 
-export async function fetchGlobalOps(offset: number, limit = 100) {
+export async function fetchGlobalOps(
+  offset: number,
+  limit = 100,
+  userId?: string,
+) {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+  if (userId) params.set("userId", userId);
   return collabGet<{ ops: LogEntry[]; total: number; hasMore: boolean }>(
-    `/mark/tasks/ops/all?limit=${limit}&offset=${offset}`,
+    `/mark/tasks/ops/all?${params}`,
   );
 }
 

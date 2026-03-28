@@ -17,7 +17,7 @@ type Tab = "current" | "ops" | "global" | "history";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "current", label: "当前任务" },
-  { key: "ops", label: "最新记录" },
+  { key: "ops", label: "操作记录" },
   { key: "global", label: "全局统计" },
   { key: "history", label: "历史任务" },
 ];
@@ -37,25 +37,38 @@ export default function StatsPage() {
   const switchTab = useCallback(
     (t: Tab) => {
       setTab(t);
-      if (t !== "ops") setSelectedUser(null);
-      if (t === "ops" && ov.activeId) opsLog.init("task");
+      if (t !== "ops") {
+        setSelectedUser(null);
+      }
+      if (t === "ops") {
+        opsLog.init("task", null);
+      }
     },
-    [ov.activeId, opsLog],
+    [opsLog],
   );
 
   const selectUser = useCallback(
     (id: string) => {
       const cleared = selectedUser === id;
-      setSelectedUser(cleared ? null : id);
-      if (!cleared && tab !== "ops") {
+      const newUser = cleared ? null : id;
+      setSelectedUser(newUser);
+
+      if (tab === "ops") {
+        opsLog.setFilterUser(newUser);
+      } else if (newUser) {
         prevTab.current = tab;
         const scope: OpsScope = tab === "global" ? "global" : "task";
         setTab("ops");
-        opsLog.init(scope);
+        opsLog.init(scope, newUser);
       }
     },
     [tab, opsLog, selectedUser],
   );
+
+  const clearUser = useCallback(() => {
+    setSelectedUser(null);
+    opsLog.setFilterUser(null);
+  }, [opsLog]);
 
   const refresh = useCallback(() => {
     opsLog.reset();
@@ -119,7 +132,7 @@ export default function StatsPage() {
           opsLog={opsLog}
           selectedUser={selectedUser}
           contributors={contributors}
-          onClearUser={() => setSelectedUser(null)}
+          onClearUser={clearUser}
         />
       )}
 

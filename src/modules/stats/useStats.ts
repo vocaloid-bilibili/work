@@ -49,8 +49,14 @@ export interface OpsLogState {
   hasMore: boolean;
   loading: boolean;
   scope: OpsScope;
-  load: (reset?: boolean) => Promise<void>;
-  init: (forceScope?: OpsScope) => void;
+  filterUserId: string | null;
+  load: (
+    reset?: boolean,
+    overrideScope?: OpsScope,
+    overrideUserId?: string | null,
+  ) => Promise<void>;
+  init: (forceScope?: OpsScope, userId?: string | null) => void;
+  setFilterUser: (userId: string | null) => void;
   reset: () => void;
 }
 
@@ -60,25 +66,34 @@ export function useOpsLog(taskId: string | null): OpsLogState {
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [scope, setScope] = useState<OpsScope>("task");
+  const [filterUserId, setFilterUserId] = useState<string | null>(null);
 
   const scopeRef = useRef<OpsScope>("task");
   const opsRef = useRef(ops);
+  const userRef = useRef<string | null>(null);
   const ready = useRef(false);
 
   scopeRef.current = scope;
   opsRef.current = ops;
+  userRef.current = filterUserId;
 
   const load = useCallback(
-    async (reset = false) => {
-      const s = scopeRef.current;
+    async (
+      reset = false,
+      overrideScope?: OpsScope,
+      overrideUserId?: string | null,
+    ) => {
+      const s = overrideScope ?? scopeRef.current;
+      const uid =
+        overrideUserId !== undefined ? overrideUserId : userRef.current;
       if (s === "task" && !taskId) return;
       setLoading(true);
       try {
         const offset = reset ? 0 : opsRef.current.length;
         const r =
           s === "global"
-            ? await api.fetchGlobalOps(offset)
-            : await api.fetchOps(taskId!, offset);
+            ? await api.fetchGlobalOps(offset, 100, uid || undefined)
+            : await api.fetchOps(taskId!, offset, 100, uid || undefined);
         reset ? setOps(r.ops) : setOps((p) => [...p, ...r.ops]);
         setTotal(r.total);
         setHasMore(r.hasMore);
@@ -90,18 +105,41 @@ export function useOpsLog(taskId: string | null): OpsLogState {
   );
 
   const init = useCallback(
-    (forceScope?: OpsScope) => {
-      if (forceScope != null && forceScope !== scopeRef.current) {
-        scopeRef.current = forceScope;
-        setScope(forceScope);
+    (forceScope?: OpsScope, userId?: string | null) => {
+      const target = forceScope ?? scopeRef.current;
+      const uid = userId !== undefined ? userId : userRef.current;
+
+      const scopeChanged = target !== scopeRef.current;
+      const userChanged = uid !== userRef.current;
+
+      if (scopeChanged || userChanged) {
+        scopeRef.current = target;
+        setScope(target);
+        userRef.current = uid;
+        setFilterUserId(uid);
         ready.current = false;
         setOps([]);
         setTotal(0);
         setHasMore(false);
       }
+
       if (ready.current) return;
       ready.current = true;
-      setTimeout(() => void load(true), 0);
+      void load(true, target, uid);
+    },
+    [load],
+  );
+
+  const setFilterUser = useCallback(
+    (userId: string | null) => {
+      if (userId === userRef.current) return;
+      userRef.current = userId;
+      setFilterUserId(userId);
+      setOps([]);
+      setTotal(0);
+      setHasMore(false);
+      ready.current = true;
+      void load(true, scopeRef.current, userId);
     },
     [load],
   );
@@ -109,13 +147,26 @@ export function useOpsLog(taskId: string | null): OpsLogState {
   const reset = useCallback(() => {
     ready.current = false;
     scopeRef.current = "task";
+    userRef.current = null;
     setScope("task");
+    setFilterUserId(null);
     setOps([]);
     setTotal(0);
     setHasMore(false);
   }, []);
 
-  return { ops, total, hasMore, loading, scope, load, init, reset };
+  return {
+    ops,
+    total,
+    hasMore,
+    loading,
+    scope,
+    filterUserId,
+    load,
+    init,
+    setFilterUser,
+    reset,
+  };
 }
 
 export function useTaskDetail(taskId?: string) {
