@@ -1,4 +1,5 @@
 // src/modules/catalog/VideoReassigner.tsx
+
 import { useState } from "react";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
@@ -13,6 +14,7 @@ import {
 } from "@/ui/select";
 import { toast } from "sonner";
 import * as api from "@/core/api/mainEndpoints";
+import { logEdit } from "@/core/api/collabEndpoints";
 import EntityPicker from "@/shared/ui/EntityPicker";
 import ConfirmDialog from "@/shared/ui/ConfirmDialog";
 import type { Video } from "@/core/types/catalog";
@@ -71,6 +73,20 @@ export default function VideoReassigner() {
       );
       toast.success("视频移动成功");
       setOpen(false);
+
+      logEdit({
+        targetType: "video",
+        targetId: videoInfo.bvid,
+        action: "reassign_video",
+        detail: {
+          title: videoInfo.title,
+          fromSongId: videoInfo.song_id,
+          ...(mode === "existing"
+            ? { toSong: { id: targetSong!.id, name: targetSong!.name } }
+            : { newSongName }),
+        },
+      });
+
       setBvid("");
       setVideoInfo(null);
       setTargetSong(null);

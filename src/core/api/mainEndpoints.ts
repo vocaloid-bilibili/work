@@ -49,9 +49,17 @@ export const editSong = (data: {
 }) => http.post("/edit/song", data).then((r) => r.data);
 export const deleteSong = (id: number) =>
   http.delete(`/edit/song/${id}`).then((r) => r.data);
-export const mergeSong = (sourceId: number, targetId: number) =>
+export const mergeSong = (
+  sourceId: number,
+  targetId?: number,
+  newSongName?: string,
+) =>
   http
-    .post("/edit/song/merge", { source_id: sourceId, target_id: targetId })
+    .post("/edit/song/merge", {
+      source_id: sourceId,
+      target_id: targetId,
+      new_song_name: newSongName,
+    })
     .then((r) => r.data);
 
 export const editVideo = (data: {
@@ -76,12 +84,18 @@ export const reassignVideo = (
     })
     .then((r) => r.data);
 
-export const mergeArtist = (type: string, sourceId: number, targetId: number) =>
+export const mergeArtist = (
+  type: string,
+  sourceId: number,
+  targetId?: number,
+  newArtistName?: string,
+) =>
   http
     .post("/edit/artist/merge", {
       type,
       source_id: sourceId,
       target_id: targetId,
+      new_artist_name: newArtistName,
     })
     .then((r) => r.data);
 

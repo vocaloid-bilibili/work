@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/ui/select";
 import { getBoardVideo, setBoardVideo } from "@/core/api/mainEndpoints";
+import { logEdit } from "@/core/api/collabEndpoints";
 
 const BOARDS = [
   { value: "vocaloid-daily", label: "日刊" },
@@ -95,6 +96,18 @@ export default function BoardVideoEditor() {
           oldBvid && oldBvid !== trimmed
             ? `已覆盖: ${oldBvid} → ${trimmed}`
             : `已保存: ${trimmed}`,
+      });
+
+      logEdit({
+        targetType: "ranking_video",
+        targetId: `${board}:${issueNum}`,
+        action: "set_board_video",
+        detail: {
+          board,
+          issue: issueNum,
+          oldBvid: oldBvid || null,
+          newBvid: trimmed,
+        },
       });
     } catch (e: any) {
       setMessage({

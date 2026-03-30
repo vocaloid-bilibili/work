@@ -1,4 +1,5 @@
 // src/modules/catalog/VideoEditor.tsx
+
 import { useState, useMemo } from "react";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
@@ -15,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
 import { Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import * as api from "@/core/api/mainEndpoints";
+import { logEdit } from "@/core/api/collabEndpoints";
 import ConfirmDialog from "@/shared/ui/ConfirmDialog";
 import type { Video, Copyright } from "@/core/types/catalog";
 import { COPYRIGHT_MAP } from "@/core/types/catalog";
@@ -89,7 +91,7 @@ export default function VideoEditor() {
   };
 
   const confirmEdit = async () => {
-    if (!form) return;
+    if (!form || !videoInfo) return;
     try {
       setSubmitting(true);
       await api.editVideo({
@@ -101,6 +103,30 @@ export default function VideoEditor() {
       });
       toast.success("视频信息更新成功");
       setConfirmOpen(false);
+
+      const changes: Record<string, { old: unknown; new: unknown }> = {};
+      if (form.title !== videoInfo.title)
+        changes.title = { old: videoInfo.title, new: form.title };
+      if (form.copyright !== videoInfo.copyright)
+        changes.copyright = { old: videoInfo.copyright, new: form.copyright };
+      if (form.uploader_id !== videoInfo.uploader_id)
+        changes.uploader_id = {
+          old: videoInfo.uploader_id,
+          new: form.uploader_id,
+        };
+      if (form.disabled !== (videoInfo.disabled || false))
+        changes.disabled = {
+          old: videoInfo.disabled || false,
+          new: form.disabled,
+        };
+
+      logEdit({
+        targetType: "video",
+        targetId: form.bvid,
+        action: "edit_video",
+        detail: { title: videoInfo.title, changes },
+      });
+
       handleSearch();
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || "更新失败");
@@ -116,6 +142,14 @@ export default function VideoEditor() {
       await api.deleteVideo(videoInfo.bvid);
       toast.success("视频删除成功");
       setDeleteOpen(false);
+
+      logEdit({
+        targetType: "video",
+        targetId: videoInfo.bvid,
+        action: "delete_video",
+        detail: { title: videoInfo.title },
+      });
+
       handleClear();
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || "删除失败");

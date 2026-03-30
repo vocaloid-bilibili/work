@@ -1,4 +1,5 @@
 // src/modules/catalog/SongEditor.tsx
+
 import { useState, useMemo } from "react";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
@@ -15,6 +16,7 @@ import { Badge } from "@/ui/badge";
 import { X, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import * as api from "@/core/api/mainEndpoints";
+import { logEdit } from "@/core/api/collabEndpoints";
 import EntityPicker from "@/shared/ui/EntityPicker";
 import ConfirmDialog from "@/shared/ui/ConfirmDialog";
 import type { Song, SongType, Artist } from "@/core/types/catalog";
@@ -120,7 +122,7 @@ export default function SongEditor() {
   };
 
   const confirmEdit = async () => {
-    if (!form) return;
+    if (!form || !songInfo) return;
     try {
       setSubmitting(true);
       await api.editSong({
@@ -133,7 +135,59 @@ export default function SongEditor() {
       });
       toast.success("歌曲信息更新成功");
       setConfirmOpen(false);
-      if (songInfo) handleSelect({ id: songInfo.id, name: songInfo.name });
+
+      logEdit({
+        targetType: "song",
+        targetId: String(form.id),
+        action: "edit_song",
+        detail: {
+          name: songInfo.name,
+          changes: {
+            ...(form.display_name !== (songInfo.display_name || "")
+              ? {
+                  display_name: {
+                    old: songInfo.display_name || "",
+                    new: form.display_name,
+                  },
+                }
+              : {}),
+            ...(form.type !== songInfo.type
+              ? { type: { old: songInfo.type, new: form.type } }
+              : {}),
+            ...(JSON.stringify([...form.vocalist_ids].sort()) !==
+            JSON.stringify((songInfo.vocalists || []).map((a) => a.id).sort())
+              ? {
+                  vocalist_ids: {
+                    old: (songInfo.vocalists || []).map((a) => a.id),
+                    new: form.vocalist_ids,
+                  },
+                }
+              : {}),
+            ...(JSON.stringify([...form.producer_ids].sort()) !==
+            JSON.stringify((songInfo.producers || []).map((a) => a.id).sort())
+              ? {
+                  producer_ids: {
+                    old: (songInfo.producers || []).map((a) => a.id),
+                    new: form.producer_ids,
+                  },
+                }
+              : {}),
+            ...(JSON.stringify([...form.synthesizer_ids].sort()) !==
+            JSON.stringify(
+              (songInfo.synthesizers || []).map((a) => a.id).sort(),
+            )
+              ? {
+                  synthesizer_ids: {
+                    old: (songInfo.synthesizers || []).map((a) => a.id),
+                    new: form.synthesizer_ids,
+                  },
+                }
+              : {}),
+          },
+        },
+      });
+
+      handleSelect({ id: songInfo.id, name: songInfo.name });
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || "更新失败");
     } finally {
@@ -148,6 +202,14 @@ export default function SongEditor() {
       await api.deleteSong(songInfo.id);
       toast.success("歌曲删除成功");
       setDeleteOpen(false);
+
+      logEdit({
+        targetType: "song",
+        targetId: String(songInfo.id),
+        action: "delete_song",
+        detail: { name: songInfo.name },
+      });
+
       setSongInfo(null);
       setForm(null);
     } catch (err: any) {
