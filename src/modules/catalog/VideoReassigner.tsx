@@ -79,8 +79,9 @@ export default function VideoReassigner() {
         targetId: videoInfo.bvid,
         action: "reassign_video",
         detail: {
+          bvid: videoInfo.bvid,
           title: videoInfo.title,
-          fromSongId: videoInfo.song_id,
+          fromSong: { id: videoInfo.song_id },
           ...(mode === "existing"
             ? { toSong: { id: targetSong!.id, name: targetSong!.name } }
             : { newSongName }),

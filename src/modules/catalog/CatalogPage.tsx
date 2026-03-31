@@ -7,7 +7,7 @@ import SongMerger from "./SongMerger";
 import ArtistMerger from "./ArtistMerger";
 import VideoReassigner from "./VideoReassigner";
 import BoardVideoEditor from "./BoardVideoEditor";
-import EditLogViewer from "./EditLogViewer";
+import EditLogViewer from "./log";
 
 export default function CatalogPage() {
   return (

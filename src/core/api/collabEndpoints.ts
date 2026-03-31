@@ -18,6 +18,7 @@ export function logEdit(payload: EditLogPayload): void {
 }
 
 export interface EditLogEntry {
+  id: number;
   logId: string;
   userId: string;
   userName: string | null;
@@ -51,4 +52,19 @@ export function getEditLogs(params?: {
   if (params?.action) qs.set("action", params.action);
   const q = qs.toString();
   return collabGet<PagedEditLogs>(`/mark/edit-logs${q ? `?${q}` : ""}`);
+}
+
+// ── 同步状态 ──
+
+export interface SyncStatus {
+  cursor: number;
+  pending: number;
+  maxLogId: number;
+  locked: boolean;
+  lockHolder: string | null;
+  lockSince: string | null;
+}
+
+export function getSyncStatus(): Promise<SyncStatus> {
+  return collabGet<SyncStatus>("/sync/status");
 }

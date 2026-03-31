@@ -7,6 +7,19 @@ export interface Artist {
   name: string;
 }
 
+export interface VideoSummary {
+  bvid: string;
+  title: string;
+  pubdate?: string;
+  copyright?: number;
+  thumbnail?: string;
+  duration?: number;
+  page?: number;
+  song_id?: number;
+  uploader_id?: number;
+  uploader?: { id: number; name: string } | null;
+}
+
 export interface Song {
   id: number;
   name: string;
@@ -15,6 +28,7 @@ export interface Song {
   vocalists?: Artist[];
   producers?: Artist[];
   synthesizers?: Artist[];
+  videos?: VideoSummary[];
 }
 
 export interface Video {

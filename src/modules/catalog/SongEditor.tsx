@@ -121,6 +121,11 @@ export default function SongEditor() {
     return list?.find((a) => a.id === id)?.name || `ID: ${id}`;
   };
 
+  const joinArtistNames = (
+    type: "vocalist" | "producer" | "synthesizer",
+    ids: number[],
+  ): string => ids.map((id) => getArtistName(type, id)).join("、");
+
   const confirmEdit = async () => {
     if (!form || !songInfo) return;
     try {
@@ -136,54 +141,46 @@ export default function SongEditor() {
       toast.success("歌曲信息更新成功");
       setConfirmOpen(false);
 
+      const oldVocal = (songInfo.vocalists || []).map((a) => a.name).join("、");
+      const newVocal = joinArtistNames("vocalist", form.vocalist_ids);
+      const oldAuthor = (songInfo.producers || [])
+        .map((a) => a.name)
+        .join("、");
+      const newAuthor = joinArtistNames("producer", form.producer_ids);
+      const oldSynth = (songInfo.synthesizers || [])
+        .map((a) => a.name)
+        .join("、");
+      const newSynth = joinArtistNames("synthesizer", form.synthesizer_ids);
+
+      const changes: Record<string, { old: string; new: string }> = {};
+
+      if (form.display_name !== (songInfo.display_name || "")) {
+        changes.display_name = {
+          old: songInfo.display_name || "",
+          new: form.display_name,
+        };
+      }
+      if (form.type !== songInfo.type) {
+        changes.type = { old: songInfo.type, new: form.type };
+      }
+      if (newVocal !== oldVocal) {
+        changes.vocal = { old: oldVocal, new: newVocal };
+      }
+      if (newAuthor !== oldAuthor) {
+        changes.author = { old: oldAuthor, new: newAuthor };
+      }
+      if (newSynth !== oldSynth) {
+        changes.synthesizer = { old: oldSynth, new: newSynth };
+      }
+
       logEdit({
         targetType: "song",
         targetId: String(form.id),
         action: "edit_song",
         detail: {
-          name: songInfo.name,
-          changes: {
-            ...(form.display_name !== (songInfo.display_name || "")
-              ? {
-                  display_name: {
-                    old: songInfo.display_name || "",
-                    new: form.display_name,
-                  },
-                }
-              : {}),
-            ...(form.type !== songInfo.type
-              ? { type: { old: songInfo.type, new: form.type } }
-              : {}),
-            ...(JSON.stringify([...form.vocalist_ids].sort()) !==
-            JSON.stringify((songInfo.vocalists || []).map((a) => a.id).sort())
-              ? {
-                  vocalist_ids: {
-                    old: (songInfo.vocalists || []).map((a) => a.id),
-                    new: form.vocalist_ids,
-                  },
-                }
-              : {}),
-            ...(JSON.stringify([...form.producer_ids].sort()) !==
-            JSON.stringify((songInfo.producers || []).map((a) => a.id).sort())
-              ? {
-                  producer_ids: {
-                    old: (songInfo.producers || []).map((a) => a.id),
-                    new: form.producer_ids,
-                  },
-                }
-              : {}),
-            ...(JSON.stringify([...form.synthesizer_ids].sort()) !==
-            JSON.stringify(
-              (songInfo.synthesizers || []).map((a) => a.id).sort(),
-            )
-              ? {
-                  synthesizer_ids: {
-                    old: (songInfo.synthesizers || []).map((a) => a.id),
-                    new: form.synthesizer_ids,
-                  },
-                }
-              : {}),
-          },
+          songName: songInfo.name,
+          bvids: songInfo.videos?.map((v) => v.bvid) ?? [],
+          changes,
         },
       });
 
@@ -199,7 +196,7 @@ export default function SongEditor() {
     if (!songInfo) return;
     try {
       setDeleting(true);
-      await api.deleteSong(songInfo.id);
+      const result = await api.deleteSong(songInfo.id);
       toast.success("歌曲删除成功");
       setDeleteOpen(false);
 
@@ -207,7 +204,11 @@ export default function SongEditor() {
         targetType: "song",
         targetId: String(songInfo.id),
         action: "delete_song",
-        detail: { name: songInfo.name },
+        detail: {
+          songName: songInfo.name,
+          bvids:
+            result?.deleted_videos ?? songInfo.videos?.map((v) => v.bvid) ?? [],
+        },
       });
 
       setSongInfo(null);

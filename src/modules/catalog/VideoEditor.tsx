@@ -124,7 +124,7 @@ export default function VideoEditor() {
         targetType: "video",
         targetId: form.bvid,
         action: "edit_video",
-        detail: { title: videoInfo.title, changes },
+        detail: { bvid: form.bvid, title: videoInfo.title, changes },
       });
 
       handleSearch();
@@ -147,7 +147,7 @@ export default function VideoEditor() {
         targetType: "video",
         targetId: videoInfo.bvid,
         action: "delete_video",
-        detail: { title: videoInfo.title },
+        detail: { bvid: videoInfo.bvid, title: videoInfo.title },
       });
 
       handleClear();
