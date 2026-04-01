@@ -1,4 +1,4 @@
-// src/modules/catalog/log/SyncBar.tsx
+// src/modules/editor/log/SyncBar.tsx
 
 import { useState, useEffect } from "react";
 import { Check, Clock, Loader2, Lock } from "lucide-react";

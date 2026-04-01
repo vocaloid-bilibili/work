@@ -1,4 +1,4 @@
-// src/modules/catalog/log/LogItem.tsx
+// src/modules/editor/log/LogItem.tsx
 
 import { useState } from "react";
 import { Badge } from "@/ui/badge";

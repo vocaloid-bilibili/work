@@ -6,7 +6,7 @@ import AuthGate from "./AuthGate";
 import LoginPage from "./LoginPage";
 import MarkPage from "@/modules/marking/MarkPage";
 import IngestPage from "@/modules/ingest/IngestPage";
-import CatalogPage from "@/modules/catalog/CatalogPage";
+import EditorPage from "@/modules/editor/EditorPage";
 
 const StatsPage = lazy(() => import("@/modules/stats/StatsPage"));
 const TaskDetailPage = lazy(() => import("@/modules/stats/TaskDetailPage"));
@@ -63,7 +63,7 @@ export default function Router() {
         path="/edit"
         element={
           <AuthGate>
-            <CatalogPage />
+            <EditorPage />
           </AuthGate>
         }
       />

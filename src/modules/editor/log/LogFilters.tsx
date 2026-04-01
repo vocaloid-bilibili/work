@@ -1,4 +1,4 @@
-// src/modules/catalog/log/LogFilters.tsx
+// src/modules/editor/log/LogFilters.tsx
 
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";

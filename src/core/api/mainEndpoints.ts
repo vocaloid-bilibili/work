@@ -31,10 +31,12 @@ export const selectSong = (id: number) =>
   http
     .get("/select/song", { params: { id } })
     .then((r) => r.data as { data: Song });
+
 export const selectVideo = (bvid: string) =>
   http
     .get("/select/video", { params: { bvid } })
     .then((r) => r.data as { data: Video });
+
 export const selectArtist = (type: string, id: number) =>
   http.get("/select/artist", { params: { type, id } }).then((r) => r.data);
 
@@ -47,8 +49,28 @@ export const editSong = (data: {
   producer_ids?: number[];
   synthesizer_ids?: number[];
 }) => http.post("/edit/song", data).then((r) => r.data);
+
+export const editVideo = (data: {
+  bvid: string;
+  title?: string;
+  copyright?: number;
+  uploader_id?: number;
+  disabled?: boolean;
+}) => http.post("/edit/video", data).then((r) => r.data);
+
 export const deleteSong = (id: number) =>
-  http.delete(`/edit/song/${id}`).then((r) => r.data);
+  http.delete(`/edit/song/${id}`).then(
+    (r) =>
+      r.data as {
+        status: string;
+        deleted_song: number;
+        deleted_videos: string[];
+      },
+  );
+
+export const deleteVideo = (bvid: string) =>
+  http.delete(`/edit/video/${bvid}`).then((r) => r.data);
+
 export const mergeSong = (
   sourceId: number,
   targetId?: number,
@@ -60,17 +82,8 @@ export const mergeSong = (
       target_id: targetId,
       new_song_name: newSongName,
     })
-    .then((r) => r.data);
+    .then((r) => r.data as { status: string; merged: number; into: number });
 
-export const editVideo = (data: {
-  bvid: string;
-  title?: string;
-  copyright?: number;
-  uploader_id?: number;
-  disabled?: boolean;
-}) => http.post("/edit/video", data).then((r) => r.data);
-export const deleteVideo = (bvid: string) =>
-  http.delete(`/edit/video/${bvid}`).then((r) => r.data);
 export const reassignVideo = (
   bvid: string,
   targetSongId?: number,
@@ -82,7 +95,15 @@ export const reassignVideo = (
       target_song_id: targetSongId,
       new_song_name: newSongName,
     })
-    .then((r) => r.data);
+    .then(
+      (r) =>
+        r.data as {
+          status: string;
+          bvid: string;
+          old_song_id: number;
+          new_song_id: number;
+        },
+    );
 
 export const mergeArtist = (
   type: string,
@@ -97,13 +118,28 @@ export const mergeArtist = (
       target_id: targetId,
       new_artist_name: newArtistName,
     })
-    .then((r) => r.data);
+    .then(
+      (r) =>
+        r.data as {
+          status: string;
+          type: string;
+          merged: number;
+          into: number;
+          songs_affected: number;
+        },
+    );
 
-// ── 检查 & 更新 ──
-export const checkRanking = (board: string, part: string, issue: number) =>
+/**
+ * 批量解析艺人名称 → { id, name }[]
+ * 不存在的自动创建
+ */
+export const resolveArtists = (
+  type: "vocalist" | "producer" | "synthesizer",
+  names: string[],
+) =>
   http
-    .get("/update/check_ranking", { params: { board, part, issue } })
-    .then((r) => r.data);
+    .post("/edit/artist/resolve", { type, names })
+    .then((r) => r.data as { data: { id: number; name: string }[] });
 
 // ── 榜单视频 ──
 export const getBoardVideo = (board: string, issue: number) =>
@@ -115,3 +151,9 @@ export const getBoardVideo = (board: string, issue: number) =>
 
 export const setBoardVideo = (board: string, issue: number, bvid: string) =>
   http.post("/edit/ranking/video", { board, issue, bvid }).then((r) => r.data);
+
+// ── 检查 ──
+export const checkRanking = (board: string, part: string, issue: number) =>
+  http
+    .get("/update/check_ranking", { params: { board, part, issue } })
+    .then((r) => r.data);

@@ -1,4 +1,4 @@
-// src/modules/catalog/log/utils.ts
+// src/modules/editor/log/utils.ts
 
 export function formatTime(iso: string): string {
   try {

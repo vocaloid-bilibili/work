@@ -1,4 +1,4 @@
-// src/modules/catalog/log/index.tsx
+// src/modules/editor/log/index.tsx
 
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/ui/button";
@@ -63,8 +63,7 @@ export default function EditLogViewer() {
   }, []);
 
   return (
-    <div className="p-5 max-w-3xl mx-auto space-y-4">
-      {/* 筛选栏 */}
+    <div className="p-3 sm:p-5 max-w-3xl mx-auto space-y-4">
       <LogFilters
         filterAction={filterAction}
         filterTargetType={filterTargetType}
@@ -86,7 +85,6 @@ export default function EditLogViewer() {
         onReset={resetFilters}
       />
 
-      {/* 同步状态 + 统计 + 刷新 */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <div className="text-sm text-muted-foreground">
@@ -117,7 +115,6 @@ export default function EditLogViewer() {
         </Button>
       </div>
 
-      {/* 日志列表 */}
       <div className="space-y-2">
         {loading && !data && (
           <div className="text-center text-muted-foreground py-12">加载中…</div>
@@ -134,7 +131,6 @@ export default function EditLogViewer() {
         ))}
       </div>
 
-      {/* 分页 */}
       {data && data.total > PAGE_SIZE && (
         <div className="flex items-center justify-center gap-3 pt-2">
           <Button
