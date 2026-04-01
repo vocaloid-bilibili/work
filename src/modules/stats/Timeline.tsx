@@ -5,7 +5,7 @@ import Avatar from "@/shared/ui/Avatar";
 import { cn } from "@/ui/cn";
 import { Empty } from "./statsAtoms";
 import type { LogEntry } from "@/core/types/stats";
-
+import { FIELD_LABELS } from "@/core/types/constants";
 const ACTION: Record<
   string,
   {
@@ -39,14 +39,6 @@ const ACTION: Record<
     border: "border-l-blue-400 dark:border-l-blue-500",
     badge: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
   },
-};
-
-const FIELD: Record<string, string> = {
-  name: "曲名",
-  vocal: "歌手",
-  author: "作者",
-  type: "类型",
-  synthesizer: "引擎",
 };
 
 interface P {
@@ -92,7 +84,7 @@ export default function Timeline({
               const ActionIcon = a.Icon;
               const field =
                 op.action === "set" && op.field
-                  ? FIELD[op.field] || op.field
+                  ? FIELD_LABELS[op.field] || op.field
                   : null;
 
               return (

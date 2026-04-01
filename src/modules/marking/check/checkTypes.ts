@@ -1,12 +1,5 @@
 // src/modules/marking/check/checkTypes.ts
-export const FIELD_LABELS: Record<string, string> = {
-  name: "歌名",
-  vocal: "歌手",
-  author: "作者",
-  synthesizer: "引擎",
-  copyright: "版权",
-  type: "类别",
-};
+export { FIELD_LABELS } from "@/core/types/constants";
 
 export interface CheckResult {
   pending: { index: number; title: string }[];

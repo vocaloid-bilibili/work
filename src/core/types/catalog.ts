@@ -61,11 +61,3 @@ export interface Video {
     type: SongType;
   } | null;
 }
-
-export const COPYRIGHT_MAP: Record<Copyright, string> = {
-  1: "自制",
-  2: "转载",
-  3: "未定",
-  101: "转载投自制",
-  100: "自制投转载",
-};

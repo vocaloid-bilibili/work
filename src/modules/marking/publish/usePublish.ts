@@ -4,6 +4,7 @@ import * as api from "@/core/api/mainEndpoints";
 import { streamRanking, streamSnapshot } from "@/core/api/sseStream";
 import { validToken } from "@/core/auth/token";
 import type { PubFile, FileStatus, Phase, PublishMode } from "./types";
+import { PARTS } from "@/core/types/constants";
 
 export function usePublish({ taskId }: { taskId: string }) {
   const [phase, setPhase] = useState<Phase>("idle");
@@ -131,7 +132,8 @@ export function usePublish({ taskId }: { taskId: string }) {
     await api.uploadFile(fo);
     setFStatus((p) => ({ ...p, [file.fileKey]: "importing" }));
     if (file.type === "board") {
-      const label = file.part === "new" ? "新曲榜" : "主榜";
+      const label =
+        PARTS.find((p) => p.value === file.part)?.label ?? file.part;
       log(`导入${label}第${file.issue}期`);
       await new Promise<void>((ok, fail) => {
         streamRanking(file.board, file.part, file.issue, {

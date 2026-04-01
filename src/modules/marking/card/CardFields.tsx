@@ -9,6 +9,7 @@ import {
 import TagEditor from "@/shared/ui/TagEditor";
 import FieldName from "./FieldName";
 import { cn } from "@/ui/cn";
+import { COPYRIGHT, SONG_TYPES } from "@/core/types/constants";
 
 const FIELDS = [
   { type: "string-hint", label: "歌名", prop: "name" },
@@ -20,28 +21,12 @@ const FIELDS = [
     prop: "synthesizer",
     search: "synthesizer",
   },
+  { type: "select", label: "视频类型", prop: "copyright", options: COPYRIGHT },
   {
     type: "select",
-    label: "版权",
-    prop: "copyright",
-    options: [
-      { value: 1, label: "自制" },
-      { value: 2, label: "转载" },
-      { value: 3, label: "未定" },
-      { value: 101, label: "转载投自制" },
-      { value: 100, label: "自制投转载" },
-    ],
-  },
-  {
-    type: "select",
-    label: "类别",
+    label: "歌曲类型",
     prop: "type",
-    options: [
-      { value: "翻唱", label: "翻唱" },
-      { value: "原创", label: "原创" },
-      { value: "串烧", label: "串烧" },
-      { value: "本家重置", label: "本家重置" },
-    ],
+    options: SONG_TYPES.map((t) => ({ value: t, label: t })),
   },
 ];
 const REQ = ["name", "vocal", "author", "synthesizer", "copyright", "type"];

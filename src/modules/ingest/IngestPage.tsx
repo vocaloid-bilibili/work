@@ -14,27 +14,29 @@ import {
   DialogFooter,
 } from "@/ui/dialog";
 import { Button } from "@/ui/button";
+import { BOARDS, PARTS } from "@/core/types/constants";
 
-type Status = "idle" | "loading" | "success" | "failed";
-const BOARDS: Record<string, string> = {
-  "vocaloid-daily": "日刊",
-  "vocaloid-weekly": "周刊",
-  "vocaloid-monthly": "月刊",
-};
-const PARTS: Record<string, string> = { main: "主榜", new: "新曲榜" };
+const bLabel = (v: string) => BOARDS.find((b) => b.value === v)?.label ?? v;
+const pLabel = (v: string) => PARTS.find((p) => p.value === v)?.label ?? v;
 
 export default function IngestPage() {
   const [board, setBoard] = useState<BoardId | null>(null);
   const [boardOpen, setBoardOpen] = useState(false);
-  const [checkSt, setCheckSt] = useState<Status>("idle");
+  const [checkSt, setCheckSt] = useState<
+    "idle" | "loading" | "success" | "failed"
+  >("idle");
   const [checkErr, setCheckErr] = useState("");
-  const [updSt, setUpdSt] = useState<Status>("idle");
+  const [updSt, setUpdSt] = useState<"idle" | "loading" | "success" | "failed">(
+    "idle",
+  );
   const [updErr, setUpdErr] = useState("");
   const [progress, setProgress] = useState("");
 
   const [data, setData] = useState<DataId | null>(null);
   const [dataOpen, setDataOpen] = useState(false);
-  const [dataSt, setDataSt] = useState<Status>("idle");
+  const [dataSt, setDataSt] = useState<
+    "idle" | "loading" | "success" | "failed"
+  >("idle");
   const [dataErr, setDataErr] = useState("");
   const [dataProg, setDataProg] = useState("");
 
@@ -132,8 +134,8 @@ export default function IngestPage() {
           {board && (
             <div className="space-y-4">
               <div className="bg-muted p-3 rounded text-sm flex gap-4">
-                <span>{BOARDS[board.board]}</span>
-                <span>{PARTS[board.part]}</span>
+                <span>{bLabel(board.board)}</span>
+                <span>{pLabel(board.part)}</span>
                 <span>第 {board.issue} 期</span>
               </div>
               <StepRow

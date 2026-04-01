@@ -1,7 +1,7 @@
 // src/modules/marking/table/CellRenderer.tsx
 import { Badge } from "@/ui/badge";
 import { cn } from "@/ui/cn";
-import { COPYRIGHT_LABELS, REQ_FIELDS, type ColDef } from "./columns";
+import { COPYRIGHT_MAP, REQ_FIELDS, type ColDef } from "./columns";
 import CellEditorTags from "./CellEditorTags";
 import CellEditorSelect from "./CellEditorSelect";
 import CellEditorText from "./CellEditorText";
@@ -110,7 +110,7 @@ export default function CellRenderer({
   if (colDef.type === "select") {
     const label =
       colDef.key === "copyright"
-        ? COPYRIGHT_LABELS[Number(val)] || String(val || "—")
+        ? COPYRIGHT_MAP[Number(val)] || String(val || "—")
         : val || "—";
     return (
       <span className={cn("text-xs", hasErr && "text-destructive")}>

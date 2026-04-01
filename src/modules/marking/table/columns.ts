@@ -1,11 +1,16 @@
 // src/modules/marking/table/columns.ts
+import { COPYRIGHT, COPYRIGHT_MAP, SONG_TYPES } from "@/core/types/constants";
+
 export interface ColDef {
   key: string;
   label: string;
   type: "text" | "tags" | "select";
   width: string;
   searchType?: string;
-  options?: { value: number | string; label: string }[];
+  options?: readonly {
+    readonly value: number | string;
+    readonly label: string;
+  }[];
 }
 
 export const COLUMNS: ColDef[] = [
@@ -42,35 +47,19 @@ export const COLUMNS: ColDef[] = [
     label: "版权",
     type: "select",
     width: "min-w-[100px] w-[110px]",
-    options: [
-      { value: 1, label: "自制" },
-      { value: 2, label: "转载" },
-      { value: 3, label: "未定" },
-      { value: 101, label: "转载投自制" },
-      { value: 100, label: "自制投转载" },
-    ],
+    options: COPYRIGHT,
   },
   {
     key: "type",
     label: "类别",
     type: "select",
     width: "min-w-[90px] w-[100px]",
-    options: [
-      { value: "翻唱", label: "翻唱" },
-      { value: "原创", label: "原创" },
-      { value: "串烧", label: "串烧" },
-      { value: "本家重置", label: "本家重置" },
-    ],
+    options: SONG_TYPES.map((t) => ({ value: t, label: t })),
   },
 ];
 
-export const COPYRIGHT_LABELS: Record<number, string> = {
-  1: "自制",
-  2: "转载",
-  3: "未定",
-  101: "转载投自制",
-  100: "自制投转载",
-};
+export { COPYRIGHT_MAP };
+
 export const REQ_FIELDS = [
   "name",
   "vocal",

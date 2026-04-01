@@ -4,14 +4,9 @@ import { Input } from "@/ui/input";
 import { Hash, Search, Loader2 } from "lucide-react";
 import * as api from "@/core/api/mainEndpoints";
 import { useClickOutside } from "../hooks/useClickOutside";
+import { ARTIST_TYPES } from "@/core/types/constants";
 
 export type EntityKind = "song" | "vocalist" | "producer" | "synthesizer";
-const LABELS: Record<EntityKind, string> = {
-  song: "歌曲",
-  vocalist: "歌手",
-  producer: "作者",
-  synthesizer: "引擎",
-};
 
 interface P {
   kind: EntityKind;
@@ -20,7 +15,8 @@ interface P {
   placeholder?: string;
   disabled?: boolean;
 }
-
+const kindLabel = (k: EntityKind) =>
+  k === "song" ? "歌曲" : (ARTIST_TYPES.find((a) => a.value === k)?.label ?? k);
 export default function EntityPicker({
   kind,
   value,
@@ -104,7 +100,7 @@ export default function EntityPicker({
     <div ref={wrap} className="relative">
       <div className="relative">
         <Input
-          placeholder={placeholder || `输入${LABELS[kind]}名称或ID搜索`}
+          placeholder={placeholder || `输入${kindLabel(kind)}名称或ID搜索`}
           value={q}
           onChange={(e) => {
             setQ(e.target.value);

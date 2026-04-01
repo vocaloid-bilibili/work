@@ -4,7 +4,10 @@ import { cn } from "@/ui/cn";
 
 interface P {
   value: any;
-  options: { value: number | string; label: string }[];
+  options: readonly {
+    readonly value: number | string;
+    readonly label: string;
+  }[];
   onCommit: (v: any) => void;
   onCancel: () => void;
   onTab: (v: any) => void;

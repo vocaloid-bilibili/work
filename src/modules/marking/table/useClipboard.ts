@@ -1,21 +1,21 @@
 // src/modules/marking/table/useClipboard.ts
 import { useCallback } from "react";
-import { COLUMNS, type ColDef, COPYRIGHT_LABELS } from "./columns";
+import { COLUMNS, COPYRIGHT_MAP, type ColDef } from "./columns";
+import { COPYRIGHT } from "@/core/types/constants";
 import type { Cell } from "./useGridNav";
 import { toast } from "sonner";
 
 function fmt(rec: any, col: ColDef): string {
   const v = rec[col.key];
   if (v == null) return "";
-  if (col.key === "copyright") return COPYRIGHT_LABELS[Number(v)] || String(v);
+  if (col.key === "copyright") return COPYRIGHT_MAP[Number(v)] || String(v);
   return String(v);
 }
 
 function parse(col: ColDef, text: string): unknown {
   if (col.type === "select" && col.key === "copyright") {
-    const rev: Record<string, number> = {};
-    for (const [k, v] of Object.entries(COPYRIGHT_LABELS)) rev[v] = Number(k);
-    if (rev[text] !== undefined) return rev[text];
+    const hit = COPYRIGHT.find((c) => c.label === text);
+    if (hit) return hit.value;
     const n = Number(text);
     return isNaN(n) ? text : n;
   }

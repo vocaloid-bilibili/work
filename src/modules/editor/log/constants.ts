@@ -1,4 +1,5 @@
 // src/modules/editor/log/constants.ts
+export { FIELD_LABELS } from "@/core/types/constants";
 
 export const ACTION_LABELS: Record<string, string> = {
   edit_song: "编辑歌曲",
@@ -33,16 +34,4 @@ export const TARGET_LABELS: Record<string, string> = {
   video: "视频",
   artist: "艺人",
   ranking_video: "榜单视频",
-};
-
-export const FIELD_LABELS: Record<string, string> = {
-  display_name: "显示名",
-  type: "类型",
-  vocal: "歌手",
-  author: "作者",
-  synthesizer: "引擎",
-  title: "标题",
-  copyright: "版权",
-  disabled: "禁用",
-  uploader_id: "投稿人ID",
 };
