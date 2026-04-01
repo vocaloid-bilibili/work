@@ -1,154 +1,114 @@
 // src/modules/editor/log/index.tsx
-
-import { useState, useEffect, useCallback } from "react";
+import { useMemo, useCallback } from "react";
 import { Button } from "@/ui/button";
 import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
-import { getEditLogs, type PagedEditLogs } from "@/core/api/collabEndpoints";
+import type { EditLogEntry } from "@/core/api/collabEndpoints";
+import { useLogPager } from "./useLogPager";
 import LogFilters from "./LogFilters";
 import LogItem from "./LogItem";
 import SyncBar from "./SyncBar";
 
-const PAGE_SIZE = 20;
+function groupByDate(logs: EditLogEntry[]) {
+  const groups: { label: string; items: EditLogEntry[] }[] = [];
+  const today = new Date().toDateString();
+  const yesterday = new Date(Date.now() - 86400000).toDateString();
+
+  for (const log of logs) {
+    const d = new Date(log.createdAt);
+    const ds = d.toDateString();
+    const label =
+      ds === today
+        ? "今天"
+        : ds === yesterday
+          ? "昨天"
+          : `${d.getMonth() + 1}月${d.getDate()}日`;
+    const last = groups[groups.length - 1];
+    if (last?.label === label) last.items.push(log);
+    else groups.push({ label, items: [log] });
+  }
+  return groups;
+}
 
 export default function EditLogViewer() {
-  const [data, setData] = useState<PagedEditLogs | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(0);
-  const [filterAction, setFilterAction] = useState("all");
-  const [filterTargetType, setFilterTargetType] = useState("all");
-  const [searchUserId, setSearchUserId] = useState("");
-  const [appliedUserId, setAppliedUserId] = useState("");
-  const [syncCursor, setSyncCursor] = useState<number | null>(null);
-
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
-  const currentPage = Math.floor(page / PAGE_SIZE) + 1;
-
-  const fetchLogs = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await getEditLogs({
-        limit: PAGE_SIZE,
-        offset: page,
-        action: filterAction !== "all" ? filterAction : undefined,
-        targetType: filterTargetType !== "all" ? filterTargetType : undefined,
-        userId: appliedUserId || undefined,
-      });
-      setData(result);
-    } catch (e) {
-      console.error("[EditLogViewer] 加载失败", e);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, filterAction, filterTargetType, appliedUserId]);
-
-  useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
-
-  const hasFilters =
-    filterAction !== "all" ||
-    filterTargetType !== "all" ||
-    appliedUserId !== "";
-
-  const resetFilters = () => {
-    setFilterAction("all");
-    setFilterTargetType("all");
-    setSearchUserId("");
-    setAppliedUserId("");
-    setPage(0);
-  };
-
-  const handleCursorLoaded = useCallback((cursor: number) => {
-    setSyncCursor(cursor);
-  }, []);
+  const p = useLogPager();
+  const groups = useMemo(() => groupByDate(p.data?.logs ?? []), [p.data]);
+  const onCursor = useCallback(
+    (c: number) => p.setSyncCursor(c),
+    [p.setSyncCursor],
+  );
 
   return (
-    <div className="p-3 sm:p-5 max-w-3xl mx-auto space-y-4">
+    <div className="space-y-5">
       <LogFilters
-        filterAction={filterAction}
-        filterTargetType={filterTargetType}
-        searchUserId={searchUserId}
-        hasFilters={hasFilters}
-        onFilterAction={(v) => {
-          setFilterAction(v);
-          setPage(0);
-        }}
-        onFilterTargetType={(v) => {
-          setFilterTargetType(v);
-          setPage(0);
-        }}
-        onSearchUserId={setSearchUserId}
-        onApplyUserId={() => {
-          setAppliedUserId(searchUserId.trim());
-          setPage(0);
-        }}
-        onReset={resetFilters}
+        target={p.target}
+        hasFilters={p.hasFilters}
+        onTarget={p.setTarget}
+        onSearch={p.applySearch}
+        onReset={p.reset}
       />
 
       <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <div className="text-sm text-muted-foreground">
-            {data ? (
-              <>
-                共{" "}
-                <span className="font-medium text-foreground">
-                  {data.total}
-                </span>{" "}
-                条记录
-              </>
-            ) : (
-              "加载中…"
-            )}
-          </div>
-          <SyncBar onCursorLoaded={handleCursorLoaded} />
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">
+            {p.data ? `${p.data.total} 条记录` : "加载中…"}
+          </span>
+          <SyncBar onCursorLoaded={onCursor} />
         </div>
         <Button
           variant="ghost"
           size="sm"
-          onClick={fetchLogs}
-          disabled={loading}
+          className="h-7 px-2 text-xs gap-1"
+          onClick={p.refresh}
+          disabled={p.loading}
         >
-          <RefreshCw
-            className={`h-3.5 w-3.5 mr-1 ${loading ? "animate-spin" : ""}`}
-          />
+          <RefreshCw className={`h-3 w-3 ${p.loading ? "animate-spin" : ""}`} />
           刷新
         </Button>
       </div>
 
-      <div className="space-y-2">
-        {loading && !data && (
-          <div className="text-center text-muted-foreground py-12">加载中…</div>
-        )}
+      {p.loading && !p.data && (
+        <div className="text-center text-muted-foreground py-16 text-sm">
+          加载中…
+        </div>
+      )}
 
-        {data && data.logs.length === 0 && (
-          <div className="text-center text-muted-foreground py-12">
-            暂无操作日志
+      {p.data && p.data.logs.length === 0 && (
+        <div className="text-center text-muted-foreground py-16 text-sm">
+          暂无记录
+        </div>
+      )}
+
+      {groups.map((g) => (
+        <div key={g.label}>
+          <div className="text-xs font-semibold text-muted-foreground mb-3 sticky top-14 bg-background/90 backdrop-blur py-1 z-10">
+            {g.label}
           </div>
-        )}
+          <div>
+            {g.items.map((log) => (
+              <LogItem key={log.logId} log={log} syncCursor={p.syncCursor} />
+            ))}
+          </div>
+        </div>
+      ))}
 
-        {data?.logs.map((log) => (
-          <LogItem key={log.logId} log={log} syncCursor={syncCursor} />
-        ))}
-      </div>
-
-      {data && data.total > PAGE_SIZE && (
+      {p.data && p.data.total > 20 && (
         <div className="flex items-center justify-center gap-3 pt-2">
           <Button
             variant="outline"
             size="sm"
-            disabled={page === 0}
-            onClick={() => setPage((p) => Math.max(0, p - PAGE_SIZE))}
+            disabled={p.page <= 1}
+            onClick={p.prev}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-sm text-muted-foreground">
-            {currentPage} / {totalPages}
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {p.page} / {p.pages}
           </span>
           <Button
             variant="outline"
             size="sm"
-            disabled={!data.hasMore}
-            onClick={() => setPage((p) => p + PAGE_SIZE)}
+            disabled={!p.data.hasMore}
+            onClick={p.next}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>

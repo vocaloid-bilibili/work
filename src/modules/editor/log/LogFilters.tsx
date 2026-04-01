@@ -1,118 +1,79 @@
 // src/modules/editor/log/LogFilters.tsx
-
-import { Button } from "@/ui/button";
+import { useState } from "react";
 import { Input } from "@/ui/input";
-import { Label } from "@/ui/label";
-import { Card, CardContent } from "@/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/ui/select";
-import { Search, Filter, X } from "lucide-react";
-import { ACTION_LABELS, TARGET_LABELS } from "./constants";
+import { Button } from "@/ui/button";
+import { Search, X } from "lucide-react";
+import { cn } from "@/ui/cn";
+import { TARGET_FILTERS } from "./constants";
 
-interface LogFiltersProps {
-  filterAction: string;
-  filterTargetType: string;
-  searchUserId: string;
+interface Props {
+  target: string;
   hasFilters: boolean;
-  onFilterAction: (v: string) => void;
-  onFilterTargetType: (v: string) => void;
-  onSearchUserId: (v: string) => void;
-  onApplyUserId: () => void;
+  onTarget: (v: string) => void;
+  onSearch: (q: string) => void;
   onReset: () => void;
 }
 
 export default function LogFilters({
-  filterAction,
-  filterTargetType,
-  searchUserId,
+  target,
   hasFilters,
-  onFilterAction,
-  onFilterTargetType,
-  onSearchUserId,
-  onApplyUserId,
+  onTarget,
+  onSearch,
   onReset,
-}: LogFiltersProps) {
+}: Props) {
+  const [q, setQ] = useState("");
+
+  const submit = () => {
+    onSearch(q.trim());
+  };
+
   return (
-    <Card>
-      <CardContent className="pt-4 pb-3 space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <Filter className="h-4 w-4" />
-          筛选
-          {hasFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2 text-xs"
-              onClick={onReset}
-            >
-              <X className="h-3 w-3 mr-1" />
-              清除
-            </Button>
-          )}
+    <div className="space-y-2">
+      {/* 搜索 */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            className="h-8 text-xs pl-8"
+            placeholder="搜索用户 ID…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+          />
         </div>
+        {hasFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-xs gap-1"
+            onClick={() => {
+              setQ("");
+              onReset();
+            }}
+          >
+            <X className="h-3 w-3" />
+            清除
+          </Button>
+        )}
+      </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="space-y-1">
-            <Label className="text-xs">操作类型</Label>
-            <Select value={filterAction} onValueChange={onFilterAction}>
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部</SelectItem>
-                {Object.entries(ACTION_LABELS).map(([k, v]) => (
-                  <SelectItem key={k} value={k}>
-                    {v}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1">
-            <Label className="text-xs">目标类型</Label>
-            <Select value={filterTargetType} onValueChange={onFilterTargetType}>
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部</SelectItem>
-                {Object.entries(TARGET_LABELS).map(([k, v]) => (
-                  <SelectItem key={k} value={k}>
-                    {v}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1">
-            <Label className="text-xs">用户 ID</Label>
-            <div className="flex gap-1">
-              <Input
-                className="h-8 text-xs"
-                placeholder="输入用户 ID"
-                value={searchUserId}
-                onChange={(e) => onSearchUserId(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && onApplyUserId()}
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 shrink-0"
-                onClick={onApplyUserId}
-              >
-                <Search className="h-3 w-3" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+      {/* 快筛 chips */}
+      <div className="flex gap-1.5 flex-wrap">
+        {TARGET_FILTERS.map((f) => (
+          <button
+            key={f.value}
+            className={cn(
+              "px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
+              target === f.value
+                ? "bg-foreground text-background"
+                : "bg-muted text-muted-foreground hover:bg-muted/80",
+            )}
+            onClick={() => onTarget(f.value)}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

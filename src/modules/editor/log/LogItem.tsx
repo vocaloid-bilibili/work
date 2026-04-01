@@ -1,74 +1,71 @@
 // src/modules/editor/log/LogItem.tsx
-
-import { useState } from "react";
 import { Badge } from "@/ui/badge";
-import { Check, Clock } from "lucide-react";
+import { cn } from "@/ui/cn";
 import type { EditLogEntry } from "@/core/api/collabEndpoints";
-import { ACTION_LABELS, ACTION_COLORS, TARGET_LABELS } from "./constants";
-import { formatTime, relativeTime } from "./utils";
-import ChangesDetail from "./ChangesDetail";
+import { ACTIONS } from "./constants";
+import { relativeTime, formatTime } from "./utils";
+import { describe } from "./describe";
 
-interface LogItemProps {
+interface Props {
   log: EditLogEntry;
   syncCursor: number | null;
 }
 
-export default function LogItem({ log, syncCursor }: LogItemProps) {
-  const [expanded, setExpanded] = useState(false);
+export default function LogItem({ log, syncCursor }: Props) {
+  const meta = ACTIONS[log.action];
+  const { headline, lines } = describe(log.action, log.detail);
+  const user = log.userName || log.userId || "未知用户";
   const synced = syncCursor !== null && log.id <= syncCursor;
 
+  const dotCls =
+    syncCursor === null
+      ? (meta?.dot ?? "bg-muted-foreground")
+      : synced
+        ? (meta?.dot ?? "bg-muted-foreground")
+        : "ring-1 ring-muted-foreground/40 bg-transparent";
+
   return (
-    <div
-      className="border rounded-lg p-3 hover:bg-muted/30 transition-colors cursor-pointer"
-      onClick={() => setExpanded(!expanded)}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 flex-wrap min-w-0">
-          {syncCursor !== null && (
-            <span
-              title={synced ? "已同步到 collected" : "待同步"}
-              className={`shrink-0 ${synced ? "text-green-500" : "text-muted-foreground/40"}`}
-            >
-              {synced ? (
-                <Check className="h-3.5 w-3.5" />
-              ) : (
-                <Clock className="h-3.5 w-3.5" />
-              )}
-            </span>
-          )}
+    <div className="flex gap-3 group">
+      <div className="flex flex-col items-center pt-1.5 shrink-0">
+        <div
+          className={cn("w-2 h-2 rounded-full", dotCls)}
+          title={
+            syncCursor !== null ? (synced ? "已同步" : "待同步") : undefined
+          }
+        />
+        <div className="w-px flex-1 bg-border group-last:hidden" />
+      </div>
+
+      <div className="pb-5 min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-medium">{user}</span>
           <Badge
             variant="secondary"
-            className={`text-[11px] shrink-0 ${ACTION_COLORS[log.action] || ""}`}
+            className={cn("text-[10px] px-1.5 py-0", meta?.color)}
           >
-            {ACTION_LABELS[log.action] || log.action}
+            {meta?.label ?? log.action}
           </Badge>
-          <span className="text-sm font-medium truncate">
-            {TARGET_LABELS[log.targetType] || log.targetType}
-          </span>
-          <span className="text-xs text-muted-foreground font-mono truncate">
-            {log.targetId}
-          </span>
-        </div>
-        <div className="text-right shrink-0">
-          <div
-            className="text-xs text-muted-foreground"
+          <span
+            className="text-xs text-muted-foreground ml-auto shrink-0"
             title={formatTime(log.createdAt)}
           >
             {relativeTime(log.createdAt)}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {log.userName || log.userId}
-          </div>
+          </span>
         </div>
+
+        <p className="text-sm text-foreground/80 mt-1">{headline}</p>
+
+        {lines.length > 0 && (
+          <div className="mt-1.5 text-xs space-y-0.5 text-muted-foreground">
+            {lines.map((line, i) => (
+              <div key={i} className="flex items-start gap-1">
+                <span className="text-muted-foreground/40 shrink-0">·</span>
+                <span>{line}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-
-      {expanded && log.detail && <ChangesDetail detail={log.detail} />}
-
-      {!expanded && log.detail && (
-        <div className="mt-1 text-xs text-muted-foreground/60">
-          点击展开详情
-        </div>
-      )}
     </div>
   );
 }
