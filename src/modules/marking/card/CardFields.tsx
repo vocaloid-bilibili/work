@@ -84,7 +84,7 @@ export default function CardFields({
             {f.type === "select" && (
               <Select
                 value={String(record[f.prop])}
-                onValueChange={(v) => {
+                onValueChange={(v: string) => {
                   const n = Number(v);
                   onChange(f.prop, isNaN(n) ? v : n);
                 }}

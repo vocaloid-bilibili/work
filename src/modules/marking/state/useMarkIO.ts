@@ -95,6 +95,12 @@ export function useMarkIO(opts: Opts) {
         );
         w.postMessage({ file: ab });
         w.onmessage = (msg) => {
+          if (msg.data && typeof msg.data === "object" && "error" in msg.data) {
+            toast.error(`解析失败：${msg.data.error}`);
+            w.terminate();
+            setStatus("idle");
+            return;
+          }
           const rows = (msg.data as Row[]).map(sanitizeRow);
           setRecords(rows);
           setIncludes(
@@ -107,7 +113,10 @@ export function useMarkIO(opts: Opts) {
           w.terminate();
           setStatus("ready");
         };
-        w.onerror = () => setStatus("idle");
+        w.onerror = () => {
+          toast.error("解析文件时发生错误");
+          setStatus("idle");
+        };
       };
       reader.readAsArrayBuffer(file);
     },
@@ -123,22 +132,20 @@ export function useMarkIO(opts: Opts) {
     ],
   );
 
-  const doExport = useCallback(() => {
+  const doExport = useCallback(async () => {
     if (isCollab) {
-      collabExport(false)
-        .then(() => {
-          toast.success("导出成功");
-          setCheckOpen(false);
-        })
-        .catch((err) =>
-          toast.error(err instanceof Error ? err.message : "导出失败"),
-        );
+      try {
+        await collabExport(false);
+        toast.success("导出成功");
+        setCheckOpen(false);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "导出失败");
+      }
       return;
     }
-    import("./exportExcel").then((m) => {
-      m.exportExcel(records, includes, false, fileName);
-      setCheckOpen(false);
-    });
+    const m = await import("./exportExcel");
+    await m.exportExcel(records, includes, false, fileName);
+    setCheckOpen(false);
   }, [isCollab, collabExport, records, includes, fileName]);
 
   const tryExport = useCallback(() => {

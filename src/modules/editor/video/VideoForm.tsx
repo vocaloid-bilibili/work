@@ -53,7 +53,7 @@ export default function VideoForm({ form, bvid, onSubmitted }: Props) {
             <Label className="text-xs">版权类型</Label>
             <Select
               value={String(form.copyright)}
-              onValueChange={(v) => form.setCopyright(parseInt(v))}
+              onValueChange={(v: string) => form.setCopyright(parseInt(v))}
             >
               <SelectTrigger>
                 <SelectValue />
