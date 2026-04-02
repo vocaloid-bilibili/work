@@ -24,14 +24,12 @@ export function useCollabSocket(
   initRef.current = () => {
     const ws = new RealtimeSocket({
       urlProvider: async () => {
-        const token = await validToken();
-        if (!token) return "";
         const u = new URL(collabBase());
         u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
         u.pathname = u.pathname.replace(/\/$/, "") + "/ws";
-        u.searchParams.set("token", token);
         return u.toString();
       },
+      tokenProvider: () => validToken().then((t) => t || null),
       onMessage: (e) => onMsgRef.current(e),
       onStatus: setConnState,
     });

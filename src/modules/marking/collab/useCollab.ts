@@ -41,6 +41,8 @@ export function useCollab(enabled: boolean) {
     const ops = opsRef.current;
     const ws = wsRef.current;
 
+    if (event.type === "connected") return;
+
     if (event.type === "task_joined") {
       const v =
         typeof event.version === "number"
@@ -50,6 +52,7 @@ export function useCollab(enabled: boolean) {
       setVersion((p) => Math.max(p, v));
       return;
     }
+
     if (event.type === "operation_committed") {
       const op = event.operation as MarkOp | undefined;
       if (!op) return;
@@ -90,13 +93,20 @@ export function useCollab(enabled: boolean) {
       }
       return;
     }
+
     if (event.type === "operation_conflicted") {
-      const opId = typeof event.opId === "string" ? event.opId : "";
-      ops.handleConflict(opId, event.currentVersion as number | undefined);
+      ops.handleConflict({
+        opId: typeof event.opId === "string" ? event.opId : "",
+        currentVersion: event.currentVersion as number | undefined,
+        recordIndex: event.recordIndex as number | undefined,
+        field: event.field as string | undefined,
+        currentValue: event.currentValue,
+      });
       setConflict(typeof event.message === "string" ? event.message : "冲突");
       void refreshRef.current();
       return;
     }
+
     if (event.type === "snapshot_reloaded") {
       const s = event.snapshot as Snapshot | undefined;
       if (s) {
@@ -106,6 +116,7 @@ export function useCollab(enabled: boolean) {
       }
       return;
     }
+
     if (event.type === "error") {
       const msg = typeof event.message === "string" ? event.message : "";
       if (msg.includes("join_task") && snap.taskIdRef.current)

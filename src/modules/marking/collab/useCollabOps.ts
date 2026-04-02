@@ -2,6 +2,16 @@
 import { useCallback, useRef } from "react";
 import type { MarkOp, MarkAction, Row } from "@/core/types/collab";
 
+/** 和后端 constants.ts 保持一致 */
+const EDITABLE_FIELDS = new Set([
+  "name",
+  "vocal",
+  "author",
+  "synthesizer",
+  "copyright",
+  "type",
+]);
+
 const uid = () =>
   typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
@@ -31,7 +41,9 @@ export function applyOp(
     case "unblacklist": {
       const nb = [...bl];
       nb[i] = false;
-      return { recs, inc, bl: nb };
+      const ni = [...inc];
+      ni[i] = false;
+      return { recs, inc: ni, bl: nb };
     }
     case "set": {
       const nr = [...recs];
@@ -94,6 +106,12 @@ export function useCollabOps(refs: Refs, setters: StateSetters) {
       const r = refsRef.current;
       const s = settersRef.current;
       if (!r.taskIdRef.current) return;
+
+      if (input.action === "set" && !EDITABLE_FIELDS.has(input.field)) {
+        console.warn(`[collab] 字段 "${input.field}" 不可编辑，已拦截`);
+        return;
+      }
+
       const op: MarkOp = {
         opId: uid(),
         taskId: r.taskIdRef.current,
@@ -169,10 +187,52 @@ export function useCollabOps(refs: Refs, setters: StateSetters) {
   }, []);
 
   const handleConflict = useCallback(
-    (opId: string, currentVersion?: number) => {
-      pendingRef.current.delete(opId);
-      if (typeof currentVersion === "number")
-        refsRef.current.versionRef.current = currentVersion;
+    (data: {
+      opId: string;
+      currentVersion?: number;
+      recordIndex?: number;
+      field?: string;
+      currentValue?: unknown;
+    }) => {
+      pendingRef.current.delete(data.opId);
+
+      const r = refsRef.current;
+      const s = settersRef.current;
+
+      if (typeof data.currentVersion === "number") {
+        r.versionRef.current = data.currentVersion;
+      }
+
+      if (
+        typeof data.recordIndex === "number" &&
+        data.recordIndex >= 0 &&
+        data.recordIndex < r.recordsRef.current.length
+      ) {
+        const idx = data.recordIndex;
+
+        if (
+          data.field === "include" &&
+          typeof data.currentValue === "boolean"
+        ) {
+          const ni = [...r.includesRef.current];
+          ni[idx] = data.currentValue;
+          r.includesRef.current = ni;
+          s.setIncludes(ni);
+        } else if (
+          data.field === "blacklist" &&
+          typeof data.currentValue === "boolean"
+        ) {
+          const nb = [...r.blacklistsRef.current];
+          nb[idx] = data.currentValue;
+          r.blacklistsRef.current = nb;
+          s.setBlacklists(nb);
+        } else if (data.field && data.currentValue !== undefined) {
+          const nr = [...r.recordsRef.current];
+          nr[idx] = { ...nr[idx], [data.field]: data.currentValue };
+          r.recordsRef.current = nr;
+          s.setRecords(nr);
+        }
+      }
     },
     [],
   );
