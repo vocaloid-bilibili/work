@@ -115,8 +115,13 @@ export function useMarkIO(opts: Opts) {
         };
         w.onerror = () => {
           toast.error("解析文件时发生错误");
+          w.terminate();
           setStatus("idle");
         };
+      };
+      reader.onerror = () => {
+        toast.error("文件读取失败，请重试");
+        setStatus("idle");
       };
       reader.readAsArrayBuffer(file);
     },

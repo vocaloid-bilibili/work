@@ -5,7 +5,7 @@ import type { MarkOp, MarkAction, Row } from "@/core/types/collab";
 const uid = () =>
   typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
-    : `op-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    : `op-${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
 
 export function applyOp(
   op: Pick<MarkOp, "action" | "recordIndex" | "field" | "value">,
@@ -79,6 +79,11 @@ function commit(
 export function useCollabOps(refs: Refs, setters: StateSetters) {
   const pendingRef = useRef<Set<string>>(new Set());
 
+  const refsRef = useRef(refs);
+  refsRef.current = refs;
+  const settersRef = useRef(setters);
+  settersRef.current = setters;
+
   const submit = useCallback(
     (input: {
       recordIndex: number;
@@ -86,29 +91,31 @@ export function useCollabOps(refs: Refs, setters: StateSetters) {
       action: MarkAction;
       value: unknown;
     }) => {
-      if (!refs.taskIdRef.current) return;
+      const r = refsRef.current;
+      const s = settersRef.current;
+      if (!r.taskIdRef.current) return;
       const op: MarkOp = {
         opId: uid(),
-        taskId: refs.taskIdRef.current,
+        taskId: r.taskIdRef.current,
         recordIndex: input.recordIndex,
         field: input.field,
         action: input.action,
         value: input.value,
-        baseVersion: refs.versionRef.current,
+        baseVersion: r.versionRef.current,
         clientTime: new Date().toISOString(),
       };
-      refs.versionRef.current += 1;
+      r.versionRef.current += 1;
       const result = applyOp(
         op,
-        refs.recordsRef.current,
-        refs.includesRef.current,
-        refs.blacklistsRef.current,
+        r.recordsRef.current,
+        r.includesRef.current,
+        r.blacklistsRef.current,
       );
-      commit(result, refs, setters);
+      commit(result, r, s);
       pendingRef.current.add(op.opId);
-      refs.send({ type: "submit_operation", operation: op });
+      r.send({ type: "submit_operation", operation: op });
     },
-    [refs, setters],
+    [],
   );
 
   const updateField = useCallback(
@@ -147,28 +154,27 @@ export function useCollabOps(refs: Refs, setters: StateSetters) {
     [submit],
   );
 
-  const handleCommitted = useCallback(
-    (op: MarkOp, version: number) => {
-      const result = applyOp(
-        op,
-        refs.recordsRef.current,
-        refs.includesRef.current,
-        refs.blacklistsRef.current,
-      );
-      commit(result, refs, setters);
-      refs.versionRef.current = Math.max(refs.versionRef.current, version);
-      pendingRef.current.delete(op.opId);
-    },
-    [refs, setters],
-  );
+  const handleCommitted = useCallback((op: MarkOp, version: number) => {
+    const r = refsRef.current;
+    const s = settersRef.current;
+    const result = applyOp(
+      op,
+      r.recordsRef.current,
+      r.includesRef.current,
+      r.blacklistsRef.current,
+    );
+    commit(result, r, s);
+    r.versionRef.current = Math.max(r.versionRef.current, version);
+    pendingRef.current.delete(op.opId);
+  }, []);
 
   const handleConflict = useCallback(
     (opId: string, currentVersion?: number) => {
       pendingRef.current.delete(opId);
       if (typeof currentVersion === "number")
-        refs.versionRef.current = currentVersion;
+        refsRef.current.versionRef.current = currentVersion;
     },
-    [refs],
+    [],
   );
 
   const clearPending = useCallback(() => pendingRef.current.clear(), []);

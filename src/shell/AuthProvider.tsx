@@ -5,6 +5,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useMemo,
   type ReactNode,
 } from "react";
 import {
@@ -17,6 +18,7 @@ import {
   AUTH_BASE,
 } from "@/core/auth/token";
 import { hasAccess as checkAccess } from "@/core/auth/roles";
+import { authExpiredEvent } from "@/core/api/mainClient";
 
 interface State {
   role: string;
@@ -110,6 +112,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else apply(t);
   }, [apply, refreshAuth]);
 
+  useEffect(() => {
+    const handler = () => {
+      clearTokens();
+      apply(null);
+    };
+    authExpiredEvent.addEventListener("expired", handler);
+    return () => authExpiredEvent.removeEventListener("expired", handler);
+  }, [apply]);
+
   const login = useCallback(
     async (u: string, p: string, codeId: number, codeAnswer: string) => {
       const res = await fetch(`${AUTH_BASE}/auth/login`, {
@@ -138,9 +149,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     apply(null);
   }, [apply]);
 
-  return (
-    <AuthCtx.Provider value={{ ...state, login, logout, refreshAuth }}>
-      {children}
-    </AuthCtx.Provider>
+  const actions = useMemo(
+    () => ({ login, logout, refreshAuth }),
+    [login, logout, refreshAuth],
   );
+
+  const value = useMemo(() => ({ ...state, ...actions }), [state, actions]);
+
+  return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
 }

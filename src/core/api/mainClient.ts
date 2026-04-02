@@ -1,6 +1,14 @@
 // src/core/api/mainClient.ts
-import axios from "axios";
+import axios, { type InternalAxiosRequestConfig } from "axios";
 import { validToken, refreshAccessToken, clearTokens } from "../auth/token";
+
+declare module "axios" {
+  interface InternalAxiosRequestConfig {
+    _retry?: boolean;
+  }
+}
+
+export const authExpiredEvent = new EventTarget();
 
 const http = axios.create({
   baseURL: "https://api.vocabili.top/v2",
@@ -16,8 +24,8 @@ http.interceptors.request.use(async (cfg) => {
 http.interceptors.response.use(
   (r) => r,
   async (err) => {
-    const orig = err.config;
-    if (err.response?.status === 401 && !orig._retry) {
+    const orig = err.config as InternalAxiosRequestConfig | undefined;
+    if (err.response?.status === 401 && orig && !orig._retry) {
       orig._retry = true;
       const t = await refreshAccessToken();
       if (t) {
@@ -25,7 +33,7 @@ http.interceptors.response.use(
         return http(orig);
       }
       clearTokens();
-      window.location.href = "/login";
+      authExpiredEvent.dispatchEvent(new Event("expired"));
     }
     return Promise.reject(err);
   },

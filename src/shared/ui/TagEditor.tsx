@@ -30,9 +30,7 @@ export default function TagEditor({
   const dv = useDebounce(input, 400);
   const wrap = useRef<HTMLDivElement>(null);
   const onInputRef = useRef(onInputChange);
-  useEffect(() => {
-    onInputRef.current = onInputChange;
-  }, [onInputChange]);
+  onInputRef.current = onInputChange;
   useEffect(() => {
     onInputRef.current?.(dv);
   }, [dv]);

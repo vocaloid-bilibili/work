@@ -1,6 +1,6 @@
 // src/shell/Router.tsx
-import { Routes, Route, Navigate } from "react-router-dom";
-import { lazy, Suspense } from "react";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { lazy, Suspense, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import AuthGate from "./AuthGate";
 import LoginPage from "./LoginPage";
@@ -15,6 +15,20 @@ function Fb() {
   return (
     <div className="flex items-center justify-center py-24">
       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
+
+function NotFoundPage() {
+  const nav = useNavigate();
+  useEffect(() => {
+    const t = setTimeout(() => nav("/mark", { replace: true }), 3000);
+    return () => clearTimeout(t);
+  }, [nav]);
+  return (
+    <div className="flex flex-col items-center justify-center py-32 gap-3 text-center">
+      <h1 className="text-4xl font-bold">404</h1>
+      <p className="text-muted-foreground">页面不存在，3 秒后自动跳转…</p>
     </div>
   );
 }
@@ -69,7 +83,7 @@ export default function Router() {
       />
       <Route path="/contributions" element={<Navigate to="/stats" replace />} />
       <Route path="/" element={<Navigate to="/mark" replace />} />
-      <Route path="*" element={<Navigate to="/mark" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }

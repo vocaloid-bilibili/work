@@ -31,17 +31,17 @@ export default function VideoWorkspace({
       setParent(null);
       return;
     }
-    let c = false;
+    let cancelled = false;
     api
       .selectSong(video.song_id)
       .then((r) => {
-        if (!c) setParent(r.data);
+        if (!cancelled) setParent(r.data);
       })
       .catch(() => {
-        if (!c) setParent(null);
+        if (!cancelled) setParent(null);
       });
     return () => {
-      c = true;
+      cancelled = true;
     };
   }, [video.song_id]);
 

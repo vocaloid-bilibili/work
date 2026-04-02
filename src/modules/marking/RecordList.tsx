@@ -1,10 +1,10 @@
 // src/modules/marking/RecordList.tsx
+import { useMemo } from "react";
 import type { LayoutMode } from "./state/useMarkCore";
 import type { Filter } from "./state/useMarkPaging";
 import type { Attribution } from "@/core/types/stats";
 import EmptyState from "@/shared/ui/EmptyState";
 
-// 延迟加载 card 和 table（它们各自很重）
 import { lazy, Suspense } from "react";
 const MarkCard = lazy(() => import("./card/MarkCard"));
 const MarkTable = lazy(() => import("./table/MarkTable"));
@@ -23,6 +23,8 @@ interface P {
   onRecordUpdate: (i: number, u: any) => void;
   onFieldChange: (i: number, f: string, v: unknown) => void;
   filter: Filter;
+  highlightIndex: number | null;
+  filteredIndices: number[] | null;
 }
 
 export default function RecordList({
@@ -39,7 +41,18 @@ export default function RecordList({
   onRecordUpdate,
   onFieldChange,
   filter,
+  highlightIndex,
+  filteredIndices,
 }: P) {
+  const tableRealIndices = useMemo(
+    () => filteredIndices ?? allData.map((_, i) => i),
+    [filteredIndices, allData],
+  );
+  const tableData = useMemo(
+    () => tableRealIndices.map((i) => allData[i]),
+    [tableRealIndices, allData],
+  );
+
   if (layout === "table") {
     return (
       <Suspense
@@ -50,14 +63,15 @@ export default function RecordList({
         }
       >
         <MarkTable
-          data={allData}
-          pageOffset={0}
+          data={tableData}
+          realIndices={tableRealIndices}
           includes={includes}
           blacklists={blacklists}
           onInclude={onInclude}
           onBlacklist={onBlacklist}
           onUnblacklist={onUnblacklist}
           onFieldChange={onFieldChange}
+          highlightIndex={highlightIndex}
         />
       </Suspense>
     );
@@ -85,6 +99,7 @@ export default function RecordList({
               onBlacklist={() => onBlacklist(ri)}
               onUnblacklist={() => onUnblacklist(ri)}
               onUpdate={(u) => onRecordUpdate(ri, u)}
+              highlight={highlightIndex === ri}
             />
           );
         })}

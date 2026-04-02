@@ -1,5 +1,5 @@
 // src/modules/editor/video/useVideoForm.ts
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import * as api from "@/core/api/mainEndpoints";
 import { logEdit } from "@/core/api/collabEndpoints";
@@ -13,15 +13,13 @@ interface Orig {
 
 export function useVideoForm(video: Video) {
   const origRef = useRef<Orig | null>(null);
-  const idRef = useRef("");
 
   const [title, setTitle] = useState("");
   const [copyright, setCopyright] = useState(1);
   const [disabled, setDisabled] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  if (video.bvid !== idRef.current) {
-    idRef.current = video.bvid;
+  useEffect(() => {
     const o: Orig = {
       title: video.title,
       copyright: video.copyright ?? 3,
@@ -31,7 +29,7 @@ export function useVideoForm(video: Video) {
     setTitle(o.title);
     setCopyright(o.copyright);
     setDisabled(o.disabled);
-  }
+  }, [video]);
 
   const orig = origRef.current;
   const hasChanges = useMemo(() => {

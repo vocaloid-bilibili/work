@@ -32,7 +32,9 @@ export default function StatsPage() {
   const ov = useOverview();
   const opsLog = useOpsLog(ov.activeId);
 
-  useEffect(() => void ov.load(), []); // eslint-disable-line
+  useEffect(() => {
+    void ov.load();
+  }, [ov.load]);
 
   const switchTab = useCallback(
     (t: Tab) => {

@@ -19,6 +19,7 @@ export default function CellEditorTags({
   value,
   searchType,
   initialChar,
+  onCommit,
   onCancel,
   onTab,
   onShiftTab,
@@ -50,7 +51,7 @@ export default function CellEditorTags({
   };
   const commit = (sel?: string) => {
     const pending = sel ?? (input.trim() || undefined);
-    onDown(join(pending));
+    onCommit(join(pending));
   };
   const tabVal = () => (input.trim() ? join(input.trim()) : join());
 

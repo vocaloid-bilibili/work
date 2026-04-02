@@ -17,9 +17,7 @@ function fmtValue(field: string, v: unknown): string {
 }
 
 export interface Description {
-  /** 主句，如 "编辑了「千本桜」" */
   headline: string;
-  /** 变更行，如 ["歌手: A → B", "类型: 翻唱 → 原创"] */
   lines: string[];
 }
 
@@ -35,7 +33,6 @@ export function describe(
     | Record<string, { old: unknown; new: unknown }>
     | undefined;
 
-  // 变更行
   if (changes) {
     for (const [field, diff] of Object.entries(changes)) {
       const label = FIELD_LABELS[field] ?? field;
@@ -118,6 +115,9 @@ export function describe(
     }
 
     default:
+      if (import.meta.env.DEV) {
+        console.warn(`[describe] Unknown action: "${action}"`, detail);
+      }
       return { headline: songName || action, lines };
   }
 }

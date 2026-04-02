@@ -19,9 +19,11 @@ export function runChecks(
   const authorMatchUp: CheckResult["authorMatchUp"] = [];
   const incIdx: number[] = [];
 
+  const strOf = (i: number, f: string): string => str(records[i]?.[f]);
+
   for (let i = 0; i < records.length; i++) {
     const r = records[i];
-    const title = str(r.title) || str(r.name) || `#${i + 1}`;
+    const title = strOf(i, "title") || strOf(i, "name") || `#${i + 1}`;
     if (!inc[i] && !bl[i]) {
       pending.push({ index: i, title });
       continue;
@@ -35,17 +37,17 @@ export function runChecks(
         title,
         missingLabels: miss.map((f) => FIELD_LABELS[f] || f),
       });
-    if (ok(r.name) && ok(r.title) && str(r.name) === str(r.title))
+    if (ok(r.name) && ok(r.title) && strOf(i, "name") === strOf(i, "title"))
       nameMatchTitle.push({ index: i, title });
     if (ok(r.author) && ok(r.uploader)) {
-      const au = str(r.author)
+      const au = strOf(i, "author")
         .split("、")
         .map((s) => s.trim());
-      if (au.includes(str(r.uploader)))
+      if (au.includes(strOf(i, "uploader")))
         authorMatchUp.push({
           index: i,
           title,
-          detail: `作者 "${str(r.author)}" 含UP主 "${str(r.uploader)}"`,
+          detail: `作者 "${strOf(i, "author")}" 含UP主 "${strOf(i, "uploader")}"`,
         });
     }
   }
@@ -58,11 +60,13 @@ export function runChecks(
   >();
   for (const i of incIdx) {
     const r = records[i];
-    const a = str(r.author);
+    const a = strOf(i, "author");
     if (!a) continue;
-    const t = str(r.title) || str(r.name) || `#${i + 1}`;
+    const t = strOf(i, "title") || strOf(i, "name") || `#${i + 1}`;
     if (!byAuth.has(a)) byAuth.set(a, []);
-    byAuth.get(a)!.push({ index: i, name: str(r.name), title: t, record: r });
+    byAuth
+      .get(a)!
+      .push({ index: i, name: strOf(i, "name"), title: t, record: r });
   }
   for (const [author, entries] of byAuth) {
     if (entries.length < 2) continue;

@@ -18,6 +18,7 @@ interface P {
   onBlacklist: () => void;
   onUnblacklist: () => void;
   onUpdate: (record: any) => void;
+  highlight?: boolean;
 }
 
 function MarkCardInner({
@@ -30,6 +31,7 @@ function MarkCardInner({
   onBlacklist,
   onUnblacklist,
   onUpdate,
+  highlight = false,
 }: P) {
   const handleChange = (field: string, value: any) =>
     onUpdate((prev: any) => ({ ...prev, [field]: value }));
@@ -64,6 +66,7 @@ function MarkCardInner({
       className={cn(
         "w-full transition-all duration-300 hover:shadow-md scroll-mt-24 relative overflow-hidden",
         border,
+        highlight && "ring-2 ring-primary ring-offset-2",
       )}
     >
       <div

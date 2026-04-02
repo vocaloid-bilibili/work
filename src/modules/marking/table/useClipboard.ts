@@ -24,7 +24,7 @@ function parse(col: ColDef, text: string): unknown {
 
 export function useClipboard(
   data: any[],
-  offset: number,
+  realIndices: number[],
   cell: Cell | null,
   onChange: (i: number, f: string, v: unknown) => void,
 ) {
@@ -53,12 +53,13 @@ export function useClipboard(
     if (!c) return;
     try {
       const t = await navigator.clipboard.readText();
-      onChange(offset + cell.row, c.key, parse(c, t.trim()));
+      const parsed = parse(c, t.trim());
+      onChange(realIndices[cell.row], c.key, parsed);
       toast.success("已粘贴", { duration: 1200 });
     } catch {
       toast.error("无法读取剪贴板");
     }
-  }, [cell, offset, onChange]);
+  }, [cell, realIndices, onChange]);
 
   return { copy, paste };
 }

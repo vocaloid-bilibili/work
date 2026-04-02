@@ -10,9 +10,7 @@ interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   mode: "song" | "video";
-  /** mode=song 时 */
   song?: Song | null;
-  /** mode=video 时 */
   bvid?: string;
   videoTitle?: string;
   onDone?: () => void;
@@ -34,7 +32,7 @@ export default function RemoveDialog({
       setLoading(true);
       if (mode === "song" && song) {
         const bvids = song.videos?.map((v) => v.bvid) ?? [];
-        logEdit({
+        void logEdit({
           targetType: "song",
           targetId: String(song.id),
           action: "delete_song",
@@ -42,7 +40,7 @@ export default function RemoveDialog({
         });
         toast.success(`已提交移除：${song.name}（${bvids.length} 个视频）`);
       } else if (mode === "video" && bvid) {
-        logEdit({
+        void logEdit({
           targetType: "video",
           targetId: bvid,
           action: "delete_video",

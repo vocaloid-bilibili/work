@@ -20,10 +20,13 @@ export default function TaskDetailPage() {
   const opsLog = useOpsLog(taskId ?? null);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
 
-  useEffect(() => void detail.load(), [taskId]); // eslint-disable-line
+  useEffect(() => {
+    void detail.load();
+  }, [detail.load]);
+
   useEffect(() => {
     if (!detail.loading && taskId) opsLog.init();
-  }, [detail.loading, taskId]); // eslint-disable-line
+  }, [detail.loading, taskId, opsLog.init]);
 
   const reload = useCallback(() => {
     opsLog.reset();

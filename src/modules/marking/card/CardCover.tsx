@@ -12,7 +12,6 @@ import {
 } from "@/ui/dialog";
 import { PlayCircle, Loader2, Ban } from "lucide-react";
 import { cn } from "@/ui/cn";
-import axios from "axios";
 import { toast } from "sonner";
 import CachedImg from "@/shared/ui/CachedImg";
 
@@ -27,22 +26,35 @@ export default function CardCover({ record, blacklisted }: P) {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
   const loadPreview = async () => {
-    if (videoUrl) return;
     const bvid = record.bvid || (record.aid ? `av${record.aid}` : "");
     if (!bvid) {
       toast.error("无法获取视频ID");
       return;
     }
     setLoading(true);
+    setVideoUrl(null);
     try {
-      const res = await axios.get(
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10_000);
+      const res = await fetch(
         `https://api.xingzhige.com/API/b_parse/?url=https://www.bilibili.com/video/${bvid}`,
+        { signal: controller.signal },
       );
-      if (res.data?.code === 0 && res.data.data?.video?.url)
-        setVideoUrl(res.data.data.video.url);
-      else toast.error("解析视频失败: " + (res.data?.msg || "未知错误"));
-    } catch {
-      toast.error("请求视频解析接口失败");
+      clearTimeout(timeout);
+      if (!res.ok) {
+        toast.error("请求视频解析接口失败");
+        return;
+      }
+      const data = await res.json();
+      if (data?.code === 0 && data.data?.video?.url)
+        setVideoUrl(data.data.video.url);
+      else toast.error("解析视频失败: " + (data?.msg || "未知错误"));
+    } catch (e: any) {
+      if (e.name === "AbortError") {
+        toast.error("视频解析超时");
+      } else {
+        toast.error("请求视频解析接口失败");
+      }
     } finally {
       setLoading(false);
     }
@@ -79,6 +91,7 @@ export default function CardCover({ record, blacklisted }: P) {
         onOpenChange={(o) => {
           setPreviewOpen(o);
           if (o) loadPreview();
+          if (!o) setVideoUrl(null);
         }}
       >
         <DialogTrigger asChild>

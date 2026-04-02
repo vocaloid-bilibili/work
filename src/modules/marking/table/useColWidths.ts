@@ -29,44 +29,43 @@ export function useColWidths() {
 
   const save = (n: Record<string, number>) =>
     localStorage.setItem("mark_col_widths", JSON.stringify(n));
+  const widthsRef = useRef(widths);
+  widthsRef.current = widths;
 
-  const startResize = useCallback(
-    (key: string, e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const sx = e.clientX,
-        sw = widths[key] || DEFAULTS[key] || 150;
-      const ind = document.createElement("div");
-      ind.style.cssText = `position:fixed;top:0;bottom:0;width:2px;background:hsl(var(--primary));opacity:0.6;z-index:9999;pointer-events:none;`;
-      ind.style.left = `${e.clientX}px`;
-      document.body.appendChild(ind);
-      indRef.current = ind;
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
-      const move = (ev: MouseEvent) => {
-        const w = Math.min(MAX_W, Math.max(MIN_W, sw + ev.clientX - sx));
-        ind.style.left = `${ev.clientX}px`;
-        setWidths((p) => ({ ...p, [key]: w }));
-      };
-      const up = () => {
-        document.removeEventListener("mousemove", move);
-        document.removeEventListener("mouseup", up);
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
-        if (indRef.current) {
-          document.body.removeChild(indRef.current);
-          indRef.current = null;
-        }
-        setWidths((p) => {
-          save(p);
-          return p;
-        });
-      };
-      document.addEventListener("mousemove", move);
-      document.addEventListener("mouseup", up);
-    },
-    [widths],
-  );
+  const startResize = useCallback((key: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const sx = e.clientX,
+      sw = widthsRef.current[key] || DEFAULTS[key] || 150;
+    const ind = document.createElement("div");
+    ind.style.cssText = `position:fixed;top:0;bottom:0;width:2px;background:hsl(var(--primary));opacity:0.6;z-index:9999;pointer-events:none;`;
+    ind.style.left = `${e.clientX}px`;
+    document.body.appendChild(ind);
+    indRef.current = ind;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    const move = (ev: MouseEvent) => {
+      const w = Math.min(MAX_W, Math.max(MIN_W, sw + ev.clientX - sx));
+      ind.style.left = `${ev.clientX}px`;
+      setWidths((p) => ({ ...p, [key]: w }));
+    };
+    const up = () => {
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", up);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      if (indRef.current) {
+        document.body.removeChild(indRef.current);
+        indRef.current = null;
+      }
+      setWidths((p) => {
+        save(p);
+        return p;
+      });
+    };
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", up);
+  }, []);
 
   const resetCol = useCallback(
     (key: string) =>
@@ -82,8 +81,8 @@ export function useColWidths() {
     localStorage.removeItem("mark_col_widths");
   }, []);
   const getW = useCallback(
-    (key: string) => widths[key] || DEFAULTS[key] || 150,
-    [widths],
+    (key: string) => widthsRef.current[key] || DEFAULTS[key] || 150,
+    [],
   );
 
   return { getW, startResize, resetCol, resetAll };

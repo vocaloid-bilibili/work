@@ -1,5 +1,5 @@
 // src/modules/editor/song/useSongForm.ts
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import * as api from "@/core/api/mainEndpoints";
 import { logEdit } from "@/core/api/collabEndpoints";
@@ -22,7 +22,6 @@ interface Orig {
 
 export function useSongForm(song: Song) {
   const origRef = useRef<Orig | null>(null);
-  const idRef = useRef<number | null>(null);
 
   const [displayName, setDisplayName] = useState("");
   const [type, setType] = useState<SongType>("原创");
@@ -31,8 +30,7 @@ export function useSongForm(song: Song) {
   const [synthesizers, setSynthesizers] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  if (song.id !== idRef.current) {
-    idRef.current = song.id;
+  useEffect(() => {
     const o: Orig = {
       displayName: song.display_name ?? "",
       type: song.type as SongType,
@@ -46,7 +44,7 @@ export function useSongForm(song: Song) {
     setVocalists(o.vocalists);
     setProducers(o.producers);
     setSynthesizers(o.synthesizers);
-  }
+  }, [song]);
 
   const orig = origRef.current;
   const hasChanges = useMemo(() => {

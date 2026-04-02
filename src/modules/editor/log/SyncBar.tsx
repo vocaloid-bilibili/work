@@ -1,5 +1,5 @@
 // src/modules/editor/log/SyncBar.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Check, Clock, Loader2, Lock } from "lucide-react";
 import { getSyncStatus, type SyncStatus } from "@/core/api/collabEndpoints";
 
@@ -10,6 +10,8 @@ interface Props {
 export default function SyncBar({ onCursorLoaded }: Props) {
   const [st, setSt] = useState<SyncStatus | null>(null);
   const [err, setErr] = useState(false);
+  const cbRef = useRef(onCursorLoaded);
+  cbRef.current = onCursorLoaded;
 
   useEffect(() => {
     let dead = false;
@@ -17,7 +19,7 @@ export default function SyncBar({ onCursorLoaded }: Props) {
       .then((s) => {
         if (!dead) {
           setSt(s);
-          onCursorLoaded?.(s.cursor);
+          cbRef.current?.(s.cursor);
         }
       })
       .catch(() => {
@@ -26,7 +28,7 @@ export default function SyncBar({ onCursorLoaded }: Props) {
     return () => {
       dead = true;
     };
-  }, [onCursorLoaded]);
+  }, []);
 
   if (err || !st) {
     if (err) return null;

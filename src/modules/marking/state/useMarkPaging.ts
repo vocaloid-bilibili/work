@@ -34,6 +34,7 @@ export function useMarkPaging({
     if (!filter) return null;
     const out: number[] = [];
     for (let i = 0; i < records.length; i++) {
+      if (i >= includes.length || i >= blacklists.length) continue;
       if (filter === "included" && includes[i]) out.push(i);
       else if (filter === "blacklisted" && blacklists[i]) out.push(i);
       else if (filter === "pending" && !includes[i] && !blacklists[i])
@@ -43,10 +44,12 @@ export function useMarkPaging({
   }, [filter, records, includes, blacklists]);
 
   const filteredN = indices ? indices.length : records.length;
-  const totalPages = Math.ceil(filteredN / pageSize);
+  const totalPages = Math.max(1, Math.ceil(filteredN / pageSize));
+
+  const safePage = Math.min(page, totalPages);
 
   const { data, realIndices } = useMemo(() => {
-    const start = (page - 1) * pageSize;
+    const start = (safePage - 1) * pageSize;
     if (!indices) {
       const d = records.slice(start, start + pageSize);
       return {
@@ -55,8 +58,9 @@ export function useMarkPaging({
       };
     }
     const pi = indices.slice(start, start + pageSize);
-    return { data: pi.map((i) => records[i]), realIndices: pi };
-  }, [records, page, pageSize, indices]);
+    const validPi = pi.filter((i) => i >= 0 && i < records.length);
+    return { data: validPi.map((i) => records[i]), realIndices: validPi };
+  }, [records, safePage, pageSize, indices]);
 
   const changeFilter = useCallback((f: Filter) => {
     setFilter(f);
@@ -74,7 +78,7 @@ export function useMarkPaging({
 
   return {
     filter,
-    page,
+    page: safePage,
     totalPages,
     filteredN,
     includedN,
@@ -82,6 +86,7 @@ export function useMarkPaging({
     pendingN,
     data,
     realIndices,
+    indices,
     setPage,
     changeFilter,
     changePage,

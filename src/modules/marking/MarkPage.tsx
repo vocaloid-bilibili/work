@@ -77,6 +77,8 @@ export default function MarkPage() {
             onRecordUpdate={s.updateRecord}
             onFieldChange={s.setField}
             filter={s.filter}
+            highlightIndex={s.highlightIndex}
+            filteredIndices={s.indices}
           />
           {s.layout !== "table" && s.totalPages > 1 && (
             <Pagination

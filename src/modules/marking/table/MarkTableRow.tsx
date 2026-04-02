@@ -11,7 +11,7 @@ import CachedImg from "@/shared/ui/CachedImg";
 interface P {
   record: any;
   row: number;
-  offset: number;
+  realIndex: number;
   isIncluded: boolean;
   isBlacklisted: boolean;
   isSelected: boolean;
@@ -19,6 +19,7 @@ interface P {
   activeCol: number | null;
   isEditing: boolean;
   initialChar?: string;
+  highlight?: boolean;
   onInclude: (i: number, v: boolean) => void;
   onBlacklist: (i: number) => void;
   onUnblacklist: (i: number) => void;
@@ -37,7 +38,7 @@ interface P {
 }
 
 function RowInner(p: P) {
-  const ri = p.offset + p.row;
+  const ri = p.realIndex;
   const canBl = !p.isBlacklisted && !p.isIncluded;
 
   return (
@@ -52,6 +53,7 @@ function RowInner(p: P) {
             ? "hover:bg-emerald-50/30 dark:hover:bg-emerald-950/10"
             : "hover:bg-muted/30",
         p.isActiveRow && !p.isSelected && "bg-primary/5",
+        p.highlight && "ring-2 ring-primary ring-offset-2",
       )}
     >
       <td
@@ -217,7 +219,12 @@ export default memo(RowInner, (a, b) => {
     )
       return false;
   }
-  if (a.row !== b.row || a.offset !== b.offset || a.getW !== b.getW)
+  if (
+    a.row !== b.row ||
+    a.realIndex !== b.realIndex ||
+    a.getW !== b.getW ||
+    a.highlight !== b.highlight
+  )
     return false;
   return true;
 });

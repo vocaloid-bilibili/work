@@ -23,25 +23,43 @@ export default function FieldName({ value, onChange, className, hasError }: P) {
   const [busy, setBusy] = useState(false);
   const dv = useDebounce(input, 500);
   const wrap = useRef<HTMLDivElement>(null);
-  useClickOutside(wrap, () => setOpen(false));
+  const pickingRef = useRef(false);
+  useClickOutside(wrap, () => {
+    if (!pickingRef.current) {
+      setOpen(false);
+      if (input !== value) onChange(input);
+    }
+  });
 
   useEffect(() => {
     setInput(value || "");
   }, [value]);
   useEffect(() => {
     if (dv && dv.length >= 1 && open) {
+      let cancelled = false;
       setBusy(true);
       api
         .search("song", dv)
-        .then((r: any) =>
-          setHints(r.data && Array.isArray(r.data) ? r.data : []),
-        )
-        .catch(() => setHints([]))
-        .finally(() => setBusy(false));
-    } else setHints([]);
+        .then((r: any) => {
+          if (!cancelled)
+            setHints(r.data && Array.isArray(r.data) ? r.data : []);
+        })
+        .catch(() => {
+          if (!cancelled) setHints([]);
+        })
+        .finally(() => {
+          if (!cancelled) setBusy(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    } else {
+      setHints([]);
+    }
   }, [dv, open]);
 
   const pick = (s: Song) => {
+    pickingRef.current = false;
     const v = s.display_name || s.name;
     setInput(v);
     onChange(v);
@@ -59,7 +77,12 @@ export default function FieldName({ value, onChange, className, hasError }: P) {
             setOpen(true);
           }}
           onBlur={() => {
-            if (input !== value) onChange(input);
+            if (pickingRef.current) return;
+            setTimeout(() => {
+              if (!pickingRef.current && input !== value) {
+                onChange(input);
+              }
+            }, 150);
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -91,7 +114,11 @@ export default function FieldName({ value, onChange, className, hasError }: P) {
                   {hints.map((song) => (
                     <div
                       key={song.id}
-                      onClick={() => pick(song)}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        pickingRef.current = true;
+                        pick(song);
+                      }}
                       className="cursor-pointer hover:bg-accent px-2 py-2 rounded-sm text-sm flex flex-col gap-0.5"
                     >
                       <div className="font-medium">

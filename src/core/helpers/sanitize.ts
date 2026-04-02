@@ -1,6 +1,9 @@
 // src/core/helpers/sanitize.ts
 export function sanitizeCell(val: unknown): unknown {
   if (val == null) return "";
+  if (Array.isArray(val)) {
+    return val.map((v) => sanitizeCell(v)).join(", ");
+  }
   if (typeof val === "object") {
     const o = val as Record<string, unknown>;
     if ("richText" in o) {
@@ -11,12 +14,11 @@ export function sanitizeCell(val: unknown): unknown {
     }
     if ("result" in o) return sanitizeCell(o.result);
     if ("hyperlink" in o) return (o as any).text || (o as any).hyperlink || "";
-    if (!Array.isArray(val)) {
-      try {
-        return JSON.stringify(val);
-      } catch {
-        return "";
-      }
+    if (val instanceof Date) return val.toISOString().slice(0, 10);
+    try {
+      return JSON.stringify(val);
+    } catch {
+      return "";
     }
   }
   if (typeof val === "string" && val.startsWith("http://"))

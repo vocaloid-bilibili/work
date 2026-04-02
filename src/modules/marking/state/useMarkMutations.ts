@@ -1,5 +1,5 @@
 // src/modules/marking/state/useMarkMutations.ts
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { filled } from "@/core/helpers/sanitize";
 import type { Row } from "@/core/types/collab";
 
@@ -34,6 +34,9 @@ export function useMarkMutations({
   blacklists,
   setBlacklists,
 }: Opts) {
+  const recordsRef = useRef(records);
+  recordsRef.current = records;
+
   const toggleInclude = useCallback(
     (i: number, v: boolean) => {
       if (isCollab) {
@@ -105,7 +108,7 @@ export function useMarkMutations({
   const updateRecord = useCallback(
     (index: number, updater: any) => {
       if (isCollab) {
-        const current = records[index];
+        const current = recordsRef.current[index];
         const next = typeof updater === "function" ? updater(current) : updater;
         if (!next || typeof next !== "object") return;
         const changed = Object.entries(next).filter(
@@ -135,15 +138,16 @@ export function useMarkMutations({
       });
       setIncludes((prev) => {
         const n = [...prev];
+        const currentRec = recordsRef.current[index];
         const merged =
           typeof updater === "function"
-            ? updater(records[index])
-            : { ...records[index], ...updater };
+            ? updater(currentRec)
+            : { ...currentRec, ...updater };
         n[index] = autoInclude(merged);
         return n;
       });
     },
-    [isCollab, collab, records, setRecords, setIncludes],
+    [isCollab, collab, setRecords, setIncludes],
   );
 
   const setField = useCallback(
@@ -160,13 +164,13 @@ export function useMarkMutations({
       if (["vocal", "synthesizer", "type"].includes(field)) {
         setIncludes((prev) => {
           const n = [...prev];
-          const r = { ...records[i], [field]: value };
+          const r = { ...recordsRef.current[i], [field]: value };
           n[i] = autoInclude(r);
           return n;
         });
       }
     },
-    [isCollab, collab, records, setRecords, setIncludes],
+    [isCollab, collab, setRecords, setIncludes],
   );
 
   return {

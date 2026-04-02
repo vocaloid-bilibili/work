@@ -1,9 +1,10 @@
 // src/modules/editor/hooks/useEditorNav.ts
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { ViewState } from "../types";
 
 export function useEditorNav() {
   const [stack, setStack] = useState<ViewState[]>([{ type: "idle" }]);
+  const prevLen = useRef(1);
 
   const current = stack[stack.length - 1];
   const canGoBack = stack.length > 1;
@@ -28,15 +29,21 @@ export function useEditorNav() {
   );
   const home = useCallback(() => setStack([{ type: "idle" }]), []);
 
-  // 浏览器后退拦截
   useEffect(() => {
-    if (stack.length <= 1) return;
+    if (stack.length <= 1) {
+      prevLen.current = stack.length;
+      return;
+    }
+
+    if (stack.length > prevLen.current) {
+      window.history.pushState(null, "");
+    }
+    prevLen.current = stack.length;
+
     const onPop = (e: PopStateEvent) => {
       e.preventDefault();
       pop();
-      window.history.pushState(null, "");
     };
-    window.history.pushState(null, "");
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, [stack.length, pop]);

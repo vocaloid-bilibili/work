@@ -23,7 +23,9 @@ export interface TokenPayload {
 
 export function parseToken(token: string): TokenPayload | null {
   try {
-    return JSON.parse(atob(token.split(".")[1]));
+    const p = JSON.parse(atob(token.split(".")[1]));
+    if (typeof p.role !== "string" || typeof p.exp !== "number") return null;
+    return p as TokenPayload;
   } catch {
     return null;
   }
@@ -49,14 +51,15 @@ export async function refreshAccessToken(): Promise<string | null> {
       body: JSON.stringify({ refresh_token: rt }),
     });
     if (!res.ok) {
-      clearTokens();
+      if (res.status === 401 || res.status === 403) {
+        clearTokens();
+      }
       return null;
     }
     const d = await res.json();
     setTokens(d.access_token, rt);
     return d.access_token;
   } catch {
-    clearTokens();
     return null;
   }
 }

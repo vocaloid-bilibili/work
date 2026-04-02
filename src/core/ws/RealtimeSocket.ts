@@ -15,6 +15,7 @@ interface Opts {
 const HB = 15_000;
 const STALE = 45_000;
 const Q_MAX = 200;
+const RECON_DELAYS = [1e3, 2e3, 5e3, 1e4, 15e3, 3e4] as const;
 
 export class RealtimeSocket {
   private opts: Opts;
@@ -115,8 +116,7 @@ export class RealtimeSocket {
 
   private reconnect() {
     this.attempt++;
-    const delays = [1e3, 2e3, 5e3, 1e4, 15e3, 3e4];
-    const w = delays[Math.min(this.attempt - 1, delays.length - 1)];
+    const w = RECON_DELAYS[Math.min(this.attempt - 1, RECON_DELAYS.length - 1)];
     this.opts.onStatus("reconnecting");
     this.reconTimer = window.setTimeout(() => this.connect(), w);
   }

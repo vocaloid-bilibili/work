@@ -1,5 +1,5 @@
 // src/modules/marking/state/useMarkOrchestrator.ts
-import { useEffect, useMemo, useCallback } from "react";
+import { useEffect, useMemo, useCallback, useState, useRef } from "react";
 import { useMarkCore, type LayoutMode } from "./useMarkCore";
 import { useMarkPaging } from "./useMarkPaging";
 import { useMarkMutations } from "./useMarkMutations";
@@ -72,64 +72,56 @@ export function useMarkOrchestrator() {
     localStorage.setItem("mark_layout", core.layout);
   }, [core.layout]);
 
+  const [highlightIndex, setHighlightIndex] = useState<number | null>(null);
+  const highlightTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+
   const jumpToRecord = useCallback(
     (index: number) => {
       paging.changeFilter(null);
-      if (core.layout === "table") {
-        setTimeout(() => {
-          const el = document.getElementById(`record-${index}`);
-          if (el) {
-            el.scrollIntoView({ behavior: "smooth", block: "center" });
-            el.classList.add("ring-2", "ring-primary", "ring-offset-2");
-            setTimeout(
-              () =>
-                el.classList.remove("ring-2", "ring-primary", "ring-offset-2"),
-              2000,
-            );
-          }
-        }, 50);
-        return;
+
+      if (highlightTimer.current) {
+        clearTimeout(highlightTimer.current);
+        highlightTimer.current = undefined;
       }
-      paging.setPage(Math.floor(index / PAGE_SIZE) + 1);
+      setHighlightIndex(null);
+
+      if (core.layout !== "table") {
+        paging.setPage(Math.floor(index / PAGE_SIZE) + 1);
+      }
+
+      const delay = core.layout === "table" ? 50 : 100;
       setTimeout(() => {
         const el = document.getElementById(`record-${index}`);
         if (el) {
           el.scrollIntoView({ behavior: "smooth", block: "center" });
-          el.classList.add("ring-2", "ring-primary", "ring-offset-2");
-          setTimeout(
-            () =>
-              el.classList.remove("ring-2", "ring-primary", "ring-offset-2"),
-            2000,
-          );
         }
-      }, 100);
+        setHighlightIndex(index);
+        highlightTimer.current = setTimeout(() => {
+          setHighlightIndex(null);
+        }, 2000);
+      }, delay);
     },
     [core.layout, paging],
   );
 
   return {
-    // 数据
     records: activeRecords,
     includes: activeIncludes,
     blacklists: activeBlacklists,
     attributions: activeAttrs,
     isLoading,
-    // 模式
     isCollab,
     collab,
     mode: core.mode,
     setMode: core.setMode,
     layout: core.layout as LayoutMode,
     setLayout: core.setLayout,
-    // 分页
     ...paging,
     pageSize: PAGE_SIZE,
-    // 操作
     ...mutations,
-    // IO
     ...io,
     fileRef: core.fileRef,
-    // 导航
     jumpToRecord,
+    highlightIndex,
   };
 }

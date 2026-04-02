@@ -13,24 +13,26 @@ import BulkBar from "./BulkBar";
 
 interface P {
   data: any[];
-  pageOffset: number;
+  realIndices: number[];
   includes: boolean[];
   blacklists: boolean[];
   onInclude: (i: number, v: boolean) => void;
   onBlacklist: (i: number) => void;
   onUnblacklist: (i: number) => void;
   onFieldChange: (i: number, f: string, v: unknown) => void;
+  highlightIndex?: number | null;
 }
 
 export default function MarkTable({
   data,
-  pageOffset,
+  realIndices,
   includes,
   blacklists,
   onInclude,
   onBlacklist,
   onUnblacklist,
   onFieldChange,
+  highlightIndex = null,
 }: P) {
   const nav = useGridNav(data.length, COLUMNS.length);
   const cols = useColWidths();
@@ -40,7 +42,7 @@ export default function MarkTable({
 
   const { copy, paste } = useClipboard(
     data,
-    pageOffset,
+    realIndices,
     nav.active,
     onFieldChange,
   );
@@ -59,39 +61,38 @@ export default function MarkTable({
 
   const commitField = useCallback(
     (row: number, col: ColDef, v: unknown) =>
-      onFieldChange(pageOffset + row, col.key, v),
-    [pageOffset, onFieldChange],
+      onFieldChange(realIndices[row], col.key, v),
+    [realIndices, onFieldChange],
   );
 
   const totalPending = useMemo(() => {
     let c = 0;
     for (let i = 0; i < data.length; i++) {
-      const ri = pageOffset + i;
+      const ri = realIndices[i];
       if (!includes[ri] && !blacklists[ri]) c++;
     }
     return c;
-  }, [data.length, pageOffset, includes, blacklists]);
+  }, [data.length, realIndices, includes, blacklists]);
 
   const bulkInc = useCallback(() => {
     for (const r of sel.selected) {
-      const ri = pageOffset + r;
+      const ri = realIndices[r];
       if (!blacklists[ri]) onInclude(ri, true);
     }
     sel.selectNone();
-  }, [sel, pageOffset, blacklists, onInclude]);
+  }, [sel, realIndices, blacklists, onInclude]);
   const bulkBl = useCallback(() => {
     for (const r of sel.selected) {
-      const ri = pageOffset + r;
+      const ri = realIndices[r];
       if (!blacklists[ri] && !includes[ri]) onBlacklist(ri);
     }
     sel.selectNone();
-  }, [sel, pageOffset, blacklists, includes, onBlacklist]);
+  }, [sel, realIndices, blacklists, includes, onBlacklist]);
   const selPend = useCallback(() => {
-    sel.selectPending(
-      includes.slice(pageOffset, pageOffset + data.length),
-      blacklists.slice(pageOffset, pageOffset + data.length),
-    );
-  }, [sel, includes, blacklists, pageOffset, data.length]);
+    const localInc = data.map((_, i) => includes[realIndices[i]] ?? false);
+    const localBl = data.map((_, i) => blacklists[realIndices[i]] ?? false);
+    sel.selectPending(localInc, localBl);
+  }, [sel, includes, blacklists, realIndices, data]);
 
   const kd = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -146,7 +147,7 @@ export default function MarkTable({
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
         const cd = COLUMNS[col];
-        if (cd) onFieldChange(pageOffset + row, cd.key, "");
+        if (cd) onFieldChange(realIndices[row], cd.key, "");
         return;
       }
       if (e.key === "Escape") {
@@ -161,7 +162,7 @@ export default function MarkTable({
         return;
       }
     },
-    [nav, copy, paste, sel, pageOffset, onFieldChange],
+    [nav, copy, paste, sel, realIndices, onFieldChange],
   );
 
   const fixedCols = [
@@ -223,13 +224,13 @@ export default function MarkTable({
             </thead>
             <tbody>
               {data.map((rec, i) => {
-                const ri = pageOffset + i;
+                const ri = realIndices[i];
                 return (
                   <MarkTableRow
                     key={ri}
                     record={rec}
                     row={i}
-                    offset={pageOffset}
+                    realIndex={ri}
                     isIncluded={includes[ri]}
                     isBlacklisted={blacklists[ri] || false}
                     isSelected={sel.selected.has(i)}
@@ -237,6 +238,7 @@ export default function MarkTable({
                     activeCol={aRow === i ? aCol : null}
                     isEditing={aRow === i ? nav.editing : false}
                     initialChar={aRow === i ? initChar : undefined}
+                    highlight={highlightIndex === ri}
                     onInclude={onInclude}
                     onBlacklist={onBlacklist}
                     onUnblacklist={onUnblacklist}

@@ -10,6 +10,10 @@ interface SSEHandlers {
   onError?: (err: unknown) => void;
 }
 
+class FatalSSEError extends Error {
+  override name = "FatalSSEError";
+}
+
 export function streamSSE(path: string, handlers: SSEHandlers): () => void {
   const ac = new AbortController();
   (async () => {
@@ -34,11 +38,13 @@ export function streamSSE(path: string, handlers: SSEHandlers): () => void {
       onerror(err) {
         handlers.onError?.(err);
         ac.abort();
-        throw err;
+        throw new FatalSSEError("SSE connection error");
       },
       openWhenHidden: true,
     }).catch((e) => {
-      if (e.name !== "AbortError") handlers.onError?.(e);
+      if (e.name !== "AbortError" && !(e instanceof FatalSSEError)) {
+        handlers.onError?.(e);
+      }
     });
   })();
   return () => ac.abort();

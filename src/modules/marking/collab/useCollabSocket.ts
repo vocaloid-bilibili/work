@@ -19,7 +19,9 @@ export function useCollabSocket(
     onMsgRef.current = onMessage;
   }, [onMessage]);
 
-  const init = useCallback(() => {
+  const initRef = useRef<() => void>(undefined);
+
+  initRef.current = () => {
     const ws = new RealtimeSocket({
       urlProvider: async () => {
         const token = await validToken();
@@ -35,16 +37,16 @@ export function useCollabSocket(
     });
     socketRef.current = ws;
     ws.connect();
-  }, []);
+  };
 
   useEffect(() => {
     if (!enabled) return;
-    init();
+    initRef.current?.();
     return () => {
       socketRef.current?.disconnect();
       socketRef.current = null;
     };
-  }, [init, enabled]);
+  }, [enabled]);
 
   const send = useCallback(
     (data: Record<string, unknown>) => socketRef.current?.send(data),
@@ -53,8 +55,8 @@ export function useCollabSocket(
 
   const reconnect = useCallback(() => {
     socketRef.current?.disconnect();
-    init();
-  }, [init]);
+    initRef.current?.();
+  }, []);
 
   return { connState, send, reconnect };
 }

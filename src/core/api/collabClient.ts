@@ -1,5 +1,5 @@
 // src/core/api/collabClient.ts
-import { validToken } from "../auth/token";
+import { validToken, refreshAccessToken } from "../auth/token";
 
 const BASE = "https://api.vocabili.top/collab";
 export const collabBase = () => BASE;
@@ -12,16 +12,36 @@ async function request<T>(
   body?: unknown,
 ): Promise<T> {
   const token = await validToken();
-  const res = await fetch(url, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((json as any).message || "请求失败");
+  const doFetch = async (t: string | null) => {
+    const res = await fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...(t ? { Authorization: `Bearer ${t}` } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return res;
+  };
+
+  let res = await doFetch(token);
+
+  if (res.status === 401) {
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      res = await doFetch(newToken);
+    }
+  }
+
+  let json: any;
+  const text = await res.text();
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    json = {};
+  }
+
+  if (!res.ok) throw new Error(json.message || `请求失败 (${res.status})`);
   return json as T;
 }
 
@@ -48,8 +68,14 @@ export async function collabUpload<T>(path: string, file: File): Promise<T> {
     headers: { Authorization: `Bearer ${token}` },
     body: fd,
   });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((json as any).message || "上传失败");
+  let json: any;
+  const text = await res.text();
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    json = {};
+  }
+  if (!res.ok) throw new Error(json.message || "上传失败");
   return json as T;
 }
 
@@ -60,8 +86,14 @@ export async function collabDownload(
   const res = await fetch(`${BASE}${path}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
-  if (!res.ok)
-    throw new Error((await res.json().catch(() => ({}))).message || "下载失败");
+  if (!res.ok) {
+    let msg = "下载失败";
+    try {
+      const j = await res.json();
+      if (j.message) msg = j.message;
+    } catch {}
+    throw new Error(msg);
+  }
   let filename = `export_${new Date().toISOString().slice(0, 10)}.xlsx`;
   const disp = res.headers.get("Content-Disposition");
   if (disp) {

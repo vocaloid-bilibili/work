@@ -1,6 +1,6 @@
 // src/shell/LoginPage.tsx
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
@@ -11,6 +11,7 @@ import { AUTH_BASE } from "@/core/auth/token";
 
 export default function LoginPage() {
   const nav = useNavigate();
+  const location = useLocation();
   const { role, loading: authLoading, login } = useAuth();
   const [form, setForm] = useState({ username: "", password: "", captcha: "" });
   const [cap, setCap] = useState<{ code_id: number; image: string } | null>(
@@ -21,9 +22,11 @@ export default function LoginPage() {
   const lock = useRef(false);
   const init = useRef(false);
 
+  const from = (location.state as { from?: string } | null)?.from ?? "/";
+
   useEffect(() => {
-    if (!authLoading && role !== "guest") nav("/", { replace: true });
-  }, [role, authLoading, nav]);
+    if (!authLoading && role !== "guest") nav(from, { replace: true });
+  }, [role, authLoading, nav, from]);
 
   const loadCap = useCallback(async () => {
     if (lock.current) return;
@@ -58,7 +61,7 @@ export default function LoginPage() {
         cap.code_id,
         form.captcha.trim(),
       );
-      nav("/", { replace: true });
+      nav(from, { replace: true });
     } catch (x) {
       setErr(x instanceof Error ? x.message : "登录失败");
       await loadCap();
