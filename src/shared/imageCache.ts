@@ -75,8 +75,7 @@ function evictIfNeeded() {
   if (mem.size <= MAX_MEM_ENTRIES) return;
   const first = mem.entries().next().value;
   if (first) {
-    const [src, url] = first;
-    URL.revokeObjectURL(url);
+    const [src] = first;
     mem.delete(src);
   }
 }
