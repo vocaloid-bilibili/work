@@ -34,12 +34,11 @@ export default function BoardVideoPanel() {
     setQuerying(true);
     try {
       const r = await api.getBoardVideo(board, n);
-      setCur(r?.bvid ?? null);
+      setCur(r?.bvid ?? "");
       setBvid(r?.bvid ?? "");
     } catch {
-      setCur(null);
+      setCur("");
       setBvid("");
-      toast.error("查询失败");
     } finally {
       setQuerying(false);
     }
