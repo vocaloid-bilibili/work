@@ -7,6 +7,7 @@ import { useLogPager } from "./useLogPager";
 import LogFilters from "./LogFilters";
 import LogItem from "./LogItem";
 import SyncBar from "./SyncBar";
+import SyncHealthPanel from "./SyncHealthPanel";
 
 function groupByDate(logs: EditLogEntry[]) {
   const groups: { label: string; items: EditLogEntry[] }[] = [];
@@ -65,6 +66,8 @@ export default function EditLogViewer() {
           刷新
         </Button>
       </div>
+
+      <SyncHealthPanel onCursorLoaded={onCursor} />
 
       {p.loading && !p.data && (
         <div className="text-center text-muted-foreground py-16 text-sm">

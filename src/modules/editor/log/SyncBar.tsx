@@ -1,6 +1,6 @@
 // src/modules/editor/log/SyncBar.tsx
 import { useState, useEffect, useRef } from "react";
-import { Check, Clock, Loader2, Lock } from "lucide-react";
+import { Check, Clock, Loader2, Lock, AlertTriangle } from "lucide-react";
 import { getSyncStatus, type SyncStatus } from "@/core/api/collabEndpoints";
 
 interface Props {
@@ -44,6 +44,17 @@ export default function SyncBar({ onCursorLoaded }: Props) {
       <span className="inline-flex items-center gap-1 text-xs text-amber-600">
         <Lock className="h-3 w-3" />
         同步进行中{st.lockHolder ? `（${st.lockHolder}）` : ""}
+      </span>
+    );
+
+  if (st.health && !st.health.ok)
+    return (
+      <span
+        className="inline-flex items-center gap-1 text-xs text-red-600"
+        title={st.health.reasons.join("；")}
+      >
+        <AlertTriangle className="h-3 w-3" />
+        同步异常
       </span>
     );
 
