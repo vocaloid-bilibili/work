@@ -216,3 +216,89 @@ export const addSongRelationBatch = (
           skipped_count: number;
         },
     );
+
+// ── Bilibili 视频信息 ──
+export interface BilibiliVideoInfo {
+  title: string;
+  bvid: string;
+  aid: number;
+  pic: string;
+  pubdate: number;
+  duration: number;
+  copyright: number;
+  stat: { view: number; favorite: number; coin: number; like: number };
+  owner: { mid: number; name: string };
+}
+
+export const fetchBilibiliVideo = (bvid: string) =>
+  http
+    .get("/bilibili/get-video/", { params: { bvid } })
+    .then((r) => r.data as BilibiliVideoInfo);
+
+// ── 添加视频到已有歌曲 ──
+export interface CollectedRow {
+  title: string;
+  bvid: string;
+  aid: number | string;
+  name: string;
+  view: number;
+  pubdate: string;
+  author: string;
+  uploader: string;
+  copyright: number;
+  synthesizer: string;
+  vocal: string;
+  type: string;
+  image_url: string;
+  streak: number;
+}
+
+export const addVideoToSong = (data: {
+  song_id: number;
+  bvid: string;
+  title: string;
+  aid?: number;
+  pubdate_ts: number;
+  copyright: number;
+  thumbnail?: string;
+  uploader_name?: string;
+  duration?: number;
+  view: number;
+}) =>
+  http.post("/edit/video/add", data).then(
+    (r) =>
+      r.data as {
+        status: string;
+        bvid: string;
+        song_id: number;
+        collected_row: CollectedRow;
+      },
+  );
+
+// ── 创建新歌曲 ──
+export const addNewSong = (data: {
+  bvid: string;
+  name: string;
+  display_name?: string;
+  type: string;
+  title: string;
+  aid?: number;
+  pubdate_ts: number;
+  copyright: number;
+  thumbnail?: string;
+  uploader_name?: string;
+  duration?: number;
+  view: number;
+  vocalist_names: string[];
+  producer_names: string[];
+  synthesizer_names: string[];
+}) =>
+  http.post("/edit/song/add", data).then(
+    (r) =>
+      r.data as {
+        status: string;
+        song_id: number;
+        bvid: string;
+        collected_row: CollectedRow;
+      },
+  );

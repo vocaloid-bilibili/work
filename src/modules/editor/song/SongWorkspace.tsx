@@ -1,7 +1,7 @@
 // src/modules/editor/song/SongWorkspace.tsx
 import { useCallback } from "react";
 import { Button } from "@/ui/button";
-import { GitMerge, Trash2 } from "lucide-react";
+import { GitMerge, Plus, Trash2 } from "lucide-react";
 import * as api from "@/core/api/mainEndpoints";
 import type { Song } from "@/core/types/catalog";
 import type { EditorNav } from "../hooks/useEditorNav";
@@ -37,6 +37,15 @@ export default function SongWorkspace({ song, nav, load, openRemove }: Props) {
       <SongRelationsEditor song={song} />
       <SongVideos song={song} nav={nav} openRemove={openRemove} load={load} />
       <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => nav.push({ type: "add-video", song })}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          添加视频
+        </Button>
         <Button
           variant="outline"
           size="sm"

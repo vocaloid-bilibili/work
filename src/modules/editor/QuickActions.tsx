@@ -6,6 +6,7 @@ import {
   Tv,
   Trash2,
   ArrowRightLeft,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/ui/cn";
 
@@ -14,6 +15,14 @@ interface Props {
 }
 
 const ACTIONS = [
+  {
+    id: "add-song",
+    icon: Plus,
+    title: "创建新歌曲",
+    desc: "创建新歌曲并收录",
+    color: "text-blue-500",
+    bg: "hover:bg-blue-50 dark:hover:bg-blue-950/30",
+  },
   {
     id: "merge-song",
     icon: GitMerge,

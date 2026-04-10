@@ -16,6 +16,8 @@ import BoardVideoPanel from "./panels/BoardVideoPanel";
 import ReassignPanel from "./panels/ReassignPanel";
 import RemoveDialog from "./dialogs/RemoveDialog";
 import EditLogViewer from "./log";
+import { AddVideoPanel } from "./video/AddVideoPanel";
+import { AddSongPanel } from "./song/AddSongPanel";
 import type { Song } from "@/core/types/catalog";
 
 export default function EditorPage() {
@@ -63,6 +65,7 @@ export default function EditorPage() {
       if (a === "merge-song") nav.push({ type: "merge-song" });
       else if (a === "merge-artist") nav.push({ type: "merge-artist" });
       else if (a === "board-video") nav.push({ type: "board-video" });
+      else if (a === "add-song") nav.push({ type: "add-song" });
       else toast.info("请先搜索歌曲或输入BV号");
     },
     [nav],
@@ -153,6 +156,34 @@ export default function EditorPage() {
             videoTitle={v.videoTitle}
             parentSong={v.parentSong}
             onDone={nav.pop}
+            onCancel={nav.pop}
+          />
+        )}
+        {v.type === "add-video" && (
+          <AddVideoPanel
+            song={v.song}
+            onDone={async () => {
+              // 完成后刷新歌曲数据并回到 SongWorkspace
+              try {
+                const r = await api.selectSong(v.song.id);
+                nav.replace({ type: "song", song: r.data });
+              } catch {
+                nav.pop();
+              }
+            }}
+          />
+        )}
+        {v.type === "add-song" && (
+          <AddSongPanel
+            onDone={async (songId) => {
+              // 创建成功后跳转到新歌曲
+              try {
+                const r = await api.selectSong(songId);
+                nav.resetTo({ type: "song", song: r.data });
+              } catch {
+                nav.home();
+              }
+            }}
             onCancel={nav.pop}
           />
         )}
