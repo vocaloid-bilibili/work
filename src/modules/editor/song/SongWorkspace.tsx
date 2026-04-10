@@ -8,7 +8,7 @@ import type { EditorNav } from "../hooks/useEditorNav";
 import SongHeader from "./SongHeader";
 import SongForm from "./SongForm";
 import SongVideos from "./SongVideos";
-import SongRelationsEditor from "./SongRelationsEditor";
+import SongRelationsEditor from "./relations/SongRelationsEditor";
 import { useSongForm } from "./useSongForm";
 
 interface Props {

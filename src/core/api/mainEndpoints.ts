@@ -197,3 +197,22 @@ export const removeSongRelation = (songId: number, relatedSongId: number) =>
       params: { song_id: songId, related_song_id: relatedSongId },
     })
     .then((r) => r.data as { status: string });
+export const addSongRelationBatch = (
+  songId: number,
+  relatedSongIds: number[],
+) =>
+  http
+    .post("/edit/song/relation/batch", {
+      song_id: songId,
+      related_song_ids: relatedSongIds,
+    })
+    .then(
+      (r) =>
+        r.data as {
+          status: string;
+          added: number[];
+          skipped: number[];
+          added_count: number;
+          skipped_count: number;
+        },
+    );

@@ -1,5 +1,12 @@
 // src/modules/editor/QuickActions.tsx
-import { GitMerge, Users, Tv, Trash2, ArrowRightLeft } from "lucide-react";
+import {
+  GitMerge,
+  Link2,
+  Users,
+  Tv,
+  Trash2,
+  ArrowRightLeft,
+} from "lucide-react";
 import { cn } from "@/ui/cn";
 
 interface Props {
@@ -30,6 +37,14 @@ const ACTIONS = [
     desc: "将视频移到另一首歌曲",
     color: "text-amber-500",
     bg: "hover:bg-amber-50 dark:hover:bg-amber-950/30",
+  },
+  {
+    id: "manage-relations",
+    icon: Link2,
+    title: "管理关联作品",
+    desc: "搜索歌曲并编辑本家/衍生关联关系",
+    color: "text-emerald-500",
+    bg: "hover:bg-emerald-50 dark:hover:bg-emerald-950/30",
   },
   {
     id: "board-video",

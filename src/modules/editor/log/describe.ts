@@ -114,6 +114,45 @@ export function describe(
       return { headline: `设置${board}第 ${issue} 期视频 ${bvid}`, lines };
     }
 
+    case "add_relation": {
+      const direction = s(detail.direction);
+      const added = detail.added as number[] | undefined;
+      const relatedId = s(detail.related_song_id);
+      const dirLabel = direction === "original" ? "本家" : "衍生";
+
+      if (added && added.length > 0) {
+        const skipped = detail.skipped as number[] | undefined;
+        if (skipped?.length)
+          lines.push(`跳过(重复): ${skipped.map((id) => `#${id}`).join(", ")}`);
+        lines.push(`ID: ${added.map((id) => `#${id}`).join(", ")}`);
+        return {
+          headline: songName
+            ? `为「${songName}」批量添加了 ${added.length} 首${dirLabel}关联`
+            : `批量添加了 ${added.length} 首${dirLabel}关联`,
+          lines,
+        };
+      }
+
+      return {
+        headline: songName
+          ? `为「${songName}」添加了${dirLabel}关联 #${relatedId}`
+          : `添加了${dirLabel}关联 #${relatedId}`,
+        lines,
+      };
+    }
+
+    case "remove_relation": {
+      const direction = s(detail.direction);
+      const relatedId = s(detail.related_song_id);
+      const dirLabel = direction === "original" ? "本家" : "衍生";
+      return {
+        headline: songName
+          ? `移除了「${songName}」的${dirLabel}关联 #${relatedId}`
+          : `移除了${dirLabel}关联 #${relatedId}`,
+        lines,
+      };
+    }
+
     default:
       if (import.meta.env.DEV) {
         console.warn(`[describe] Unknown action: "${action}"`, detail);

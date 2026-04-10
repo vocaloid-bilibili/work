@@ -52,6 +52,18 @@ export const ACTIONS: Record<string, ActionMeta> = {
       "bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300",
     dot: "bg-green-500",
   },
+  add_relation: {
+    label: "添加关联",
+    color:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300",
+    dot: "bg-emerald-500",
+  },
+  remove_relation: {
+    label: "移除关联",
+    color:
+      "bg-orange-100 text-orange-700 dark:bg-orange-900/60 dark:text-orange-300",
+    dot: "bg-orange-500",
+  },
 };
 
 export const TARGET_FILTERS = [
