@@ -19,6 +19,8 @@ export interface ContributorStats {
   includes: number;
   blacklists: number;
   fieldEdits: number;
+  editOps: number;
+  editScore: number;
   score: number;
   taskCount?: number;
 }
@@ -33,6 +35,7 @@ export interface LogEntry {
   value?: unknown;
   user: UserProfile;
   at: string;
+  source?: "mark" | "edit";
 }
 
 export interface TaskStats {
@@ -52,6 +55,7 @@ export interface GlobalStats {
   taskCount: number;
   contributors: ContributorStats[];
   weights: { include: number; blacklist: number; fieldEdit: number };
+  editActionScores: Record<string, number>;
 }
 
 export interface TaskSummary {

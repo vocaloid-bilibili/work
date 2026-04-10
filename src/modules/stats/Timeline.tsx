@@ -1,20 +1,38 @@
 // src/modules/stats/Timeline.tsx
 import { Button } from "@/ui/button";
-import { Loader2, CircleCheckBig, Ban, Undo2, Pencil } from "lucide-react";
+import {
+  Loader2,
+  CircleCheckBig,
+  Ban,
+  Undo2,
+  Pencil,
+  Wrench,
+  GitMerge,
+  Users,
+  Trash2,
+  ArrowRightLeft,
+  Tv,
+  Link2,
+  Unlink,
+  Plus,
+} from "lucide-react";
 import Avatar from "@/shared/ui/Avatar";
 import { cn } from "@/ui/cn";
 import { Empty } from "./statsAtoms";
 import type { LogEntry } from "@/core/types/stats";
 import { FIELD_LABELS } from "@/core/types/constants";
-const ACTION: Record<
-  string,
-  {
-    label: string;
-    Icon: typeof CircleCheckBig;
-    border: string;
-    badge: string;
-  }
-> = {
+
+type IconType = typeof CircleCheckBig;
+
+interface ActionDef {
+  label: string;
+  Icon: IconType;
+  border: string;
+  badge: string;
+}
+
+// ── 标注操作 ──
+const MARK_ACTION: Record<string, ActionDef> = {
   toggle_include: {
     label: "收录",
     Icon: CircleCheckBig,
@@ -40,6 +58,127 @@ const ACTION: Record<
     badge: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
   },
 };
+
+// ── 运维操作 ──
+const EDIT_ACTION: Record<string, ActionDef> = {
+  edit_song: {
+    label: "编辑歌曲",
+    Icon: Pencil,
+    border: "border-l-amber-400 dark:border-l-amber-500",
+    badge: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  },
+  delete_song: {
+    label: "删除歌曲",
+    Icon: Trash2,
+    border: "border-l-red-400 dark:border-l-red-500",
+    badge: "bg-red-500/10 text-red-500 dark:text-red-400",
+  },
+  merge_song: {
+    label: "合并歌曲",
+    Icon: GitMerge,
+    border: "border-l-purple-400 dark:border-l-purple-500",
+    badge: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
+  },
+  edit_video: {
+    label: "编辑视频",
+    Icon: Pencil,
+    border: "border-l-amber-400 dark:border-l-amber-500",
+    badge: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  },
+  delete_video: {
+    label: "删除视频",
+    Icon: Trash2,
+    border: "border-l-red-400 dark:border-l-red-500",
+    badge: "bg-red-500/10 text-red-500 dark:text-red-400",
+  },
+  reassign_video: {
+    label: "移动视频",
+    Icon: ArrowRightLeft,
+    border: "border-l-amber-400 dark:border-l-amber-500",
+    badge: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  },
+  merge_artist: {
+    label: "合并艺人",
+    Icon: Users,
+    border: "border-l-indigo-400 dark:border-l-indigo-500",
+    badge: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
+  },
+  set_board_video: {
+    label: "设置榜单",
+    Icon: Tv,
+    border: "border-l-green-400 dark:border-l-green-500",
+    badge: "bg-green-500/10 text-green-600 dark:text-green-400",
+  },
+  add_relation: {
+    label: "添加关联",
+    Icon: Link2,
+    border: "border-l-teal-400 dark:border-l-teal-500",
+    badge: "bg-teal-500/10 text-teal-600 dark:text-teal-400",
+  },
+  remove_relation: {
+    label: "移除关联",
+    Icon: Unlink,
+    border: "border-l-orange-400 dark:border-l-orange-500",
+    badge: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
+  },
+  add_video: {
+    label: "添加视频",
+    Icon: Plus,
+    border: "border-l-blue-400 dark:border-l-blue-500",
+    badge: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+  },
+  add_song: {
+    label: "创建歌曲",
+    Icon: Plus,
+    border: "border-l-emerald-400 dark:border-l-emerald-500",
+    badge: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  },
+};
+
+const FALLBACK_ACTION: ActionDef = {
+  label: "操作",
+  Icon: Wrench,
+  border: "border-l-zinc-400 dark:border-l-zinc-500",
+  badge: "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400",
+};
+
+function getActionDef(op: LogEntry): ActionDef {
+  if (op.source === "edit") {
+    return EDIT_ACTION[op.action] || FALLBACK_ACTION;
+  }
+  return MARK_ACTION[op.action] || FALLBACK_ACTION;
+}
+
+/** 从 edit detail 提取简洁变更摘要 */
+function editValueSummary(op: LogEntry): string | null {
+  if (op.source !== "edit" || !op.value) return null;
+  const d = op.value as Record<string, any>;
+
+  // 对于有 changes 的编辑操作，展示字段变更
+  if (d.changes && typeof d.changes === "object") {
+    return Object.entries(d.changes)
+      .map(
+        ([k, v]: [string, any]) =>
+          `${FIELD_LABELS[k] || k}: ${v.old ?? ""} → ${v.new ?? ""}`,
+      )
+      .join("；");
+  }
+
+  // add_video / add_song 展示 bvid
+  if (d.bvid) {
+    const parts: string[] = [];
+    if (d.songName) parts.push(d.songName);
+    if (d.bvid) parts.push(d.bvid);
+    return parts.join(" · ");
+  }
+
+  // merge 展示 source → target
+  if (d.sourceName && d.targetName) {
+    return `${d.sourceName} → ${d.targetName}`;
+  }
+
+  return null;
+}
 
 interface P {
   ops: LogEntry[];
@@ -80,12 +219,22 @@ export default function Timeline({
 
           <div className="space-y-2">
             {g.items.map((op) => {
-              const a = ACTION[op.action] || ACTION.set;
+              const a = getActionDef(op);
               const ActionIcon = a.Icon;
-              const field =
-                op.action === "set" && op.field
+              const isEdit = op.source === "edit";
+              const isMark = !isEdit;
+
+              // 标注编辑的字段标签
+              const markField =
+                isMark && op.action === "set" && op.field
                   ? FIELD_LABELS[op.field] || op.field
                   : null;
+
+              // 运维操作的来源标签
+              const editTarget = isEdit && op.field ? op.field : null;
+
+              // 运维操作的变更摘要
+              const editSummary = editValueSummary(op);
 
               return (
                 <div
@@ -105,6 +254,11 @@ export default function Timeline({
                       {op.user?.nickname || op.user?.username || "未知"}
                     </span>
                     <div className="flex items-center gap-1.5 ml-auto shrink-0">
+                      {isEdit && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                          运维
+                        </span>
+                      )}
                       <span
                         className={cn(
                           "inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md",
@@ -114,9 +268,14 @@ export default function Timeline({
                         <ActionIcon className="h-3 w-3" />
                         {a.label}
                       </span>
-                      {field && (
+                      {markField && (
                         <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-muted text-muted-foreground">
-                          {field}
+                          {markField}
+                        </span>
+                      )}
+                      {editTarget && (
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-muted text-muted-foreground">
+                          {editTarget}
                         </span>
                       )}
                       <span className="text-xs text-muted-foreground/60 tabular-nums ml-1">
@@ -127,20 +286,36 @@ export default function Timeline({
 
                   <div className="pl-9 space-y-1.5">
                     <p className="text-sm leading-relaxed line-clamp-3">
-                      <span className="text-muted-foreground/50 font-mono text-xs mr-1.5">
-                        #{op.recordIndex + 1}
-                      </span>
+                      {isMark && op.recordIndex >= 0 && (
+                        <span className="text-muted-foreground/50 font-mono text-xs mr-1.5">
+                          #{op.recordIndex + 1}
+                        </span>
+                      )}
                       <span className="text-foreground/80">
                         {op.recordTitle || ""}
                       </span>
                     </p>
-                    {op.value != null && op.action === "set" && (
+
+                    {/* 标注编辑的值变更 */}
+                    {isMark && op.value != null && op.action === "set" && (
                       <div className="flex items-start gap-2 text-sm rounded-lg bg-muted/40 px-3 py-2">
                         <span className="text-muted-foreground/60 shrink-0 mt-px">
                           →
                         </span>
                         <span className="font-medium text-foreground/80 break-all line-clamp-2">
                           {String(op.value)}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* 运维操作的变更摘要 */}
+                    {isEdit && editSummary && (
+                      <div className="flex items-start gap-2 text-sm rounded-lg bg-amber-500/5 px-3 py-2">
+                        <span className="text-amber-500/60 shrink-0 mt-px">
+                          →
+                        </span>
+                        <span className="font-medium text-foreground/80 break-all line-clamp-3">
+                          {editSummary}
                         </span>
                       </div>
                     )}

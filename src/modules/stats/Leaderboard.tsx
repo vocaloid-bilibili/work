@@ -1,6 +1,6 @@
 // src/modules/stats/Leaderboard.tsx
 import { useRef } from "react";
-import { CircleCheckBig, Ban, Pencil } from "lucide-react";
+import { CircleCheckBig, Ban, Pencil, Wrench } from "lucide-react";
 import Avatar from "@/shared/ui/Avatar";
 import { cn } from "@/ui/cn";
 import { Empty } from "./statsAtoms";
@@ -43,7 +43,9 @@ export default function Leaderboard({
       {list.map((c, i) => {
         const active = selectedId === c.user.id;
         const isMe = !!currentUsername && c.user.username === currentUsername;
-        const total = c.includes + c.blacklists + c.fieldEdits;
+        const markTotal = c.includes + c.blacklists + c.fieldEdits;
+        const editOps = c.editOps || 0;
+        const barTotal = markTotal + editOps;
 
         return (
           <div
@@ -95,7 +97,7 @@ export default function Leaderboard({
             </div>
 
             <div className="space-y-2 pl-9">
-              {total > 0 && (
+              {barTotal > 0 && (
                 <div className="flex h-2 rounded-full overflow-hidden gap-0.5 bg-muted/50">
                   {c.includes > 0 && (
                     <div
@@ -115,30 +117,56 @@ export default function Leaderboard({
                       style={{ flex: c.fieldEdits }}
                     />
                   )}
+                  {editOps > 0 && (
+                    <div
+                      className="bg-amber-400 dark:bg-amber-500 rounded-full"
+                      style={{ flex: editOps }}
+                    />
+                  )}
                 </div>
               )}
               <div className="flex gap-4 text-sm tabular-nums flex-wrap">
-                <span className="flex items-center gap-1.5">
-                  <CircleCheckBig className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span className="text-muted-foreground">收录</span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                    {c.includes}
+                {c.includes > 0 && (
+                  <span className="flex items-center gap-1.5">
+                    <CircleCheckBig className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span className="text-muted-foreground">收录</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                      {c.includes}
+                    </span>
                   </span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Ban className="h-3.5 w-3.5 text-red-500 dark:text-red-400 shrink-0" />
-                  <span className="text-muted-foreground">排除</span>
-                  <span className="font-bold text-red-500 dark:text-red-400">
-                    {c.blacklists}
+                )}
+                {c.blacklists > 0 && (
+                  <span className="flex items-center gap-1.5">
+                    <Ban className="h-3.5 w-3.5 text-red-500 dark:text-red-400 shrink-0" />
+                    <span className="text-muted-foreground">排除</span>
+                    <span className="font-bold text-red-500 dark:text-red-400">
+                      {c.blacklists}
+                    </span>
                   </span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Pencil className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400 shrink-0" />
-                  <span className="text-muted-foreground">编辑</span>
-                  <span className="font-bold text-blue-500 dark:text-blue-400">
-                    {c.fieldEdits}
+                )}
+                {c.fieldEdits > 0 && (
+                  <span className="flex items-center gap-1.5">
+                    <Pencil className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400 shrink-0" />
+                    <span className="text-muted-foreground">标注编辑</span>
+                    <span className="font-bold text-blue-500 dark:text-blue-400">
+                      {c.fieldEdits}
+                    </span>
                   </span>
-                </span>
+                )}
+                {editOps > 0 && (
+                  <span className="flex items-center gap-1.5">
+                    <Wrench className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
+                    <span className="text-muted-foreground">运维操作</span>
+                    <span className="font-bold text-amber-500 dark:text-amber-400">
+                      {editOps}
+                    </span>
+                    {(c.editScore || 0) > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        (+{c.editScore}分)
+                      </span>
+                    )}
+                  </span>
+                )}
               </div>
             </div>
           </div>
