@@ -157,3 +157,43 @@ export const checkRanking = (board: string, part: string, issue: number) =>
   http
     .get("/update/check_ranking", { params: { board, part, issue } })
     .then((r) => r.data);
+// ── 歌曲关联 ──
+export const getSongRelations = (songId: number) =>
+  http.get("/select/song/relations", { params: { id: songId } }).then(
+    (r) =>
+      r.data as {
+        originals: Array<{
+          id: number;
+          name: string;
+          display_name?: string | null;
+          type?: string;
+          thumbnail?: string | null;
+          producers?: { id: number; name: string }[];
+          vocalists?: { id: number; name: string }[];
+        }>;
+        derivatives: Array<{
+          id: number;
+          name: string;
+          display_name?: string | null;
+          type?: string;
+          thumbnail?: string | null;
+          producers?: { id: number; name: string }[];
+          vocalists?: { id: number; name: string }[];
+        }>;
+      },
+  );
+
+export const addSongRelation = (songId: number, relatedSongId: number) =>
+  http
+    .post("/edit/song/relation", {
+      song_id: songId,
+      related_song_id: relatedSongId,
+    })
+    .then((r) => r.data as { status: string; id: number });
+
+export const removeSongRelation = (songId: number, relatedSongId: number) =>
+  http
+    .delete("/edit/song/relation", {
+      params: { song_id: songId, related_song_id: relatedSongId },
+    })
+    .then((r) => r.data as { status: string });

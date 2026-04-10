@@ -8,6 +8,7 @@ import type { EditorNav } from "../hooks/useEditorNav";
 import SongHeader from "./SongHeader";
 import SongForm from "./SongForm";
 import SongVideos from "./SongVideos";
+import SongRelationsEditor from "./SongRelationsEditor";
 import { useSongForm } from "./useSongForm";
 
 interface Props {
@@ -33,6 +34,7 @@ export default function SongWorkspace({ song, nav, load, openRemove }: Props) {
     <div className="space-y-4">
       <SongHeader song={song} onClose={nav.home} />
       <SongForm form={form} songName={song.name} onSubmitted={refresh} />
+      <SongRelationsEditor song={song} />
       <SongVideos song={song} nav={nav} openRemove={openRemove} load={load} />
       <div className="flex flex-wrap gap-2">
         <Button
