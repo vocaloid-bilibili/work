@@ -8,8 +8,9 @@ import MarkPage from "@/modules/marking/MarkPage";
 import IngestPage from "@/modules/ingest/IngestPage";
 import EditorPage from "@/modules/editor/EditorPage";
 
-const StatsPage = lazy(() => import("@/modules/stats/StatsPage"));
-const TaskDetailPage = lazy(() => import("@/modules/stats/TaskDetailPage"));
+const Dashboard = lazy(() => import("@/modules/stats/Dashboard"));
+const TaskDetail = lazy(() => import("@/modules/stats/TaskDetail"));
+const HistoryPage = lazy(() => import("@/modules/stats/HistoryPage"));
 
 function Fb() {
   return (
@@ -50,7 +51,17 @@ export default function Router() {
         element={
           <AuthGate>
             <Suspense fallback={<Fb />}>
-              <StatsPage />
+              <Dashboard />
+            </Suspense>
+          </AuthGate>
+        }
+      />
+      <Route
+        path="/stats/history"
+        element={
+          <AuthGate>
+            <Suspense fallback={<Fb />}>
+              <HistoryPage />
             </Suspense>
           </AuthGate>
         }
@@ -60,7 +71,7 @@ export default function Router() {
         element={
           <AuthGate>
             <Suspense fallback={<Fb />}>
-              <TaskDetailPage />
+              <TaskDetail />
             </Suspense>
           </AuthGate>
         }

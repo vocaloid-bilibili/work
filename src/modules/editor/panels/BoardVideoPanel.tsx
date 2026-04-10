@@ -17,6 +17,10 @@ import * as api from "@/core/api/mainEndpoints";
 import { logEdit } from "@/core/api/collabEndpoints";
 import { BOARDS } from "@/core/types/constants";
 
+function boardLabel(value: string): string {
+  return BOARDS.find((b) => b.value === value)?.label || value;
+}
+
 export default function BoardVideoPanel() {
   const [board, setBoard] = useState("vocaloid-daily");
   const [issue, setIssue] = useState("");
@@ -54,7 +58,13 @@ export default function BoardVideoPanel() {
         targetType: "ranking_video",
         targetId: `${board}_${n}`,
         action: "set_board_video",
-        detail: { board, issue: n, oldBvid: cur, newBvid: bvid.trim() },
+        detail: {
+          bvid: bvid.trim(),
+          board,
+          boardName: boardLabel(board),
+          issue: n,
+          oldBvid: cur || null,
+        },
       });
       toast.success("榜单视频设置成功");
       setCur(bvid.trim());

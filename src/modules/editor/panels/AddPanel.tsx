@@ -160,7 +160,8 @@ export default function AddPanel({ presetSong, onDone, onCancel }: Props) {
             songId: selectedSong.id,
             songName: songDisplayName(selectedSong),
             bvid: res.bvid,
-            collectedRow: res.collected_row,
+            videoTitle: preview.title,
+            uploader: preview.owner?.name,
           },
         });
 
@@ -212,8 +213,12 @@ export default function AddPanel({ presetSong, onDone, onCancel }: Props) {
           detail: {
             songId: res.song_id,
             songName: displayName.trim() || name.trim(),
+            name: name.trim(),
             bvid: res.bvid,
-            collectedRow: res.collected_row,
+            videoTitle: preview.title,
+            type: songType,
+            vocal: splitNames(vocalistInput).join("、") || undefined,
+            producer: splitNames(producerInput).join("、") || undefined,
           },
         });
 
@@ -245,7 +250,6 @@ export default function AddPanel({ presetSong, onDone, onCancel }: Props) {
 
   return (
     <div className="space-y-5 rounded-lg border bg-card p-4 sm:p-5">
-      {/* 标题 */}
       <div className="flex items-center justify-between">
         <h3 className="text-base font-semibold">添加收录</h3>
         <button
@@ -256,7 +260,6 @@ export default function AddPanel({ presetSong, onDone, onCancel }: Props) {
         </button>
       </div>
 
-      {/* ① BV 号输入 */}
       <div>
         <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
           BV 号

@@ -143,23 +143,25 @@ export function useRelationEditor(song: Song) {
   }, [song, originals, derivatives, closeAddMode]);
 
   const handleAddSingle = useCallback(
-    async (targetId: number) => {
+    async (target: Song) => {
       if (!addMode) return;
       setSubmitting(true);
       try {
         if (addMode === "original") {
-          await api.addSongRelation(song.id, targetId);
+          await api.addSongRelation(song.id, target.id);
         } else {
-          await api.addSongRelation(targetId, song.id);
+          await api.addSongRelation(target.id, song.id);
         }
         logEdit({
           targetType: "song",
           targetId: String(song.id),
           action: "add_relation",
           detail: {
-            songName: song.display_name || song.name,
+            songName: song.name,
+            songId: song.id,
+            relatedSongName: target.name,
+            relatedSongId: target.id,
             direction: addMode,
-            related_song_id: targetId,
           },
         });
         toast.success("关联已添加");
@@ -177,21 +179,31 @@ export function useRelationEditor(song: Song) {
   const handleBatchAdd = useCallback(async () => {
     if (selected.size === 0) return;
     const ids = Array.from(selected.keys());
+    // 收集 name 用于 log
+    const nameMap: Record<number, string> = {};
+    for (const [id, s] of selected) {
+      nameMap[id] = s.name;
+    }
 
     setSubmitting(true);
     try {
       const res = await api.addSongRelationBatch(song.id, ids);
-      logEdit({
-        targetType: "song",
-        targetId: String(song.id),
-        action: "add_relation",
-        detail: {
-          songName: song.display_name || song.name,
-          direction: "derivative",
-          added: res.added,
-          skipped: res.skipped,
-        },
-      });
+
+      for (const addedId of res.added) {
+        logEdit({
+          targetType: "song",
+          targetId: String(song.id),
+          action: "add_relation",
+          detail: {
+            songName: song.name,
+            songId: song.id,
+            relatedSongName: nameMap[addedId] || `#${addedId}`,
+            relatedSongId: addedId,
+            direction: "derivative",
+            batch: true,
+          },
+        });
+      }
 
       const parts: string[] = [];
       if (res.added_count > 0) parts.push(`成功添加 ${res.added_count} 条`);
@@ -212,7 +224,7 @@ export function useRelationEditor(song: Song) {
   const handleResultClick = useCallback(
     (s: Song) => {
       if (addMode === "original") {
-        handleAddSingle(s.id);
+        handleAddSingle(s);
       } else {
         toggleSelect(s);
       }
@@ -222,6 +234,10 @@ export function useRelationEditor(song: Song) {
 
   const handleRemove = useCallback(
     async (direction: "original" | "derivative", targetId: number) => {
+      const list = direction === "original" ? originals : derivatives;
+      const target = list.find((s) => s.id === targetId);
+      const relatedName = target ? target.name : `#${targetId}`;
+
       try {
         if (direction === "original") {
           await api.removeSongRelation(song.id, targetId);
@@ -233,9 +249,11 @@ export function useRelationEditor(song: Song) {
           targetId: String(song.id),
           action: "remove_relation",
           detail: {
-            songName: song.display_name || song.name,
+            songName: song.name,
+            songId: song.id,
+            relatedSongName: relatedName,
+            relatedSongId: targetId,
             direction,
-            related_song_id: targetId,
           },
         });
         toast.success("关联已移除");
@@ -244,10 +262,9 @@ export function useRelationEditor(song: Song) {
         toast.error(err?.response?.data?.detail || err?.message || "移除失败");
       }
     },
-    [song, load],
+    [song, originals, derivatives, load],
   );
 
-  // 过滤掉自身和已关联的
   const existingIds = new Set([
     song.id,
     ...originals.map((s) => s.id),

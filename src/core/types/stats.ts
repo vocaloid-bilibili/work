@@ -16,13 +16,9 @@ export interface Attribution {
 export interface ContributorStats {
   user: UserProfile;
   totalOps: number;
-  includes: number;
-  blacklists: number;
-  fieldEdits: number;
-  editOps: number;
-  editScore: number;
   score: number;
   taskCount?: number;
+  actions: Record<string, { count: number; score: number }>;
 }
 
 export interface LogEntry {
@@ -45,10 +41,7 @@ export interface TaskStats {
   totalIncluded: number;
   totalPending: number;
   totalBlacklisted: number;
-  totalFieldEdits: number;
   contributors: ContributorStats[];
-  fieldBreakdown: Record<string, number>;
-  recentOps: LogEntry[];
 }
 
 export interface GlobalStats {
@@ -62,7 +55,11 @@ export interface TaskSummary {
   recordCount: number;
   createdAt: string;
   closedAt?: string;
-  fileMeta?: { originalName: string; storedPath: string; uploadedAt: string };
+  fileMeta?: {
+    originalName: string;
+    storedPath: string;
+    uploadedAt: string;
+  };
   contributorCount: number;
   totalOperations: number;
 }
