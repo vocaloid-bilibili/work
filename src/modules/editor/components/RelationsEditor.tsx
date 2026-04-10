@@ -1,37 +1,144 @@
 // src/modules/editor/components/RelationsEditor.tsx
-import { Loader2, Mic, Plus, Search, Trash2, X, Check } from "lucide-react";
+import {
+  Loader2,
+  Music2,
+  Plus,
+  Search,
+  Trash2,
+  X,
+  Check,
+  Mic,
+} from "lucide-react";
 import { cn } from "@/ui/cn";
 import { Btn } from "./Btn";
 import { Input } from "./Input";
-import type { useRelations, RelatedSong } from "../hooks/useRelations";
 import CachedImg from "@/shared/ui/CachedImg";
+import type { useRelations, RelatedSong } from "../hooks/useRelations";
+import type { Song } from "@/core/types/catalog";
 
 type R = ReturnType<typeof useRelations>;
 
-function Row({ song, onRemove }: { song: RelatedSong; onRemove: () => void }) {
-  const name = song.display_name?.trim() || song.name;
+function Cover({ url, className }: { url: string | null; className?: string }) {
+  if (url) {
+    return (
+      <CachedImg
+        src={url}
+        alt=""
+        className={cn(
+          "rounded-lg object-cover bg-neutral-100 dark:bg-neutral-800",
+          className,
+        )}
+      />
+    );
+  }
   return (
-    <div className="flex items-center gap-2.5 rounded-lg border border-border/30 bg-background px-3 py-2 group">
-      {song.thumbnail && (
-        <CachedImg
-          src={song.thumbnail}
-          alt=""
-          className="h-8 w-11 shrink-0 rounded object-cover"
-        />
+    <div
+      className={cn(
+        "rounded-lg bg-linear-to-br from-neutral-100 to-neutral-200 dark:from-neutral-800 dark:to-neutral-700 flex items-center justify-center",
+        className,
       )}
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{name}</p>
-        <p className="text-[10px] text-muted-foreground">
-          #{song.id}
-          {song.type ? ` · ${song.type}` : ""}
-          {song.producers?.length
-            ? ` · ${song.producers.map((p) => p.name).join(", ")}`
-            : ""}
+    >
+      <Music2 className="h-4 w-4 text-neutral-400 dark:text-neutral-500" />
+    </div>
+  );
+}
+
+function Badge({
+  children,
+  color,
+}: {
+  children: React.ReactNode;
+  color: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none",
+        color,
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+function typeBadgeColor(type?: string) {
+  switch (type) {
+    case "翻唱":
+      return "bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300";
+    case "原创":
+      return "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300";
+    case "本家重置":
+      return "bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300";
+    case "串烧":
+      return "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300";
+    default:
+      return "bg-neutral-100 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300";
+  }
+}
+
+function songThumb(s: Song): string | null {
+  return s.videos?.[0]?.thumbnail ?? null;
+}
+
+function relatedThumb(s: RelatedSong): string | null {
+  return s.thumbnail ?? null;
+}
+
+function artistLine(
+  producers?: { id: number; name: string }[],
+  vocalists?: { id: number; name: string }[],
+): string {
+  const segs: string[] = [];
+  if (producers?.length) segs.push(producers.map((a) => a.name).join("、"));
+  if (vocalists?.length) segs.push(vocalists.map((a) => a.name).join("、"));
+  return segs.join(" · ");
+}
+
+function RelationItem({
+  song,
+  onRemove,
+}: {
+  song: RelatedSong;
+  onRemove: () => void;
+}) {
+  const display = song.display_name?.trim();
+  const title = display || song.name;
+  const subtitle = display && display !== song.name ? song.name : null;
+  const vocs = (song as any).vocalists as
+    | { id: number; name: string }[]
+    | undefined;
+  const artists = artistLine(song.producers, vocs);
+
+  return (
+    <div className="group flex items-center gap-3 rounded-2xl px-3 py-3 -mx-3 transition-colors hover:bg-accent/40">
+      <Cover url={relatedThumb(song)} className="h-12 w-17 shrink-0" />
+
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <p className="text-[13px] font-semibold leading-tight truncate">
+          {title}
         </p>
+        <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-muted-foreground leading-none">
+          <span className="font-mono">#{song.id}</span>
+          {song.type && (
+            <Badge color={typeBadgeColor(song.type)}>{song.type}</Badge>
+          )}
+          {subtitle && <span className="truncate max-w-32">{subtitle}</span>}
+        </div>
+        {artists && (
+          <p className="text-[11px] text-muted-foreground leading-tight truncate">
+            {artists}
+          </p>
+        )}
       </div>
+
       <button
-        onClick={onRemove}
-        className="shrink-0 rounded-md p-1 text-muted-foreground/40 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all"
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove();
+        }}
+        className="shrink-0 rounded-xl p-2 text-muted-foreground opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 transition-all"
+        title="移除关联"
       >
         <Trash2 className="h-3.5 w-3.5" />
       </button>
@@ -39,37 +146,105 @@ function Row({ song, onRemove }: { song: RelatedSong; onRemove: () => void }) {
   );
 }
 
-function SearchPanel({ r }: { r: R }) {
+function SearchResult({
+  song,
+  checked,
+  multiSelect,
+  disabled,
+  onAction,
+}: {
+  song: Song;
+  checked: boolean;
+  multiSelect: boolean;
+  disabled: boolean;
+  onAction: () => void;
+}) {
+  const display = song.display_name?.trim();
+  const title = display || song.name;
+  const subtitle = display && display !== song.name ? song.name : null;
+  const artists = artistLine(song.producers, song.vocalists);
+
+  return (
+    <button
+      disabled={disabled}
+      onClick={onAction}
+      className={cn(
+        "flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-colors",
+        checked ? "bg-primary/8" : "hover:bg-accent/50",
+        disabled && "opacity-50 cursor-not-allowed",
+      )}
+    >
+      {multiSelect && (
+        <div
+          className={cn(
+            "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+            checked
+              ? "bg-primary border-primary text-primary-foreground"
+              : "border-muted-foreground/30",
+          )}
+        >
+          {checked && <Check className="h-2.5 w-2.5" strokeWidth={2.5} />}
+        </div>
+      )}
+
+      <Cover url={songThumb(song)} className="h-12 w-17 shrink-0" />
+
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <p className="text-[13px] font-semibold leading-tight truncate">
+          {title}
+        </p>
+        {subtitle && (
+          <p className="text-[11px] text-muted-foreground leading-tight truncate">
+            {subtitle}
+          </p>
+        )}
+        <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-muted-foreground leading-none">
+          <span className="font-mono">#{song.id}</span>
+          {song.type && (
+            <Badge color={typeBadgeColor(song.type)}>{song.type}</Badge>
+          )}
+          {artists && <span className="truncate">{artists}</span>}
+        </div>
+      </div>
+
+      {!multiSelect && <Plus className="h-4 w-4 shrink-0 text-primary" />}
+    </button>
+  );
+}
+
+function SearchArea({ r }: { r: R }) {
   if (!r.mode) return null;
+
   const isOrig = r.mode === "original";
+  const multiSelect = !isOrig;
   const covers = r.filtered.filter((s) => s.type === "翻唱");
-  const allCoversSelected =
+  const allCoversChecked =
     covers.length > 0 && covers.every((s) => r.selected.has(s.id));
 
   return (
-    <div className="rounded-xl border border-primary/20 bg-primary/2 p-4 space-y-3">
+    <div className="rounded-2xl bg-accent/30 dark:bg-accent/20 p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold">
-          搜索{isOrig ? "本家" : "衍生"}关联
-          {!isOrig && (
-            <span className="font-normal text-muted-foreground ml-1">
-              （支持多选）
+        <h4 className="text-sm font-bold">
+          {isOrig ? "添加本家" : "添加衍生"}
+          {multiSelect && (
+            <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+              可多选
             </span>
           )}
-        </p>
+        </h4>
         <button
           onClick={r.closeMode}
-          className="text-muted-foreground hover:text-foreground"
+          className="rounded-full p-1 hover:bg-background/80 text-muted-foreground transition-colors"
         >
-          <X className="h-3.5 w-3.5" />
+          <X className="h-4 w-4" />
         </button>
       </div>
 
       <div className="relative">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          className="pl-8"
-          placeholder="歌曲名或 ID…"
+          className="pl-9 h-10 bg-background rounded-xl"
+          placeholder="输入歌曲名或 ID"
           value={r.query}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
             r.setQuery(e.target.value)
@@ -77,158 +252,119 @@ function SearchPanel({ r }: { r: R }) {
           autoFocus
         />
         {r.searching && (
-          <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground/40" />
+          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
         )}
       </div>
 
-      {!isOrig && covers.length > 0 && (
+      {multiSelect && covers.length > 1 && (
         <button
           onClick={() => {
-            for (const s of covers) r.toggle(s);
+            for (const c of covers) {
+              const has = r.selected.has(c.id);
+              if (allCoversChecked ? has : !has) r.toggle(c);
+            }
           }}
-          className="text-[11px] font-medium text-primary hover:underline"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline underline-offset-2"
         >
-          {allCoversSelected ? "取消全选翻唱" : `全选 ${covers.length} 首翻唱`}
+          <Check className="h-3 w-3" />
+          {allCoversChecked ? "取消全选翻唱" : `全选 ${covers.length} 首翻唱`}
         </button>
       )}
 
       {r.filtered.length > 0 && (
-        <div className="max-h-64 overflow-y-auto space-y-1 -mx-1 px-1">
-          {r.filtered.map((s) => {
-            const sel = r.selected.has(s.id);
-            const name = s.display_name?.trim() || s.name;
-            return (
-              <button
-                key={s.id}
-                disabled={r.busy}
-                onClick={() =>
-                  isOrig ? r.addSingle(s, "original") : r.toggle(s)
-                }
-                className={cn(
-                  "flex w-full items-center gap-2.5 rounded-lg p-2 text-sm text-left transition-all",
-                  sel
-                    ? "bg-primary/10 border border-primary/25"
-                    : "hover:bg-accent border border-transparent",
-                )}
-              >
-                {!isOrig && (
-                  <div
-                    className={cn(
-                      "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition",
-                      sel
-                        ? "bg-primary border-primary text-primary-foreground"
-                        : "border-muted-foreground/25",
-                    )}
-                  >
-                    {sel && <Check className="h-2.5 w-2.5" />}
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <span className="font-medium truncate block">{name}</span>
-                  <span className="text-[10px] text-muted-foreground">
-                    #{s.id} · {s.type}
-                  </span>
-                </div>
-                {isOrig && (
-                  <Plus className="h-3.5 w-3.5 shrink-0 text-primary" />
-                )}
-              </button>
-            );
-          })}
+        <div className="max-h-80 overflow-y-auto -mx-1 px-1 space-y-1 overscroll-contain">
+          {r.filtered.map((s) => (
+            <SearchResult
+              key={s.id}
+              song={s}
+              checked={r.selected.has(s.id)}
+              multiSelect={multiSelect}
+              disabled={r.busy}
+              onAction={() =>
+                isOrig ? r.addSingle(s, "original") : r.toggle(s)
+              }
+            />
+          ))}
         </div>
       )}
 
-      {r.query.trim() && !r.searching && r.filtered.length === 0 && (
-        <p className="text-xs text-muted-foreground/60 text-center py-3">
-          未找到结果
-        </p>
+      {r.query.trim().length > 0 && !r.searching && r.filtered.length === 0 && (
+        <div className="flex flex-col items-center py-8 text-muted-foreground">
+          <Search className="h-6 w-6 mb-2 opacity-40" />
+          <p className="text-sm">没有找到匹配的歌曲</p>
+        </div>
       )}
 
-      {!isOrig && r.selected.size > 0 && (
+      {multiSelect && r.selected.size > 0 && (
         <Btn
           variant="primary"
-          className="w-full"
+          className="w-full h-10"
           loading={r.busy}
           onClick={r.addBatch}
         >
-          批量添加 {r.selected.size} 首衍生作品
+          添加选中的 {r.selected.size} 首
         </Btn>
       )}
     </div>
+  );
+}
+function SectionHead({
+  label,
+  count,
+  actions,
+}: {
+  label: string;
+  count?: number;
+  actions: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+        {label}
+        {typeof count === "number" && count > 0 && (
+          <span className="ml-1.5 text-foreground/50 normal-case tracking-normal font-semibold">
+            {count}
+          </span>
+        )}
+      </p>
+      <div className="flex items-center gap-0.5">{actions}</div>
+    </div>
+  );
+}
+
+function EmptyHint({ text }: { text: string }) {
+  return (
+    <p className="py-4 text-center text-xs text-muted-foreground">{text}</p>
   );
 }
 
 export function RelationsEditor({ r }: { r: R }) {
   if (r.loading) {
     return (
-      <div className="flex items-center justify-center py-8 text-muted-foreground/50">
-        <Loader2 className="h-4 w-4 animate-spin mr-2" /> 加载关联…
+      <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span className="text-sm">加载关联数据…</span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-5">
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-muted-foreground/70">
-            本家作品
-          </span>
-          <Btn
-            variant="ghost"
-            size="sm"
-            onClick={() =>
-              r.mode === "original"
-                ? r.closeMode()
-                : (r.closeMode(), r.setMode("original"))
-            }
-          >
-            {r.mode === "original" ? (
-              <>
-                <X className="h-3 w-3" /> 取消
-              </>
-            ) : (
-              <>
-                <Plus className="h-3 w-3" /> 添加
-              </>
-            )}
-          </Btn>
-        </div>
-        {r.originals.length === 0 && r.mode !== "original" && (
-          <p className="text-[11px] text-muted-foreground/40 py-1">
-            无本家关联
-          </p>
-        )}
-        <div className="space-y-1.5">
-          {r.originals.map((s) => (
-            <Row
-              key={s.id}
-              song={s}
-              onRemove={() => r.remove("original", s.id)}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-muted-foreground/70">
-            衍生作品
-          </span>
-          <div className="flex items-center gap-1">
-            <Btn variant="ghost" size="sm" onClick={r.findCovers}>
-              <Mic className="h-3 w-3" /> 查找翻唱
-            </Btn>
+    <div className="space-y-6">
+      <section className="space-y-2">
+        <SectionHead
+          label="本家作品"
+          count={r.originals.length}
+          actions={
             <Btn
               variant="ghost"
               size="sm"
               onClick={() =>
-                r.mode === "derivative"
+                r.mode === "original"
                   ? r.closeMode()
-                  : (r.closeMode(), r.setMode("derivative"))
+                  : (r.closeMode(), r.setMode("original"))
               }
             >
-              {r.mode === "derivative" ? (
+              {r.mode === "original" ? (
                 <>
                   <X className="h-3 w-3" /> 取消
                 </>
@@ -238,25 +374,68 @@ export function RelationsEditor({ r }: { r: R }) {
                 </>
               )}
             </Btn>
-          </div>
-        </div>
-        {r.derivatives.length === 0 && r.mode !== "derivative" && (
-          <p className="text-[11px] text-muted-foreground/40 py-1">
-            无衍生作品
-          </p>
-        )}
-        <div className="space-y-1.5">
-          {r.derivatives.map((s) => (
-            <Row
-              key={s.id}
-              song={s}
-              onRemove={() => r.remove("derivative", s.id)}
-            />
-          ))}
-        </div>
-      </div>
+          }
+        />
 
-      <SearchPanel r={r} />
+        {r.originals.length === 0 && r.mode !== "original" && (
+          <EmptyHint text="暂无本家关联" />
+        )}
+
+        {r.originals.map((s) => (
+          <RelationItem
+            key={s.id}
+            song={s}
+            onRemove={() => r.remove("original", s.id)}
+          />
+        ))}
+      </section>
+
+      <section className="space-y-2">
+        <SectionHead
+          label="衍生作品"
+          count={r.derivatives.length}
+          actions={
+            <>
+              <Btn variant="ghost" size="sm" onClick={r.findCovers}>
+                <Mic className="h-3 w-3" /> 查找翻唱
+              </Btn>
+              <Btn
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  r.mode === "derivative"
+                    ? r.closeMode()
+                    : (r.closeMode(), r.setMode("derivative"))
+                }
+              >
+                {r.mode === "derivative" ? (
+                  <>
+                    <X className="h-3 w-3" /> 取消
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-3 w-3" /> 添加
+                  </>
+                )}
+              </Btn>
+            </>
+          }
+        />
+
+        {r.derivatives.length === 0 && r.mode !== "derivative" && (
+          <EmptyHint text="暂无衍生作品" />
+        )}
+
+        {r.derivatives.map((s) => (
+          <RelationItem
+            key={s.id}
+            song={s}
+            onRemove={() => r.remove("derivative", s.id)}
+          />
+        ))}
+      </section>
+
+      <SearchArea r={r} />
     </div>
   );
 }

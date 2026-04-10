@@ -2,6 +2,7 @@
 import { ArrowRightLeft, Pencil, Trash2, MoreHorizontal } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { COPYRIGHT_MAP } from "@/core/types/constants";
+import CachedImg from "@/shared/ui/CachedImg";
 import type { VideoSummary } from "@/core/types/catalog";
 
 interface Props {
@@ -34,7 +35,7 @@ export function VideoRow({ video, onEdit, onReassign, onRemove }: Props) {
   return (
     <div className="group flex items-center gap-3 rounded-xl border bg-card p-3 hover:border-foreground/20 transition-colors">
       {video.thumbnail && (
-        <img
+        <CachedImg
           src={video.thumbnail}
           alt=""
           className="h-12 w-18 shrink-0 rounded-lg object-cover"
