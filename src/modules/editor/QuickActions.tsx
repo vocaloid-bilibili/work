@@ -16,10 +16,10 @@ interface Props {
 
 const ACTIONS = [
   {
-    id: "add-song",
+    id: "add",
     icon: Plus,
-    title: "创建新歌曲",
-    desc: "创建新歌曲并收录",
+    title: "添加收录",
+    desc: "添加新视频收录到已有歌曲或创建新歌曲",
     color: "text-blue-500",
     bg: "hover:bg-blue-50 dark:hover:bg-blue-950/30",
   },

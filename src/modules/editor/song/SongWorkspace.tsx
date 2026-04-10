@@ -41,7 +41,7 @@ export default function SongWorkspace({ song, nav, load, openRemove }: Props) {
           variant="outline"
           size="sm"
           className="gap-1.5"
-          onClick={() => nav.push({ type: "add-video", song })}
+          onClick={() => nav.push({ type: "add", presetSong: song })}
         >
           <Plus className="h-3.5 w-3.5" />
           添加视频

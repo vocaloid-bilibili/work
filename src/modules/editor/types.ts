@@ -15,8 +15,7 @@ export type ViewState =
       videoTitle: string;
       parentSong: Song | null;
     }
-  | { type: "add-video"; song: Song }
-  | { type: "add-song" };
+  | { type: "add"; presetSong?: Song };
 
 export const VIEW_TITLES: Record<string, string> = {
   idle: "编辑工作台",
@@ -27,6 +26,5 @@ export const VIEW_TITLES: Record<string, string> = {
   "merge-artist": "合并艺人",
   "board-video": "榜单视频",
   reassign: "拆分/移动视频",
-  "add-video": "添加视频",
-  "add-song": "创建新歌曲",
+  add: "添加收录",
 };
