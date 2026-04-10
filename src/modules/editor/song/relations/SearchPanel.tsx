@@ -1,7 +1,8 @@
 // src/modules/editor/song/relations/SearchPanel.tsx
-import { Check, Loader2, Plus, Search, X } from "lucide-react";
+import { Check, Loader2, Music, Plus, Search, X } from "lucide-react";
 import { Input } from "@/ui/input";
 import { Button } from "@/ui/button";
+import CachedImg from "@/shared/ui/CachedImg";
 import type { Song } from "@/core/types/catalog";
 
 const TYPE_BADGE: Record<string, string> = {
@@ -10,6 +11,112 @@ const TYPE_BADGE: Record<string, string> = {
   本家重置: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
   串烧: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
 };
+
+function getThumbnail(s: Song): string | null {
+  const videos = (s as any).videos;
+  if (Array.isArray(videos) && videos.length > 0) {
+    return videos[0].thumbnail ?? null;
+  }
+  return null;
+}
+
+function SongResultCard({
+  song,
+  isSelected,
+  showCheckbox,
+  showPlus,
+  disabled,
+  onClick,
+}: {
+  song: Song;
+  isSelected: boolean;
+  showCheckbox: boolean;
+  showPlus: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const displayName = song.display_name?.trim() || song.name;
+  const realName = song.display_name?.trim() ? song.name : null;
+  const thumb = getThumbnail(song);
+  const producers = song.producers ?? [];
+  const vocalists = song.vocalists ?? [];
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex w-full items-start gap-2.5 rounded-md p-2 text-left text-sm transition ${
+        isSelected
+          ? "bg-primary/10 border border-primary/30"
+          : "hover:bg-accent border border-transparent"
+      }`}
+    >
+      {showCheckbox && (
+        <div
+          className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
+            isSelected
+              ? "bg-primary border-primary text-primary-foreground"
+              : "border-muted-foreground/30"
+          }`}
+        >
+          {isSelected && <Check className="h-3 w-3" />}
+        </div>
+      )}
+
+      {thumb ? (
+        <CachedImg
+          src={thumb}
+          alt=""
+          className="mt-0.5 h-10 w-15 shrink-0 rounded object-cover"
+        />
+      ) : (
+        <div className="mt-0.5 flex h-10 w-15 shrink-0 items-center justify-center rounded bg-muted">
+          <Music className="h-3.5 w-3.5 text-muted-foreground/40" />
+        </div>
+      )}
+
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <div className="flex items-center gap-1.5">
+          <span className="truncate font-medium">{displayName}</span>
+          <span
+            className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+              TYPE_BADGE[song.type] ?? "bg-muted text-muted-foreground"
+            }`}
+          >
+            {song.type}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span>#{song.id}</span>
+          {realName && (
+            <>
+              <span className="text-muted-foreground/30">·</span>
+              <span className="truncate">原名: {realName}</span>
+            </>
+          )}
+        </div>
+
+        {(producers.length > 0 || vocalists.length > 0) && (
+          <div className="flex items-center gap-1.5 text-[11px]">
+            {producers.length > 0 && (
+              <span className="truncate rounded bg-blue-500/10 px-1.5 py-px text-blue-600 dark:text-blue-400">
+                {producers.map((p) => p.name).join(", ")}
+              </span>
+            )}
+            {vocalists.length > 0 && (
+              <span className="truncate rounded bg-pink-500/10 px-1.5 py-px text-pink-600 dark:text-pink-400">
+                {vocalists.map((v) => v.name).join(", ")}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {showPlus && <Plus className="mt-1 h-3.5 w-3.5 shrink-0 text-primary" />}
+    </button>
+  );
+}
 
 interface Props {
   addMode: "original" | "derivative";
@@ -81,7 +188,6 @@ export default function SearchPanel({
         )}
       </div>
 
-      {/* 结果列表 */}
       {filteredResults.length > 0 && (
         <div className="space-y-1">
           {addMode === "derivative" && coverResults.length > 0 && (
@@ -97,52 +203,18 @@ export default function SearchPanel({
               </button>
             </div>
           )}
-          <div className="max-h-64 overflow-y-auto space-y-1">
-            {filteredResults.map((s) => {
-              const isSelected = selected.has(s.id);
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => onResultClick(s)}
-                  disabled={submitting}
-                  className={`flex w-full items-center gap-2 rounded-md p-2 text-left text-sm transition ${
-                    isSelected
-                      ? "bg-primary/10 border border-primary/30"
-                      : "hover:bg-accent border border-transparent"
-                  }`}
-                >
-                  {addMode === "derivative" && (
-                    <div
-                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
-                        isSelected
-                          ? "bg-primary border-primary text-primary-foreground"
-                          : "border-muted-foreground/30"
-                      }`}
-                    >
-                      {isSelected && <Check className="h-3 w-3" />}
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <span className="font-medium">
-                      {s.display_name || s.name}
-                    </span>
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      #{s.id}
-                    </span>
-                  </div>
-                  <span
-                    className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                      TYPE_BADGE[s.type] ?? "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {s.type}
-                  </span>
-                  {addMode === "original" && (
-                    <Plus className="h-3.5 w-3.5 shrink-0 text-primary" />
-                  )}
-                </button>
-              );
-            })}
+          <div className="max-h-72 overflow-y-auto space-y-1">
+            {filteredResults.map((s) => (
+              <SongResultCard
+                key={s.id}
+                song={s}
+                isSelected={selected.has(s.id)}
+                showCheckbox={addMode === "derivative"}
+                showPlus={addMode === "original"}
+                disabled={submitting}
+                onClick={() => onResultClick(s)}
+              />
+            ))}
           </div>
         </div>
       )}
@@ -153,7 +225,6 @@ export default function SearchPanel({
         </p>
       )}
 
-      {/* 已选中列表 + 批量提交 */}
       {addMode === "derivative" && selected.size > 0 && (
         <div className="space-y-2 border-t pt-2">
           <div className="flex items-center justify-between">
@@ -168,30 +239,40 @@ export default function SearchPanel({
             </button>
           </div>
           <div className="max-h-40 overflow-y-auto space-y-1">
-            {Array.from(selected.values()).map((s) => (
-              <div
-                key={s.id}
-                className="flex items-center gap-2 rounded-md bg-background px-2.5 py-1.5 text-sm"
-              >
-                <div className="min-w-0 flex-1 truncate">
-                  <span className="font-medium">
-                    {s.display_name || s.name}
-                  </span>
-                  <span className="ml-1.5 text-xs text-muted-foreground">
-                    #{s.id}
-                  </span>
-                </div>
-                <span className="shrink-0 text-[10px] text-muted-foreground">
-                  {s.type}
-                </span>
-                <button
-                  onClick={() => onToggleSelect(s)}
-                  className="shrink-0 text-muted-foreground hover:text-destructive transition"
+            {Array.from(selected.values()).map((s) => {
+              const displayName = s.display_name?.trim() || s.name;
+              const thumb = getThumbnail(s);
+              return (
+                <div
+                  key={s.id}
+                  className="flex items-center gap-2 rounded-md bg-background px-2.5 py-1.5 text-sm"
                 >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
+                  {thumb ? (
+                    <CachedImg
+                      src={thumb}
+                      alt=""
+                      className="h-7 w-10 shrink-0 rounded object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-7 w-10 shrink-0 items-center justify-center rounded bg-muted">
+                      <Music className="h-3 w-3 text-muted-foreground/40" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1 truncate">
+                    <span className="font-medium">{displayName}</span>
+                    <span className="ml-1.5 text-xs text-muted-foreground">
+                      #{s.id} · {s.type}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => onToggleSelect(s)}
+                    className="shrink-0 text-muted-foreground hover:text-destructive transition"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
           <Button
             size="sm"

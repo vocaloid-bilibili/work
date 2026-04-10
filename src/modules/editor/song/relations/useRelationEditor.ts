@@ -155,9 +155,10 @@ export function useRelationEditor(song: Song) {
         logEdit({
           targetType: "song",
           targetId: String(song.id),
-          action: `add_relation_${addMode}`,
+          action: "add_relation",
           detail: {
             songName: song.display_name || song.name,
+            direction: addMode,
             related_song_id: targetId,
           },
         });
@@ -183,9 +184,10 @@ export function useRelationEditor(song: Song) {
       logEdit({
         targetType: "song",
         targetId: String(song.id),
-        action: "batch_add_relation_derivative",
+        action: "add_relation",
         detail: {
           songName: song.display_name || song.name,
+          direction: "derivative",
           added: res.added,
           skipped: res.skipped,
         },
@@ -229,9 +231,10 @@ export function useRelationEditor(song: Song) {
         logEdit({
           targetType: "song",
           targetId: String(song.id),
-          action: `remove_relation_${direction}`,
+          action: "remove_relation",
           detail: {
             songName: song.display_name || song.name,
+            direction,
             related_song_id: targetId,
           },
         });

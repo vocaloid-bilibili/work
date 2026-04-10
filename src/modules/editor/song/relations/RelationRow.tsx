@@ -1,6 +1,7 @@
 // src/modules/editor/song/relations/RelationRow.tsx
 import { Button } from "@/ui/button";
 import { Trash2 } from "lucide-react";
+import CachedImg from "@/shared/ui/CachedImg";
 import type { RelatedSong } from "./types";
 
 interface Props {
@@ -13,7 +14,7 @@ export default function RelationRow({ song, onRemove }: Props) {
   return (
     <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-2">
       {song.thumbnail && (
-        <img
+        <CachedImg
           src={song.thumbnail}
           alt=""
           className="h-8 w-11 shrink-0 rounded object-cover"
