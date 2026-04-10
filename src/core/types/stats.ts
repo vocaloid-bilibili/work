@@ -35,7 +35,7 @@ export interface LogEntry {
   value?: unknown;
   user: UserProfile;
   at: string;
-  source?: "mark" | "edit";
+  source: "mark" | "edit";
 }
 
 export interface TaskStats {
@@ -54,8 +54,7 @@ export interface TaskStats {
 export interface GlobalStats {
   taskCount: number;
   contributors: ContributorStats[];
-  weights: { include: number; blacklist: number; fieldEdit: number };
-  editActionScores: Record<string, number>;
+  actionScores: Record<string, number>;
 }
 
 export interface TaskSummary {
@@ -63,11 +62,7 @@ export interface TaskSummary {
   recordCount: number;
   createdAt: string;
   closedAt?: string;
-  fileMeta?: {
-    originalName: string;
-    storedPath: string;
-    uploadedAt: string;
-  };
+  fileMeta?: { originalName: string; storedPath: string; uploadedAt: string };
   contributorCount: number;
   totalOperations: number;
 }

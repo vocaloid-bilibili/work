@@ -25,8 +25,10 @@ export default function TaskDetailPage() {
   }, [detail.load]);
 
   useEffect(() => {
-    if (!detail.loading && taskId) opsLog.init();
-  }, [detail.loading, taskId, opsLog.init]);
+    if (!detail.loading && taskId) {
+      void opsLog.load(true);
+    }
+  }, [detail.loading, taskId]);
 
   const reload = useCallback(() => {
     opsLog.reset();

@@ -31,8 +31,8 @@ interface ActionDef {
   badge: string;
 }
 
-// ── 标注操作 ──
-const MARK_ACTION: Record<string, ActionDef> = {
+const ACTION_MAP: Record<string, ActionDef> = {
+  // 标注
   toggle_include: {
     label: "收录",
     Icon: CircleCheckBig,
@@ -52,15 +52,12 @@ const MARK_ACTION: Record<string, ActionDef> = {
     badge: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
   },
   set: {
-    label: "编辑",
+    label: "编辑字段",
     Icon: Pencil,
     border: "border-l-blue-400 dark:border-l-blue-500",
     badge: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
   },
-};
-
-// ── 运维操作 ──
-const EDIT_ACTION: Record<string, ActionDef> = {
+  // 运维
   edit_song: {
     label: "编辑歌曲",
     Icon: Pencil,
@@ -135,26 +132,17 @@ const EDIT_ACTION: Record<string, ActionDef> = {
   },
 };
 
-const FALLBACK_ACTION: ActionDef = {
+const FALLBACK: ActionDef = {
   label: "操作",
   Icon: Wrench,
   border: "border-l-zinc-400 dark:border-l-zinc-500",
   badge: "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400",
 };
 
-function getActionDef(op: LogEntry): ActionDef {
-  if (op.source === "edit") {
-    return EDIT_ACTION[op.action] || FALLBACK_ACTION;
-  }
-  return MARK_ACTION[op.action] || FALLBACK_ACTION;
-}
-
-/** 从 edit detail 提取简洁变更摘要 */
-function editValueSummary(op: LogEntry): string | null {
+function valueSummary(op: LogEntry): string | null {
   if (op.source !== "edit" || !op.value) return null;
   const d = op.value as Record<string, any>;
 
-  // 对于有 changes 的编辑操作，展示字段变更
   if (d.changes && typeof d.changes === "object") {
     return Object.entries(d.changes)
       .map(
@@ -163,20 +151,12 @@ function editValueSummary(op: LogEntry): string | null {
       )
       .join("；");
   }
-
-  // add_video / add_song 展示 bvid
   if (d.bvid) {
-    const parts: string[] = [];
-    if (d.songName) parts.push(d.songName);
-    if (d.bvid) parts.push(d.bvid);
-    return parts.join(" · ");
+    return [d.songName, d.bvid].filter(Boolean).join(" · ");
   }
-
-  // merge 展示 source → target
   if (d.sourceName && d.targetName) {
     return `${d.sourceName} → ${d.targetName}`;
   }
-
   return null;
 }
 
@@ -219,22 +199,15 @@ export default function Timeline({
 
           <div className="space-y-2">
             {g.items.map((op) => {
-              const a = getActionDef(op);
+              const a = ACTION_MAP[op.action] || FALLBACK;
               const ActionIcon = a.Icon;
-              const isEdit = op.source === "edit";
-              const isMark = !isEdit;
+              const isMarkEdit =
+                op.source !== "edit" && op.action === "set" && op.field;
+              const markFieldLabel = isMarkEdit
+                ? FIELD_LABELS[op.field] || op.field
+                : null;
 
-              // 标注编辑的字段标签
-              const markField =
-                isMark && op.action === "set" && op.field
-                  ? FIELD_LABELS[op.field] || op.field
-                  : null;
-
-              // 运维操作的来源标签
-              const editTarget = isEdit && op.field ? op.field : null;
-
-              // 运维操作的变更摘要
-              const editSummary = editValueSummary(op);
+              const editSum = op.source === "edit" ? valueSummary(op) : null;
 
               return (
                 <div
@@ -254,11 +227,6 @@ export default function Timeline({
                       {op.user?.nickname || op.user?.username || "未知"}
                     </span>
                     <div className="flex items-center gap-1.5 ml-auto shrink-0">
-                      {isEdit && (
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                          运维
-                        </span>
-                      )}
                       <span
                         className={cn(
                           "inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md",
@@ -268,14 +236,9 @@ export default function Timeline({
                         <ActionIcon className="h-3 w-3" />
                         {a.label}
                       </span>
-                      {markField && (
+                      {markFieldLabel && (
                         <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-muted text-muted-foreground">
-                          {markField}
-                        </span>
-                      )}
-                      {editTarget && (
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-muted text-muted-foreground">
-                          {editTarget}
+                          {markFieldLabel}
                         </span>
                       )}
                       <span className="text-xs text-muted-foreground/60 tabular-nums ml-1">
@@ -285,37 +248,39 @@ export default function Timeline({
                   </div>
 
                   <div className="pl-9 space-y-1.5">
-                    <p className="text-sm leading-relaxed line-clamp-3">
-                      {isMark && op.recordIndex >= 0 && (
-                        <span className="text-muted-foreground/50 font-mono text-xs mr-1.5">
-                          #{op.recordIndex + 1}
+                    {(op.recordTitle || op.recordIndex >= 0) && (
+                      <p className="text-sm leading-relaxed line-clamp-3">
+                        {op.source !== "edit" && op.recordIndex >= 0 && (
+                          <span className="text-muted-foreground/50 font-mono text-xs mr-1.5">
+                            #{op.recordIndex + 1}
+                          </span>
+                        )}
+                        <span className="text-foreground/80">
+                          {op.recordTitle || ""}
                         </span>
-                      )}
-                      <span className="text-foreground/80">
-                        {op.recordTitle || ""}
-                      </span>
-                    </p>
+                      </p>
+                    )}
 
-                    {/* 标注编辑的值变更 */}
-                    {isMark && op.value != null && op.action === "set" && (
+                    {op.source !== "edit" &&
+                      op.value != null &&
+                      op.action === "set" && (
+                        <div className="flex items-start gap-2 text-sm rounded-lg bg-muted/40 px-3 py-2">
+                          <span className="text-muted-foreground/60 shrink-0 mt-px">
+                            →
+                          </span>
+                          <span className="font-medium text-foreground/80 break-all line-clamp-2">
+                            {String(op.value)}
+                          </span>
+                        </div>
+                      )}
+
+                    {editSum && (
                       <div className="flex items-start gap-2 text-sm rounded-lg bg-muted/40 px-3 py-2">
                         <span className="text-muted-foreground/60 shrink-0 mt-px">
                           →
                         </span>
-                        <span className="font-medium text-foreground/80 break-all line-clamp-2">
-                          {String(op.value)}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* 运维操作的变更摘要 */}
-                    {isEdit && editSummary && (
-                      <div className="flex items-start gap-2 text-sm rounded-lg bg-amber-500/5 px-3 py-2">
-                        <span className="text-amber-500/60 shrink-0 mt-px">
-                          →
-                        </span>
                         <span className="font-medium text-foreground/80 break-all line-clamp-3">
-                          {editSummary}
+                          {editSum}
                         </span>
                       </div>
                     )}

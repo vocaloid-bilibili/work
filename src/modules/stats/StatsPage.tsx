@@ -6,7 +6,6 @@ import { Button } from "@/ui/button";
 import { cn } from "@/ui/cn";
 import { useAuth } from "@/shell/AuthProvider";
 import { useOverview, useOpsLog, useBackNav } from "./useStats";
-import type { OpsScope } from "./useStats";
 import { TabBar } from "./statsAtoms";
 import TaskList from "./TaskList";
 import CurrentTab from "./tabs/CurrentTab";
@@ -30,7 +29,7 @@ export default function StatsPage() {
   const prevTab = useRef<Tab>("current");
 
   const ov = useOverview();
-  const opsLog = useOpsLog(ov.activeId);
+  const opsLog = useOpsLog(null); // 全局综合
 
   useEffect(() => {
     void ov.load();
@@ -39,11 +38,9 @@ export default function StatsPage() {
   const switchTab = useCallback(
     (t: Tab) => {
       setTab(t);
-      if (t !== "ops") {
-        setSelectedUser(null);
-      }
-      if (t === "ops") {
-        opsLog.init("task", null);
+      if (t !== "ops") setSelectedUser(null);
+      if (t === "ops" && opsLog.ops.length === 0 && !opsLog.loading) {
+        void opsLog.load(true);
       }
     },
     [opsLog],
@@ -55,13 +52,12 @@ export default function StatsPage() {
       const newUser = cleared ? null : id;
       setSelectedUser(newUser);
 
-      if (tab === "ops") {
-        opsLog.setFilterUser(newUser);
-      } else if (newUser) {
+      if (newUser) {
         prevTab.current = tab;
-        const scope: OpsScope = tab === "global" ? "global" : "task";
         setTab("ops");
-        opsLog.init(scope, newUser);
+        opsLog.setFilterUser(newUser);
+      } else {
+        opsLog.setFilterUser(null);
       }
     },
     [tab, opsLog, selectedUser],
@@ -72,15 +68,19 @@ export default function StatsPage() {
     opsLog.setFilterUser(null);
   }, [opsLog]);
 
-  const refresh = useCallback(() => {
-    opsLog.reset();
-    void ov.load(true);
-  }, [ov, opsLog]);
+  const refresh = useCallback(async () => {
+    await ov.load(true);
+    // 如果当前在 ops tab，也刷新操作记录
+    if (tab === "ops" || opsLog.ops.length > 0) {
+      void opsLog.load(true);
+    }
+  }, [ov, opsLog, tab]);
 
   useBackNav("/mark", () => {
     if (tab === "ops" && prevTab.current !== "ops") {
       setTab(prevTab.current);
       setSelectedUser(null);
+      opsLog.setFilterUser(null);
       return true;
     }
     return false;
@@ -94,12 +94,7 @@ export default function StatsPage() {
     );
   }
 
-  const contributors =
-    (opsLog.scope === "global" || tab === "global"
-      ? ov.global?.contributors
-      : ov.task?.contributors) ??
-    ov.global?.contributors ??
-    [];
+  const contributors = ov.global?.contributors ?? [];
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 sm:px-6 lg:px-8 pb-24 space-y-8">
