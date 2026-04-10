@@ -1,30 +1,25 @@
 // src/modules/editor/types.ts
 import type { Song, Video } from "@/core/types/catalog";
 
-export type ViewState =
-  | { type: "idle" }
-  | { type: "song"; song: Song }
-  | { type: "video"; video: Video }
-  | { type: "logs" }
-  | { type: "merge-song"; presetSource?: Song }
-  | { type: "merge-artist" }
-  | { type: "board-video" }
-  | {
-      type: "reassign";
-      bvid: string;
-      videoTitle: string;
-      parentSong: Song | null;
-    }
-  | { type: "add"; presetSong?: Song };
+export type View =
+  | { id: "home" }
+  | { id: "song"; song: Song }
+  | { id: "video"; video: Video }
+  | { id: "add"; preset?: Song }
+  | { id: "merge-song"; preset?: Song }
+  | { id: "merge-artist" }
+  | { id: "reassign"; bvid: string; title: string; parent: Song | null }
+  | { id: "board" }
+  | { id: "sync" };
 
-export const VIEW_TITLES: Record<string, string> = {
-  idle: "编辑工作台",
+export const VIEW_LABEL: Record<string, string> = {
+  home: "编辑工作台",
   song: "歌曲",
   video: "视频",
-  logs: "操作日志",
+  add: "添加收录",
   "merge-song": "合并歌曲",
   "merge-artist": "合并艺人",
-  "board-video": "榜单视频",
-  reassign: "拆分/移动视频",
-  add: "添加收录",
+  reassign: "移动视频",
+  board: "榜单视频",
+  sync: "同步状态",
 };

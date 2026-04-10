@@ -249,11 +249,28 @@ function describe(
 
     case "add_relation": {
       const direction = s(detail.direction);
-      const added = detail.added as number[] | undefined;
-      const relatedName = s(detail.relatedSongName);
-      const relatedId = s(detail.relatedSongId || detail.related_song_id);
       const dirLabel = direction === "original" ? "本家" : "衍生";
 
+      const relations = detail.relations as
+        | { id: number; name: string }[]
+        | undefined;
+
+      if (relations && relations.length > 0) {
+        const names = relations.map((r) => `「${r.name}」`);
+        if (names.length > 5) {
+          lines.push(names.slice(0, 5).join("、") + ` 等`);
+        } else {
+          lines.push(names.join("、"));
+        }
+        return {
+          headline: songName
+            ? `为「${songName}」批量添加了 ${relations.length} 首${dirLabel}关联`
+            : `批量添加了 ${relations.length} 首${dirLabel}关联`,
+          lines,
+        };
+      }
+
+      const added = detail.added as number[] | undefined;
       if (added && added.length > 0) {
         const skipped = detail.skipped as number[] | undefined;
         if (skipped?.length)
@@ -267,6 +284,8 @@ function describe(
         };
       }
 
+      const relatedName = s(detail.relatedSongName);
+      const relatedId = s(detail.relatedSongId || detail.related_song_id);
       const relatedLabel = relatedName || `#${relatedId}`;
       return {
         headline: songName
