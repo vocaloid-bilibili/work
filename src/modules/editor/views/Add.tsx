@@ -145,6 +145,7 @@ export function AddView({ preset }: Props) {
             bvid: res.bvid,
             videoTitle: preview.title,
             uploader: preview.owner?.name,
+            collectedRow: res.collected_row,
           },
         });
         toast.success(`视频 ${res.bvid} 已添加到「${sLabel(sel)}」`);
@@ -196,6 +197,7 @@ export function AddView({ preset }: Props) {
             bvid: res.bvid,
             videoTitle: preview.title,
             type: songType,
+            collectedRow: res.collected_row,
           },
         });
         toast.success(`歌曲已创建（ID: ${res.song_id}）`);
@@ -249,19 +251,19 @@ export function AddView({ preset }: Props) {
           </Field>
 
           {preview && (
-            <div className="flex gap-3 rounded-xl bg-muted/30 border border-border/30 p-3">
+            <div className="flex flex-col sm:flex-row gap-3 rounded-xl bg-muted/30 border border-border/30 p-3">
               {preview.pic && (
                 <img
                   src={preview.pic}
                   alt=""
-                  className="h-16 w-24 shrink-0 rounded-lg object-cover"
+                  className="h-24 sm:h-16 w-full sm:w-24 shrink-0 rounded-lg object-cover"
                 />
               )}
               <div className="min-w-0 flex-1 space-y-1">
-                <p className="text-sm font-medium leading-snug truncate">
+                <p className="text-sm font-medium leading-snug line-clamp-2 sm:truncate">
                   {preview.title}
                 </p>
-                <p className="text-[11px] text-muted-foreground/60">
+                <p className="text-[11px] text-muted-foreground/60 break-all">
                   {preview.bvid} · av{preview.aid} · {pubStr}
                 </p>
                 <p className="text-[11px] text-muted-foreground/60">

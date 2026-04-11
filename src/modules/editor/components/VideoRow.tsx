@@ -35,24 +35,32 @@ export function VideoRow({ video, onEdit, onReassign, onRemove }: Props) {
   const hasActions = !!(onReassign || onRemove);
 
   return (
-    <div className="group flex items-center gap-3 rounded-xl border bg-card p-3 hover:border-foreground/20 transition-colors">
+    <div className="group flex items-center gap-2.5 sm:gap-3 rounded-xl border bg-card p-2.5 sm:p-3 hover:border-foreground/20 transition-colors">
       {video.thumbnail && (
         <CachedImg
           src={video.thumbnail}
           alt=""
-          className="h-12 w-18 shrink-0 rounded-lg object-cover"
+          className="h-10 w-16 sm:h-12 sm:w-18 shrink-0 rounded-lg object-cover"
         />
       )}
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium truncate leading-snug">
           {video.title}
         </p>
-        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 flex-wrap">
-          <span className="font-mono">{video.bvid}</span>
+        <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5 flex-wrap">
+          <span className="font-mono truncate max-w-[10ch] sm:max-w-none">
+            {video.bvid}
+          </span>
           {video.copyright != null && (
-            <span>· {COPYRIGHT_MAP[video.copyright] ?? "?"}</span>
+            <span className="hidden sm:inline">
+              · {COPYRIGHT_MAP[video.copyright] ?? "?"}
+            </span>
           )}
-          {video.uploader?.name && <span>· {video.uploader.name}</span>}
+          {video.uploader?.name && (
+            <span className="hidden sm:inline truncate max-w-24">
+              · {video.uploader.name}
+            </span>
+          )}
           {video.disabled && (
             <span className="text-orange-600 font-semibold">· 已停止收录</span>
           )}

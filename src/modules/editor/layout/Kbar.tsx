@@ -141,7 +141,7 @@ export function Kbar({ open, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-100 flex items-start justify-center pt-[15vh]"
+      className="fixed inset-0 z-100 flex items-start justify-center pt-[12vh] sm:pt-[15vh] px-4"
       onClick={onClose}
     >
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" />
@@ -154,7 +154,7 @@ export function Kbar({ open, onClose }: Props) {
           <input
             ref={ref}
             className="flex-1 h-12 bg-transparent text-sm outline-none placeholder:text-muted-foreground/40"
-            placeholder="搜索歌曲、输入 BV 号、ID 或操作…"
+            placeholder="搜索歌曲、BV 号、ID…"
             value={input}
             onChange={(e) => {
               setInput(e.target.value);
@@ -168,7 +168,7 @@ export function Kbar({ open, onClose }: Props) {
         </div>
 
         {items.length > 0 && (
-          <div className="max-h-72 overflow-y-auto p-1.5">
+          <div className="max-h-[50vh] sm:max-h-72 overflow-y-auto p-1.5">
             {items.map((item, i) => {
               const active = i === safeIdx;
               if (item.type === "bv") {
@@ -182,7 +182,7 @@ export function Kbar({ open, onClose }: Props) {
                     )}
                   >
                     <Video className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span>
+                    <span className="truncate">
                       加载视频{" "}
                       <span className="font-mono font-semibold">{trimmed}</span>
                     </span>
@@ -200,7 +200,7 @@ export function Kbar({ open, onClose }: Props) {
                     )}
                   >
                     <Music className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span>
+                    <span className="truncate">
                       加载歌曲{" "}
                       <span className="font-mono font-semibold">
                         #{trimmed}

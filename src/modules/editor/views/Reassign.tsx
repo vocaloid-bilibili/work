@@ -195,7 +195,7 @@ export function ReassignView({ bvid, title, parent }: Props) {
                   以下艺人从原歌曲继承，可修改
                 </p>
               )}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <Field label="歌手">
                   <TagEditor
                     value={voc}

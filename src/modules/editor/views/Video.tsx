@@ -21,6 +21,7 @@ import { Btn } from "../components/Btn";
 import { SongCard } from "../components/SongCard";
 import { Confirm } from "../components/Confirm";
 import type { Song, Video } from "@/core/types/catalog";
+import { buildCollectedRow } from "../utils/collected";
 
 function VideoHeader({ video }: { video: Video }) {
   return (
@@ -191,12 +192,24 @@ export function VideoView({ video }: { video: Video }) {
     setRestoreLoading(true);
     try {
       await api.restoreVideo(video.bvid);
+
+      let bilibili: api.BilibiliVideoInfo | null = null;
+      try {
+        bilibili = await api.fetchBilibiliVideo(video.bvid);
+      } catch {}
+
+      const collectedRow = buildCollectedRow(video, parent, bilibili);
       await logEdit({
         targetType: "video",
         targetId: video.bvid,
         action: "restore_video",
-        detail: { bvid: video.bvid, title: video.title },
+        detail: {
+          bvid: video.bvid,
+          title: video.title,
+          collectedRow,
+        },
       });
+
       toast.success(`已恢复收录：${video.bvid}`);
       refresh();
     } catch {

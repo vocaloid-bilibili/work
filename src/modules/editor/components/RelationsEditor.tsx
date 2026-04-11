@@ -53,7 +53,7 @@ function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none",
+        "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none shrink-0",
         color,
       )}
     >
@@ -111,8 +111,11 @@ function RelationItem({
   const artists = artistLine(song.producers, vocs);
 
   return (
-    <div className="group flex items-center gap-3 rounded-2xl px-3 py-3 -mx-3 transition-colors hover:bg-accent/40">
-      <Cover url={relatedThumb(song)} className="h-12 w-17 shrink-0" />
+    <div className="group flex items-center gap-2.5 sm:gap-3 rounded-2xl px-2.5 py-2.5 sm:px-3 sm:py-3 transition-colors hover:bg-accent/40">
+      <Cover
+        url={relatedThumb(song)}
+        className="h-10 w-14 sm:h-12 sm:w-17 shrink-0"
+      />
 
       <div className="min-w-0 flex-1 space-y-0.5">
         <p className="text-[13px] font-semibold leading-tight truncate">
@@ -123,7 +126,9 @@ function RelationItem({
           {song.type && (
             <Badge color={typeBadgeColor(song.type)}>{song.type}</Badge>
           )}
-          {subtitle && <span className="truncate max-w-32">{subtitle}</span>}
+          {subtitle && (
+            <span className="truncate max-w-20 sm:max-w-32">{subtitle}</span>
+          )}
         </div>
         {artists && (
           <p className="text-[11px] text-muted-foreground leading-tight truncate">
@@ -169,7 +174,7 @@ function SearchResult({
       disabled={disabled}
       onClick={onAction}
       className={cn(
-        "flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-colors",
+        "flex w-full items-center gap-2.5 sm:gap-3 rounded-xl p-2 sm:p-2.5 text-left transition-colors",
         checked ? "bg-primary/8" : "hover:bg-accent/50",
         disabled && "opacity-50 cursor-not-allowed",
       )}
@@ -187,7 +192,10 @@ function SearchResult({
         </div>
       )}
 
-      <Cover url={songThumb(song)} className="h-12 w-17 shrink-0" />
+      <Cover
+        url={songThumb(song)}
+        className="h-10 w-14 sm:h-12 sm:w-17 shrink-0"
+      />
 
       <div className="min-w-0 flex-1 space-y-0.5">
         <p className="text-[13px] font-semibold leading-tight truncate">
@@ -203,7 +211,9 @@ function SearchResult({
           {song.type && (
             <Badge color={typeBadgeColor(song.type)}>{song.type}</Badge>
           )}
-          {artists && <span className="truncate">{artists}</span>}
+          {artists && (
+            <span className="truncate max-w-24 sm:max-w-none">{artists}</span>
+          )}
         </div>
       </div>
 
@@ -222,7 +232,7 @@ function SearchArea({ r }: { r: R }) {
     covers.length > 0 && covers.every((s) => r.selected.has(s.id));
 
   return (
-    <div className="rounded-2xl bg-accent/30 dark:bg-accent/20 p-4 space-y-3">
+    <div className="rounded-2xl bg-accent/30 dark:bg-accent/20 p-3 sm:p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-bold">
           {isOrig ? "添加本家" : "添加衍生"}
@@ -272,7 +282,7 @@ function SearchArea({ r }: { r: R }) {
       )}
 
       {r.filtered.length > 0 && (
-        <div className="max-h-80 overflow-y-auto -mx-1 px-1 space-y-1 overscroll-contain">
+        <div className="max-h-64 sm:max-h-80 overflow-y-auto space-y-1 overscroll-contain">
           {r.filtered.map((s) => (
             <SearchResult
               key={s.id}
@@ -289,7 +299,7 @@ function SearchArea({ r }: { r: R }) {
       )}
 
       {r.query.trim().length > 0 && !r.searching && r.filtered.length === 0 && (
-        <div className="flex flex-col items-center py-8 text-muted-foreground">
+        <div className="flex flex-col items-center py-6 sm:py-8 text-muted-foreground">
           <Search className="h-6 w-6 mb-2 opacity-40" />
           <p className="text-sm">没有找到匹配的歌曲</p>
         </div>
@@ -308,6 +318,7 @@ function SearchArea({ r }: { r: R }) {
     </div>
   );
 }
+
 function SectionHead({
   label,
   count,
@@ -318,8 +329,8 @@ function SectionHead({
   actions: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between">
-      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+    <div className="flex items-center justify-between gap-2">
+      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground shrink-0">
         {label}
         {typeof count === "number" && count > 0 && (
           <span className="ml-1.5 text-foreground/50 normal-case tracking-normal font-semibold">
@@ -327,7 +338,7 @@ function SectionHead({
           </span>
         )}
       </p>
-      <div className="flex items-center gap-0.5">{actions}</div>
+      <div className="flex items-center gap-0.5 shrink-0">{actions}</div>
     </div>
   );
 }
@@ -395,9 +406,10 @@ export function RelationsEditor({ r }: { r: R }) {
           label="衍生作品"
           count={r.derivatives.length}
           actions={
-            <>
+            <div className="flex items-center gap-0.5">
               <Btn variant="ghost" size="sm" onClick={r.findCovers}>
-                <Mic className="h-3 w-3" /> 查找翻唱
+                <Mic className="h-3 w-3" />{" "}
+                <span className="hidden sm:inline">查找翻唱</span>
               </Btn>
               <Btn
                 variant="ghost"
@@ -418,7 +430,7 @@ export function RelationsEditor({ r }: { r: R }) {
                   </>
                 )}
               </Btn>
-            </>
+            </div>
           }
         />
 

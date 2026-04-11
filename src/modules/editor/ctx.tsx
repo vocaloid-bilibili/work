@@ -26,7 +26,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     async (id: number) => {
       setLoading(true);
       try {
-        const r = await api.selectSong(id);
+        const r = await api.selectSong(id, true);
         nav.go({ id: "song", song: r.data });
       } catch (e: any) {
         toast.error(e?.response?.data?.detail || "加载歌曲失败");

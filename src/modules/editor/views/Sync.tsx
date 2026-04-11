@@ -17,6 +17,8 @@ import {
   Link2,
   Unlink,
   Wrench,
+  Ban,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/ui/cn";
@@ -33,8 +35,14 @@ const ACTION_META: Record<
 > = {
   edit_song: { label: "编辑歌曲", icon: Pencil, color: "text-blue-600" },
   edit_video: { label: "编辑视频", icon: Pencil, color: "text-cyan-600" },
-  delete_song: { label: "移除歌曲", icon: Trash2, color: "text-red-600" },
-  delete_video: { label: "移除视频", icon: Trash2, color: "text-red-600" },
+  delete_song: { label: "彻底删除歌曲", icon: Trash2, color: "text-red-600" },
+  delete_video: { label: "停止收录视频", icon: Trash2, color: "text-red-600" },
+  disable_song: { label: "停止收录歌曲", icon: Ban, color: "text-orange-600" },
+  restore_video: {
+    label: "恢复收录视频",
+    icon: RotateCcw,
+    color: "text-emerald-600",
+  },
   merge_song: { label: "合并歌曲", icon: GitMerge, color: "text-purple-600" },
   merge_artist: { label: "合并艺人", icon: Users, color: "text-fuchsia-600" },
   reassign_video: {
@@ -75,9 +83,13 @@ function describe(log: EditLogEntry): string {
     case "edit_video":
       return `编辑视频 ${d.bvid || ""}`;
     case "delete_song":
-      return name ? `移除「${name}」` : "移除歌曲";
+      return name ? `彻底删除「${name}」` : "彻底删除歌曲";
     case "delete_video":
-      return `移除视频 ${d.bvid || ""}`;
+      return `停止收录 ${d.bvid || ""}`;
+    case "disable_song":
+      return name ? `停止收录「${name}」` : "停止收录歌曲";
+    case "restore_video":
+      return `恢复收录 ${d.bvid || ""}`;
     case "add_song":
       return name ? `创建「${name}」` : "创建歌曲";
     case "add_video":
@@ -114,7 +126,7 @@ function LogRow({ log, isPending }: { log: EditLogEntry; isPending: boolean }) {
   const time = log.createdAt;
 
   return (
-    <div className="flex items-start gap-3 px-4 py-3">
+    <div className="flex items-start gap-2.5 sm:gap-3 px-3 sm:px-4 py-3">
       <div className={cn("mt-0.5 shrink-0", meta.color)}>
         <Icon className="h-4 w-4" />
       </div>
@@ -127,14 +139,14 @@ function LogRow({ log, isPending }: { log: EditLogEntry; isPending: boolean }) {
             </span>
           )}
         </div>
-        <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">
+        <div className="text-[11px] sm:text-xs text-muted-foreground flex items-center gap-1.5 sm:gap-2 mt-0.5 flex-wrap">
           <span>{user}</span>
           <span>·</span>
           <span title={fmtShort(time)}>{fmtTimeAgo(time)}</span>
           {log.targetId && (
             <>
-              <span>·</span>
-              <span className="font-mono truncate max-w-40">
+              <span className="hidden sm:inline">·</span>
+              <span className="hidden sm:inline font-mono truncate max-w-40">
                 {log.targetId}
               </span>
             </>
@@ -183,7 +195,7 @@ export function SyncView() {
       {st && (
         <div
           className={cn(
-            "rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4",
+            "rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4",
             hasErr
               ? "bg-red-50 dark:bg-red-950/30 border border-red-300 dark:border-red-800"
               : hasPending
@@ -191,18 +203,18 @@ export function SyncView() {
                 : "bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-800",
           )}
         >
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-3 min-w-0">
             {hasErr ? (
-              <AlertTriangle className="h-6 w-6 text-red-600 shrink-0 mt-0.5" />
+              <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6 text-red-600 shrink-0 mt-0.5" />
             ) : hasPending ? (
-              <Clock className="h-6 w-6 text-amber-600 shrink-0 mt-0.5" />
+              <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-amber-600 shrink-0 mt-0.5" />
             ) : (
-              <CheckCircle2 className="h-6 w-6 text-emerald-600 shrink-0 mt-0.5" />
+              <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-600 shrink-0 mt-0.5" />
             )}
-            <div>
+            <div className="min-w-0">
               <p
                 className={cn(
-                  "text-base font-bold",
+                  "text-sm sm:text-base font-bold",
                   hasErr
                     ? "text-red-800 dark:text-red-200"
                     : hasPending
@@ -222,7 +234,7 @@ export function SyncView() {
                   {health.reasons.map((r, i) => (
                     <p
                       key={i}
-                      className="text-sm text-red-700 dark:text-red-300"
+                      className="text-xs sm:text-sm text-red-700 dark:text-red-300 break-all"
                     >
                       {r}
                     </p>
@@ -231,10 +243,10 @@ export function SyncView() {
               )}
 
               {!hasErr && hasPending && (
-                <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                <p className="text-xs sm:text-sm text-amber-700 dark:text-amber-300 mt-1">
                   已记录，等待推送到主数据库
                   {st.lastSuccessAt && (
-                    <span className="ml-1">
+                    <span className="block sm:inline sm:ml-1">
                       · 上次同步 {fmtTimeAgo(st.lastSuccessAt)}
                     </span>
                   )}
@@ -242,15 +254,16 @@ export function SyncView() {
               )}
 
               {isOk && st.lastSuccessAt && (
-                <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1">
+                <p className="text-xs sm:text-sm text-emerald-700 dark:text-emerald-300 mt-1">
                   上次同步 {fmtTimeAgo(st.lastSuccessAt)}
                 </p>
               )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <Btn
+              className="flex-1 sm:flex-initial"
               onClick={handleRefresh}
               disabled={busy || logsLoading}
               loading={logsLoading}
@@ -260,6 +273,7 @@ export function SyncView() {
               刷新
             </Btn>
             <Btn
+              className="flex-1 sm:flex-initial"
               variant="primary"
               size="sm"
               onClick={handleSync}
@@ -342,24 +356,36 @@ export function SyncView() {
 
       {/* ── 概览数字 ── */}
       {st && (
-        <div className="rounded-2xl border bg-card p-5">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
+        <div className="rounded-2xl border bg-card p-4 sm:p-5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 text-center">
             <div>
-              <p className="text-3xl font-black tabular-nums">{st.pending}</p>
-              <p className="text-xs text-muted-foreground mt-1">待同步</p>
+              <p className="text-2xl sm:text-3xl font-black tabular-nums">
+                {st.pending}
+              </p>
+              <p className="text-[11px] sm:text-xs text-muted-foreground mt-1">
+                待同步
+              </p>
             </div>
             <div>
-              <p className="text-3xl font-black tabular-nums">{st.cursor}</p>
-              <p className="text-xs text-muted-foreground mt-1">已同步</p>
+              <p className="text-2xl sm:text-3xl font-black tabular-nums">
+                {st.cursor}
+              </p>
+              <p className="text-[11px] sm:text-xs text-muted-foreground mt-1">
+                已同步
+              </p>
             </div>
             <div>
-              <p className="text-3xl font-black tabular-nums">{st.maxLogId}</p>
-              <p className="text-xs text-muted-foreground mt-1">总日志</p>
+              <p className="text-2xl sm:text-3xl font-black tabular-nums">
+                {st.maxLogId}
+              </p>
+              <p className="text-[11px] sm:text-xs text-muted-foreground mt-1">
+                总日志
+              </p>
             </div>
             <div>
               <p
                 className={cn(
-                  "text-3xl font-black",
+                  "text-2xl sm:text-3xl font-black",
                   health?.ok
                     ? "text-emerald-600"
                     : health
@@ -369,7 +395,9 @@ export function SyncView() {
               >
                 {health ? (health.ok ? "✓" : "✗") : "—"}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">健康</p>
+              <p className="text-[11px] sm:text-xs text-muted-foreground mt-1">
+                健康
+              </p>
             </div>
           </div>
         </div>

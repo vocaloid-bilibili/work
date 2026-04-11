@@ -16,7 +16,7 @@ export function ArtistFields(p: Props) {
   return (
     <fieldset
       disabled={p.disabled}
-      className="grid grid-cols-1 lg:grid-cols-3 gap-4"
+      className="grid grid-cols-1 md:grid-cols-3 gap-4"
     >
       <Field label="歌手">
         <TagEditor

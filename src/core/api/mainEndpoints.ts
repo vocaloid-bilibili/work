@@ -84,7 +84,9 @@ export const deleteVideo = (bvid: string) =>
   http.delete(`/edit/video/${bvid}`).then((r) => r.data);
 
 export const restoreVideo = (bvid: string) =>
-  http.post(`/edit/video/${bvid}/restore`).then((r) => r.data);
+  http
+    .post(`/edit/video/${bvid}/restore`)
+    .then((r) => r.data as { status: string; restored: string });
 
 export const hardDeleteVideo = (bvid: string) =>
   http.delete(`/edit/video/${bvid}/hard`).then((r) => r.data);

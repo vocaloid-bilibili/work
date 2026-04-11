@@ -84,7 +84,7 @@ export function BoardView() {
 
       <Section title="查询">
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="榜单">
               <Select value={board} onValueChange={setBoard}>
                 <SelectTrigger className="h-9">
@@ -121,7 +121,7 @@ export function BoardView() {
 
           {cur !== null && (
             <div className="space-y-3 border-t pt-4">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground break-all">
                 当前：<span className="font-mono">{cur || "（未设置）"}</span>
               </p>
               <Field label="BV 号">
