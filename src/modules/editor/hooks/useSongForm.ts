@@ -120,7 +120,11 @@ export function useSongForm(song: Song) {
         targetType: "song",
         targetId: String(song.id),
         action: "edit_song",
-        detail: { songName: song.name, changes: rawDiff },
+        detail: {
+          songName: song.name,
+          bvids: (song.videos ?? []).map((v) => v.bvid),
+          changes: rawDiff,
+        },
       });
       snap.current = { displayName, type, vocalists, producers, synthesizers };
       toast.success("歌曲信息已更新");
