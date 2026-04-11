@@ -22,8 +22,10 @@ export function SongCard({
         onClick ? "cursor-pointer hover:bg-muted/60 transition-colors" : ""
       }`}
     >
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="text-sm font-bold truncate">{name}</span>
+      <div className="flex items-start gap-2">
+        <span className="text-sm font-bold wrap-break-word min-w-0 flex-1">
+          {name}
+        </span>
         <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold text-foreground/60">
           {song.type}
         </span>
@@ -32,7 +34,7 @@ export function SongCard({
             href={`https://vocabili.top/song/${song.id}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto shrink-0 text-blue-500 hover:text-blue-600 transition-colors"
+            className="shrink-0 text-blue-500 hover:text-blue-600 transition-colors"
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
           >
@@ -40,19 +42,25 @@ export function SongCard({
           </a>
         )}
       </div>
-      <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
+      <div className="text-[11px] text-muted-foreground flex items-center gap-x-1.5 gap-y-0.5 flex-wrap">
         <span>#{song.id}</span>
-        {song.display_name && (
-          <span className="truncate max-w-32">· {song.name}</span>
-        )}
+        {song.display_name && <span>· {song.name}</span>}
         {song.videos?.length ? <span>· {song.videos.length} 视频</span> : null}
-        {pro && (
-          <span className="truncate max-w-28 sm:max-w-40">· P: {pro}</span>
-        )}
-        {voc && (
-          <span className="truncate max-w-28 sm:max-w-40">· V: {voc}</span>
-        )}
       </div>
+      {(pro || voc) && (
+        <div className="text-[11px] text-muted-foreground space-y-0.5">
+          {pro && (
+            <p className="wrap-break-word">
+              <span className="font-medium text-foreground/50">P</span> {pro}
+            </p>
+          )}
+          {voc && (
+            <p className="wrap-break-word">
+              <span className="font-medium text-foreground/50">V</span> {voc}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

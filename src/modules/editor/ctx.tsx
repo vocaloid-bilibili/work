@@ -27,7 +27,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       try {
         const r = await api.selectSong(id, true);
-        nav.go({ id: "song", song: r.data });
+        nav.push({ id: "song", song: r.data });
       } catch (e: any) {
         toast.error(e?.response?.data?.detail || "加载歌曲失败");
       } finally {
@@ -42,7 +42,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       try {
         const r = await api.selectVideo(bvid);
-        nav.go({ id: "video", video: r.data });
+        nav.push({ id: "video", video: r.data });
       } catch (e: any) {
         toast.error(e?.response?.data?.detail || "加载视频失败");
       } finally {

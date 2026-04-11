@@ -1,6 +1,5 @@
 // src/modules/editor/utils/collected.ts
-
-import type { Song, Video } from "@/core/types/catalog";
+import type { Song, VideoSummary } from "@/core/types/catalog";
 import type { BilibiliVideoInfo, CollectedRow } from "@/core/api/mainEndpoints";
 
 function fmtPubdate(iso: string | null | undefined): string {
@@ -24,7 +23,7 @@ function fmtPubdate(iso: string | null | undefined): string {
 }
 
 export function buildCollectedRow(
-  video: Video,
+  video: VideoSummary,
   song: Song | null,
   bilibili?: BilibiliVideoInfo | null,
 ): CollectedRow {

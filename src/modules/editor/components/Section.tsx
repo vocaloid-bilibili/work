@@ -4,27 +4,21 @@ import { cn } from "@/ui/cn";
 interface Props {
   title?: string;
   children: React.ReactNode;
-  className?: string;
-  actions?: React.ReactNode;
   noPad?: boolean;
+  actions?: React.ReactNode;
+  className?: string;
 }
 
-export function Section({ title, children, className, actions, noPad }: Props) {
+export function Section({ title, children, noPad, actions, className }: Props) {
   return (
-    <section
-      className={cn("rounded-2xl border bg-card overflow-hidden", className)}
-    >
-      {(title || actions) && (
-        <div className="flex items-center justify-between px-5 py-3 border-b">
-          {title && (
-            <h3 className="text-xs font-bold uppercase tracking-widest text-foreground/50">
-              {title}
-            </h3>
-          )}
-          <div className="flex items-center gap-1">{actions}</div>
+    <div className={cn("rounded-2xl border bg-card", className)}>
+      {title && (
+        <div className="flex items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5 pb-0">
+          <h3 className="text-sm font-bold">{title}</h3>
+          {actions}
         </div>
       )}
-      <div className={cn(noPad ? "" : "p-5")}>{children}</div>
-    </section>
+      <div className={noPad ? "" : "p-4 sm:p-5 pt-3 sm:pt-3.5"}>{children}</div>
+    </div>
   );
 }

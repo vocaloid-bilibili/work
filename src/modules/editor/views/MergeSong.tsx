@@ -13,7 +13,6 @@ import * as api from "@/core/api/mainEndpoints";
 import { logEdit } from "@/core/api/collabEndpoints";
 import EntityPicker from "@/shared/ui/EntityPicker";
 import { useEditor } from "../ctx";
-import { Section } from "../components/Section";
 import { Field } from "../components/Field";
 import { Input } from "../components/Input";
 import { Btn } from "../components/Btn";
@@ -92,86 +91,79 @@ export function MergeSongView({ preset }: { preset?: Song }) {
         将源歌曲的视频和艺人转移到目标，然后删除源歌曲
       </p>
 
-      <Section title="合并配置">
-        <div className="space-y-5">
-          {preset ? (
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold uppercase tracking-wider text-destructive/80">
-                源歌曲（将被删除）
-              </label>
-              <SongCard song={preset} compact />
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold uppercase tracking-wider text-destructive/80">
-                源歌曲（将被删除）
-              </label>
-              <EntityPicker
-                kind="song"
-                value={source ? { id: source.id, name: source.name } : null}
-                onChange={loader.load}
-              />
-              {source && <SongCard song={source} compact />}
-            </div>
-          )}
+      <div className="space-y-1.5">
+        <label className="text-[11px] font-semibold uppercase tracking-wider text-destructive/80">
+          源歌曲（将被删除）
+        </label>
+        {preset ? (
+          <SongCard song={preset} compact />
+        ) : (
+          <>
+            <EntityPicker
+              kind="song"
+              value={source ? { id: source.id, name: source.name } : null}
+              onChange={loader.load}
+            />
+            {source && <SongCard song={source} compact />}
+          </>
+        )}
+      </div>
 
-          <div className="flex justify-center">
-            <ArrowDown className="h-5 w-5 text-muted-foreground/30" />
-          </div>
+      <div className="flex justify-center">
+        <ArrowDown className="h-5 w-5 text-muted-foreground/30" />
+      </div>
 
-          <div className="space-y-3">
-            <Field label="合并到">
-              <Select
-                value={mode}
-                onValueChange={(v: "existing" | "new") => {
-                  setMode(v);
-                  setTarget(null);
-                  setNewName("");
-                }}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="existing">已有歌曲</SelectItem>
-                  <SelectItem value="new">新歌曲</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            {mode === "existing" && (
-              <EntityPicker
-                kind="song"
-                value={target}
-                onChange={setTarget}
-                placeholder="搜索目标歌曲"
-              />
-            )}
-            {mode === "new" && (
-              <Input
-                placeholder="输入新歌曲名称"
-                value={newName}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setNewName(e.target.value)
-                }
-              />
-            )}
-          </div>
+      <div className="space-y-3">
+        <Field label="合并到">
+          <Select
+            value={mode}
+            onValueChange={(v: "existing" | "new") => {
+              setMode(v);
+              setTarget(null);
+              setNewName("");
+            }}
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="existing">已有歌曲</SelectItem>
+              <SelectItem value="new">新歌曲</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        {mode === "existing" && (
+          <EntityPicker
+            kind="song"
+            value={target}
+            onChange={setTarget}
+            placeholder="搜索目标歌曲"
+          />
+        )}
+        {mode === "new" && (
+          <Input
+            placeholder="输入新歌曲名称"
+            value={newName}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setNewName(e.target.value)
+            }
+          />
+        )}
+      </div>
 
-          <div className="flex gap-3 pt-2">
-            <Btn className="flex-1" onClick={back}>
-              取消
-            </Btn>
-            <Btn
-              variant="primary"
-              className="flex-1"
-              disabled={!canSubmit}
-              onClick={() => setConfirmOpen(true)}
-            >
-              合并歌曲
-            </Btn>
-          </div>
-        </div>
-      </Section>
+      <div className="flex gap-3 pt-2">
+        <Btn className="flex-1" onClick={back}>
+          取消
+        </Btn>
+        <Btn
+          variant="primary"
+          className="flex-1"
+          disabled={!canSubmit}
+          onClick={() => setConfirmOpen(true)}
+        >
+          合并歌曲
+        </Btn>
+      </div>
 
       <Confirm
         open={confirmOpen}
@@ -185,11 +177,11 @@ export function MergeSongView({ preset }: { preset?: Song }) {
         <div className="space-y-3 text-sm">
           <div className="p-3 bg-destructive/10 rounded-xl">
             <p className="text-[10px] text-muted-foreground">删除</p>
-            <p className="font-semibold">{source?.name}</p>
+            <p className="font-semibold wrap-break-word">{source?.name}</p>
           </div>
           <div className="p-3 bg-primary/10 rounded-xl">
             <p className="text-[10px] text-muted-foreground">保留</p>
-            <p className="font-semibold">
+            <p className="font-semibold wrap-break-word">
               {mode === "existing" ? target?.name : `新歌曲：${newName}`}
             </p>
           </div>

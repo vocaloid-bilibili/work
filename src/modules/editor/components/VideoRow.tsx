@@ -1,6 +1,5 @@
 // src/modules/editor/components/VideoRow.tsx
-import { ArrowRightLeft, Pencil, Trash2, MoreHorizontal } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { ArrowRightLeft, Pencil, Trash2 } from "lucide-react";
 import { COPYRIGHT_MAP } from "@/core/types/constants";
 import CachedImg from "@/shared/ui/CachedImg";
 import type { VideoSummary } from "@/core/types/catalog";
@@ -13,133 +12,76 @@ interface Props {
 }
 
 export function VideoRow({ video, onEdit, onReassign, onRemove }: Props) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [menuOpen]);
-
-  const menuAction = (fn: () => void) => {
-    setMenuOpen(false);
-    fn();
-  };
-
   const hasActions = !!(onReassign || onRemove);
 
   return (
-    <div className="group flex items-center gap-2.5 sm:gap-3 rounded-xl border bg-card p-2.5 sm:p-3 hover:border-foreground/20 transition-colors">
-      {video.thumbnail && (
-        <CachedImg
-          src={video.thumbnail}
-          alt=""
-          className="h-10 w-16 sm:h-12 sm:w-18 shrink-0 rounded-lg object-cover"
-        />
-      )}
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium truncate leading-snug">
+    <div
+      className="rounded-xl border bg-card p-3 space-y-2 hover:border-foreground/20 transition-colors cursor-pointer"
+      onClick={onEdit}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && onEdit()}
+    >
+      {/* 缩略图 + 标题 */}
+      <div className="flex gap-3">
+        {video.thumbnail && (
+          <CachedImg
+            src={video.thumbnail}
+            alt=""
+            className="w-24 aspect-video shrink-0 rounded-lg object-cover bg-muted"
+          />
+        )}
+        <p className="text-sm font-medium leading-snug wrap-break-word min-w-0 flex-1">
           {video.title}
         </p>
-        <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5 flex-wrap">
-          <span className="font-mono truncate max-w-[10ch] sm:max-w-none">
-            {video.bvid}
-          </span>
-          {video.copyright != null && (
-            <span className="hidden sm:inline">
-              · {COPYRIGHT_MAP[video.copyright] ?? "?"}
-            </span>
-          )}
-          {video.uploader?.name && (
-            <span className="hidden sm:inline truncate max-w-24">
-              · {video.uploader.name}
-            </span>
-          )}
-          {video.disabled && (
-            <span className="text-orange-600 font-semibold">· 已停止收录</span>
-          )}
-        </p>
       </div>
 
-      {/* 桌面 */}
-      <div className="hidden sm:flex gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={onEdit}
-          className="rounded-md p-1.5 hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-          title="编辑"
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </button>
-        {onReassign && (
-          <button
-            onClick={onReassign}
-            className="rounded-md p-1.5 hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-            title="拆分"
-          >
-            <ArrowRightLeft className="h-3.5 w-3.5" />
-          </button>
+      <div className="flex items-center gap-x-2.5 gap-y-1 flex-wrap text-xs text-muted-foreground">
+        <code className="select-all bg-muted/50 px-1.5 py-0.5 rounded text-[11px] font-mono">
+          {video.bvid}
+        </code>
+        {video.copyright != null && (
+          <span>{COPYRIGHT_MAP[video.copyright] ?? "?"}</span>
         )}
-        {onRemove && (
-          <button
-            onClick={onRemove}
-            className="rounded-md p-1.5 hover:bg-muted transition-colors text-destructive"
-            title="移除"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
+        {video.uploader?.name && <span>{video.uploader.name}</span>}
+        {video.disabled && (
+          <span className="text-orange-600 font-semibold">已停止收录</span>
         )}
       </div>
 
-      {/* 移动端 */}
-      {hasActions ? (
-        <div className="relative sm:hidden shrink-0" ref={menuRef}>
+      {hasActions && (
+        <div className="flex items-center gap-1 pt-0.5">
           <button
-            onClick={() => setMenuOpen((v) => !v)}
-            className="rounded-md p-1.5 hover:bg-muted transition-colors text-foreground/60"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
+            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
           >
-            <MoreHorizontal className="h-4 w-4" />
+            <Pencil className="h-3 w-3" /> 编辑
           </button>
-          {menuOpen && (
-            <div className="absolute right-0 top-full mt-1 z-50 rounded-xl border bg-popover shadow-lg py-1 min-w-32">
-              <button
-                onClick={() => menuAction(onEdit)}
-                className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors"
-              >
-                <Pencil className="h-3.5 w-3.5" /> 编辑
-              </button>
-              {onReassign && (
-                <button
-                  onClick={() => menuAction(onReassign)}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors"
-                >
-                  <ArrowRightLeft className="h-3.5 w-3.5" /> 拆分
-                </button>
-              )}
-              {onRemove && (
-                <button
-                  onClick={() => menuAction(onRemove)}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-muted transition-colors"
-                >
-                  <Trash2 className="h-3.5 w-3.5" /> 移除
-                </button>
-              )}
-            </div>
+          {onReassign && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onReassign();
+              }}
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+            >
+              <ArrowRightLeft className="h-3 w-3" /> 拆分
+            </button>
           )}
-        </div>
-      ) : (
-        <div className="sm:hidden shrink-0">
-          <button
-            onClick={onEdit}
-            className="rounded-md p-1.5 hover:bg-muted transition-colors text-foreground/60"
-          >
-            <Pencil className="h-4 w-4" />
-          </button>
+          {onRemove && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium hover:bg-muted transition-colors text-destructive"
+            >
+              <Trash2 className="h-3 w-3" /> 停止
+            </button>
+          )}
         </div>
       )}
     </div>

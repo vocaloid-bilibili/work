@@ -120,10 +120,10 @@ export function ReassignView({ bvid, title, parent }: Props) {
     <div className="space-y-5">
       <Section title="当前视频">
         <div>
-          <p className="text-sm font-medium truncate">{title}</p>
-          <p className="text-xs text-muted-foreground/60 font-mono mt-0.5">
+          <p className="text-sm font-medium wrap-break-word">{title}</p>
+          <code className="text-xs text-muted-foreground/60 font-mono mt-0.5 block">
             {bvid}
-          </p>
+          </code>
           {parent && (
             <div className="mt-3">
               <SongCard song={parent} compact />
@@ -132,113 +132,110 @@ export function ReassignView({ bvid, title, parent }: Props) {
         </div>
       </Section>
 
-      <Section title="移动到">
-        <div className="space-y-4">
-          <Field label="目标">
-            <Select
-              value={mode}
-              onValueChange={(v: "existing" | "new") => {
-                setMode(v);
-                setTarget(null);
-              }}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="existing">已有歌曲</SelectItem>
-                <SelectItem value="new">创建新歌曲</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
+      <div className="space-y-4">
+        <h3 className="text-sm font-bold px-1">移动到</h3>
 
-          {mode === "existing" && (
-            <EntityPicker
-              kind="song"
-              value={target}
-              onChange={setTarget}
-              placeholder="搜索目标歌曲"
-            />
-          )}
+        <Field label="目标">
+          <Select
+            value={mode}
+            onValueChange={(v: "existing" | "new") => {
+              setMode(v);
+              setTarget(null);
+            }}
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="existing">已有歌曲</SelectItem>
+              <SelectItem value="new">创建新歌曲</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
 
-          {mode === "new" && (
-            <div className="space-y-3 rounded-xl border p-4">
-              <p className="text-sm font-medium">新歌曲信息</p>
-              <Field label="歌曲名称">
-                <Input
-                  placeholder="输入新歌曲名称"
-                  value={name}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setName(e.target.value)
-                  }
+        {mode === "existing" && (
+          <EntityPicker
+            kind="song"
+            value={target}
+            onChange={setTarget}
+            placeholder="搜索目标歌曲"
+          />
+        )}
+
+        {mode === "new" && (
+          <div className="space-y-3 rounded-xl border p-4">
+            <p className="text-sm font-medium">新歌曲信息</p>
+            <Field label="歌曲名称">
+              <Input
+                placeholder="输入新歌曲名称"
+                value={name}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setName(e.target.value)
+                }
+              />
+            </Field>
+            <Field label="类型">
+              <Select value={type} onValueChange={(v: SongType) => setType(v)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SONG_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            {parent && (
+              <p className="text-[10px] text-muted-foreground/60">
+                以下艺人从原歌曲继承，可修改
+              </p>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Field label="歌手">
+                <TagEditor
+                  value={voc}
+                  onChange={setVoc}
+                  onInputChange={() => {}}
+                  searchType="vocalist"
                 />
               </Field>
-              <Field label="类型">
-                <Select
-                  value={type}
-                  onValueChange={(v: SongType) => setType(v)}
-                >
-                  <SelectTrigger className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SONG_TYPES.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <Field label="作者">
+                <TagEditor
+                  value={pro}
+                  onChange={setPro}
+                  onInputChange={() => {}}
+                  searchType="producer"
+                />
               </Field>
-              {parent && (
-                <p className="text-[10px] text-muted-foreground/60">
-                  以下艺人从原歌曲继承，可修改
-                </p>
-              )}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <Field label="歌手">
-                  <TagEditor
-                    value={voc}
-                    onChange={setVoc}
-                    onInputChange={() => {}}
-                    searchType="vocalist"
-                  />
-                </Field>
-                <Field label="作者">
-                  <TagEditor
-                    value={pro}
-                    onChange={setPro}
-                    onInputChange={() => {}}
-                    searchType="producer"
-                  />
-                </Field>
-                <Field label="引擎">
-                  <TagEditor
-                    value={syn}
-                    onChange={setSyn}
-                    onInputChange={() => {}}
-                    searchType="synthesizer"
-                  />
-                </Field>
-              </div>
+              <Field label="引擎">
+                <TagEditor
+                  value={syn}
+                  onChange={setSyn}
+                  onInputChange={() => {}}
+                  searchType="synthesizer"
+                />
+              </Field>
             </div>
-          )}
-
-          <div className="flex gap-3 pt-2">
-            <Btn className="flex-1" onClick={back}>
-              取消
-            </Btn>
-            <Btn
-              variant="primary"
-              className="flex-1"
-              disabled={!canSubmit}
-              onClick={() => setConfirmOpen(true)}
-            >
-              移动视频
-            </Btn>
           </div>
+        )}
+
+        <div className="flex gap-3 pt-2">
+          <Btn className="flex-1" onClick={back}>
+            取消
+          </Btn>
+          <Btn
+            variant="primary"
+            className="flex-1"
+            disabled={!canSubmit}
+            onClick={() => setConfirmOpen(true)}
+          >
+            移动视频
+          </Btn>
         </div>
-      </Section>
+      </div>
 
       <Confirm
         open={confirmOpen}
@@ -250,12 +247,15 @@ export function ReassignView({ bvid, title, parent }: Props) {
       >
         <div className="space-y-1.5 text-sm">
           <p>
-            视频：<strong className="font-mono">{bvid}</strong>
+            视频：
+            <code className="font-mono bg-muted/50 px-1.5 py-0.5 rounded text-xs">
+              {bvid}
+            </code>
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground wrap-break-word">
             从：{parent?.name ?? "?"}
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground wrap-break-word">
             到：{mode === "existing" ? target?.name : `新歌曲「${name}」`}
           </p>
         </div>

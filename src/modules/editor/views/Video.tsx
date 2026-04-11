@@ -14,6 +14,7 @@ import { logEdit } from "@/core/api/collabEndpoints";
 import { COPYRIGHT, COPYRIGHT_MAP } from "@/core/types/constants";
 import { useEditor } from "../ctx";
 import { useVideoForm } from "../hooks/useVideoForm";
+import { buildCollectedRow } from "../utils/collected";
 import { Section } from "../components/Section";
 import { Field } from "../components/Field";
 import { Input } from "../components/Input";
@@ -21,16 +22,17 @@ import { Btn } from "../components/Btn";
 import { SongCard } from "../components/SongCard";
 import { Confirm } from "../components/Confirm";
 import type { Song, Video } from "@/core/types/catalog";
-import { buildCollectedRow } from "../utils/collected";
 
 function VideoHeader({ video }: { video: Video }) {
   return (
-    <div className="space-y-1.5">
-      <h2 className="text-xl font-black tracking-tight truncate">
+    <div className="space-y-2">
+      <h2 className="text-xl font-black tracking-tight wrap-break-word">
         {video.title}
       </h2>
-      <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
-        <span className="font-mono">{video.bvid}</span>
+      <div className="flex items-center gap-x-2 gap-y-1 flex-wrap text-xs text-muted-foreground">
+        <code className="select-all bg-muted/50 px-1.5 py-0.5 rounded text-[11px] font-mono">
+          {video.bvid}
+        </code>
         <span>{COPYRIGHT_MAP[video.copyright] ?? "未知"}</span>
         {video.uploader?.name && <span>· {video.uploader.name}</span>}
         {video.disabled && (
@@ -119,7 +121,11 @@ function VideoFormSection({
         confirm="确认更新"
       >
         <div className="text-sm space-y-2">
-          <p className="font-mono">{video.bvid}</p>
+          <p>
+            <code className="font-mono bg-muted/50 px-1.5 py-0.5 rounded text-xs">
+              {video.bvid}
+            </code>
+          </p>
           <div className="text-xs text-muted-foreground space-y-0.5">
             {Object.entries(form.diff()).map(([k, d]) => (
               <p key={k}>
@@ -209,7 +215,6 @@ export function VideoView({ video }: { video: Video }) {
           collectedRow,
         },
       });
-
       toast.success(`已恢复收录：${video.bvid}`);
       refresh();
     } catch {
@@ -225,7 +230,7 @@ export function VideoView({ video }: { video: Video }) {
 
       {video.disabled && (
         <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 rounded-xl px-4 py-3 text-sm">
-          该视频已停止收录
+          该视频已停止收录，数据不再更新
         </div>
       )}
 
@@ -276,17 +281,19 @@ export function VideoView({ video }: { video: Video }) {
         onConfirm={doRemove}
         confirm="确认停止"
       >
-        <div className="text-sm">
+        <div className="text-sm space-y-2">
           <p>
-            <strong className="font-mono">{video.bvid}</strong>
+            <code className="font-mono bg-muted/50 px-1.5 py-0.5 rounded text-xs">
+              {video.bvid}
+            </code>
           </p>
           {video.title && (
-            <p className="text-xs text-muted-foreground mt-1 truncate">
+            <p className="text-xs text-muted-foreground wrap-break-word">
               {video.title}
             </p>
           )}
-          <p className="text-xs text-muted-foreground mt-2">
-            将从 collected 移除并标记为不收录
+          <p className="text-xs text-muted-foreground">
+            将从 collected 移除并标记为不收录，历史数据保留
           </p>
         </div>
       </Confirm>

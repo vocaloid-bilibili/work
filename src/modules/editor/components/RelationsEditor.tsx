@@ -8,11 +8,13 @@ import {
   X,
   Check,
   Mic,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/ui/cn";
 import { Btn } from "./Btn";
 import { Input } from "./Input";
 import CachedImg from "@/shared/ui/CachedImg";
+import { useEditor } from "../ctx";
 import type { useRelations, RelatedSong } from "../hooks/useRelations";
 import type { Song } from "@/core/types/catalog";
 
@@ -98,9 +100,11 @@ function artistLine(
 function RelationItem({
   song,
   onRemove,
+  onOpen,
 }: {
   song: RelatedSong;
   onRemove: () => void;
+  onOpen: () => void;
 }) {
   const display = song.display_name?.trim();
   const title = display || song.name;
@@ -111,42 +115,55 @@ function RelationItem({
   const artists = artistLine(song.producers, vocs);
 
   return (
-    <div className="group flex items-center gap-2.5 sm:gap-3 rounded-2xl px-2.5 py-2.5 sm:px-3 sm:py-3 transition-colors hover:bg-accent/40">
-      <Cover
-        url={relatedThumb(song)}
-        className="h-10 w-14 sm:h-12 sm:w-17 shrink-0"
-      />
+    <div
+      className="group flex items-start gap-2.5 sm:gap-3 rounded-2xl px-2.5 py-2.5 sm:px-3 sm:py-3 transition-colors hover:bg-accent/40 cursor-pointer"
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && onOpen()}
+    >
+      <Cover url={relatedThumb(song)} className="w-20 aspect-video shrink-0" />
 
-      <div className="min-w-0 flex-1 space-y-0.5">
-        <p className="text-[13px] font-semibold leading-tight truncate">
+      <div className="min-w-0 flex-1 space-y-1">
+        <p className="text-[13px] font-semibold leading-snug wrap-break-word">
           {title}
         </p>
-        <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-muted-foreground leading-none">
+        <div className="flex items-center gap-x-1.5 gap-y-0.5 flex-wrap text-[11px] text-muted-foreground leading-snug">
           <span className="font-mono">#{song.id}</span>
           {song.type && (
             <Badge color={typeBadgeColor(song.type)}>{song.type}</Badge>
           )}
-          {subtitle && (
-            <span className="truncate max-w-20 sm:max-w-32">{subtitle}</span>
-          )}
+          {subtitle && <span className="wrap-break-word">{subtitle}</span>}
         </div>
         {artists && (
-          <p className="text-[11px] text-muted-foreground leading-tight truncate">
+          <p className="text-[11px] text-muted-foreground leading-snug wrap-break-wordword">
             {artists}
           </p>
         )}
       </div>
 
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onRemove();
-        }}
-        className="shrink-0 rounded-xl p-2 text-muted-foreground opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 transition-all"
-        title="移除关联"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </button>
+      <div className="flex items-center gap-0.5 shrink-0 mt-1">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpen();
+          }}
+          className="rounded-lg p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all"
+          title="跳转编辑"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          className="rounded-lg p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-all"
+          title="移除关联"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -174,7 +191,7 @@ function SearchResult({
       disabled={disabled}
       onClick={onAction}
       className={cn(
-        "flex w-full items-center gap-2.5 sm:gap-3 rounded-xl p-2 sm:p-2.5 text-left transition-colors",
+        "flex w-full items-start gap-2.5 sm:gap-3 rounded-xl p-2 sm:p-2.5 text-left transition-colors",
         checked ? "bg-primary/8" : "hover:bg-accent/50",
         disabled && "opacity-50 cursor-not-allowed",
       )}
@@ -182,7 +199,7 @@ function SearchResult({
       {multiSelect && (
         <div
           className={cn(
-            "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+            "flex h-4 w-4 mt-1 shrink-0 items-center justify-center rounded border transition-colors",
             checked
               ? "bg-primary border-primary text-primary-foreground"
               : "border-muted-foreground/30",
@@ -192,32 +209,27 @@ function SearchResult({
         </div>
       )}
 
-      <Cover
-        url={songThumb(song)}
-        className="h-10 w-14 sm:h-12 sm:w-17 shrink-0"
-      />
+      <Cover url={songThumb(song)} className="w-20 aspect-video shrink-0" />
 
       <div className="min-w-0 flex-1 space-y-0.5">
-        <p className="text-[13px] font-semibold leading-tight truncate">
+        <p className="text-[13px] font-semibold leading-snug wrap-break-word">
           {title}
         </p>
         {subtitle && (
-          <p className="text-[11px] text-muted-foreground leading-tight truncate">
+          <p className="text-[11px] text-muted-foreground leading-snug wrap-break-word">
             {subtitle}
           </p>
         )}
-        <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-muted-foreground leading-none">
+        <div className="flex items-center gap-x-1.5 gap-y-0.5 flex-wrap text-[11px] text-muted-foreground leading-snug">
           <span className="font-mono">#{song.id}</span>
           {song.type && (
             <Badge color={typeBadgeColor(song.type)}>{song.type}</Badge>
           )}
-          {artists && (
-            <span className="truncate max-w-24 sm:max-w-none">{artists}</span>
-          )}
+          {artists && <span className="wrap-break-word">{artists}</span>}
         </div>
       </div>
 
-      {!multiSelect && <Plus className="h-4 w-4 shrink-0 text-primary" />}
+      {!multiSelect && <Plus className="h-4 w-4 shrink-0 mt-1 text-primary" />}
     </button>
   );
 }
@@ -343,13 +355,9 @@ function SectionHead({
   );
 }
 
-function EmptyHint({ text }: { text: string }) {
-  return (
-    <p className="py-4 text-center text-xs text-muted-foreground">{text}</p>
-  );
-}
-
 export function RelationsEditor({ r }: { r: R }) {
+  const { openSong } = useEditor();
+
   if (r.loading) {
     return (
       <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
@@ -389,7 +397,9 @@ export function RelationsEditor({ r }: { r: R }) {
         />
 
         {r.originals.length === 0 && r.mode !== "original" && (
-          <EmptyHint text="暂无本家关联" />
+          <p className="py-2 text-center text-[11px] text-muted-foreground/40">
+            无
+          </p>
         )}
 
         {r.originals.map((s) => (
@@ -397,6 +407,7 @@ export function RelationsEditor({ r }: { r: R }) {
             key={s.id}
             song={s}
             onRemove={() => r.remove("original", s.id)}
+            onOpen={() => openSong(s.id)}
           />
         ))}
       </section>
@@ -408,8 +419,7 @@ export function RelationsEditor({ r }: { r: R }) {
           actions={
             <div className="flex items-center gap-0.5">
               <Btn variant="ghost" size="sm" onClick={r.findCovers}>
-                <Mic className="h-3 w-3" />{" "}
-                <span className="hidden sm:inline">查找翻唱</span>
+                <Mic className="h-3 w-3" /> 查找翻唱
               </Btn>
               <Btn
                 variant="ghost"
@@ -435,14 +445,16 @@ export function RelationsEditor({ r }: { r: R }) {
         />
 
         {r.derivatives.length === 0 && r.mode !== "derivative" && (
-          <EmptyHint text="暂无衍生作品" />
+          <p className="py-2 text-center text-[11px] text-muted-foreground/40">
+            无
+          </p>
         )}
-
         {r.derivatives.map((s) => (
           <RelationItem
             key={s.id}
             song={s}
             onRemove={() => r.remove("derivative", s.id)}
+            onOpen={() => openSong(s.id)}
           />
         ))}
       </section>
