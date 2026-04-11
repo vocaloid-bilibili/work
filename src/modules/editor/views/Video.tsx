@@ -1,8 +1,7 @@
 // src/modules/editor/views/Video.tsx
 import { useState, useEffect, useCallback } from "react";
-import { ExternalLink, ArrowRightLeft, Trash2 } from "lucide-react";
+import { ExternalLink, ArrowRightLeft, Trash2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
-import { Switch } from "@/ui/switch";
 import {
   Select,
   SelectContent,
@@ -34,7 +33,7 @@ function VideoHeader({ video }: { video: Video }) {
         <span>{COPYRIGHT_MAP[video.copyright] ?? "未知"}</span>
         {video.uploader?.name && <span>· {video.uploader.name}</span>}
         {video.disabled && (
-          <span className="text-orange-600 font-semibold">已禁用</span>
+          <span className="text-orange-600 font-semibold">已停止收录</span>
         )}
         <a
           href={`https://www.bilibili.com/video/${video.bvid}`}
@@ -96,18 +95,6 @@ function VideoFormSection({
               </SelectContent>
             </Select>
           </Field>
-          <div className="flex items-center justify-between rounded-xl bg-muted/40 p-3.5">
-            <div>
-              <p className="text-sm font-semibold">禁用视频</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                禁用后不参与排名，数据保留
-              </p>
-            </div>
-            <Switch
-              checked={form.disabled}
-              onCheckedChange={form.setDisabled}
-            />
-          </div>
           <Btn
             variant="primary"
             className="w-full"
@@ -146,10 +133,11 @@ function VideoFormSection({
 }
 
 export function VideoView({ video }: { video: Video }) {
-  const { canBack, back, home, push, openSong, replace } = useEditor();
+  const { push, openSong, replace } = useEditor();
   const [parent, setParent] = useState<Song | null>(null);
   const [rmOpen, setRmOpen] = useState(false);
   const [rmLoading, setRmLoading] = useState(false);
+  const [restoreLoading, setRestoreLoading] = useState(false);
 
   useEffect(() => {
     if (!video.song_id) {
@@ -158,7 +146,7 @@ export function VideoView({ video }: { video: Video }) {
     }
     let c = false;
     api
-      .selectSong(video.song_id)
+      .selectSong(video.song_id, true)
       .then((r) => {
         if (!c) setParent(r.data);
       })
@@ -182,15 +170,16 @@ export function VideoView({ video }: { video: Video }) {
   const doRemove = async () => {
     setRmLoading(true);
     try {
+      await api.deleteVideo(video.bvid);
       await logEdit({
         targetType: "video",
         targetId: video.bvid,
         action: "delete_video",
         detail: { bvid: video.bvid, title: video.title },
       });
-      toast.success(`已提交移除：${video.bvid}`);
+      toast.success(`已停止收录：${video.bvid}`);
       setRmOpen(false);
-      canBack ? back() : home();
+      refresh();
     } catch {
       toast.error("操作失败");
     } finally {
@@ -198,9 +187,34 @@ export function VideoView({ video }: { video: Video }) {
     }
   };
 
+  const doRestore = async () => {
+    setRestoreLoading(true);
+    try {
+      await api.restoreVideo(video.bvid);
+      await logEdit({
+        targetType: "video",
+        targetId: video.bvid,
+        action: "restore_video",
+        detail: { bvid: video.bvid, title: video.title },
+      });
+      toast.success(`已恢复收录：${video.bvid}`);
+      refresh();
+    } catch {
+      toast.error("操作失败");
+    } finally {
+      setRestoreLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <VideoHeader video={video} />
+
+      {video.disabled && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 rounded-xl px-4 py-3 text-sm">
+          该视频已停止收录
+        </div>
+      )}
 
       {parent && <SongCard song={parent} onClick={() => openSong(parent.id)} />}
 
@@ -220,23 +234,34 @@ export function VideoView({ video }: { video: Video }) {
         >
           拆分/移动
         </Btn>
-        <Btn
-          variant="danger"
-          icon={<Trash2 className="h-3.5 w-3.5" />}
-          onClick={() => setRmOpen(true)}
-        >
-          从收录移除
-        </Btn>
+        {video.disabled ? (
+          <Btn
+            variant="primary"
+            icon={<RotateCcw className="h-3.5 w-3.5" />}
+            loading={restoreLoading}
+            onClick={doRestore}
+          >
+            恢复收录
+          </Btn>
+        ) : (
+          <Btn
+            variant="danger"
+            icon={<Trash2 className="h-3.5 w-3.5" />}
+            onClick={() => setRmOpen(true)}
+          >
+            停止收录
+          </Btn>
+        )}
       </div>
 
       <Confirm
         open={rmOpen}
         onOpenChange={setRmOpen}
-        title="确认移除视频"
+        title="确认停止收录"
         variant="destructive"
         loading={rmLoading}
         onConfirm={doRemove}
-        confirm="确认移除"
+        confirm="确认停止"
       >
         <div className="text-sm">
           <p>
@@ -247,8 +272,8 @@ export function VideoView({ video }: { video: Video }) {
               {video.title}
             </p>
           )}
-          <p className="text-xs text-muted-foreground mt-1">
-            仅从 collected 数据移除
+          <p className="text-xs text-muted-foreground mt-2">
+            将从 collected 移除并标记为不收录
           </p>
         </div>
       </Confirm>

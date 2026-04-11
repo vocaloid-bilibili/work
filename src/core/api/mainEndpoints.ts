@@ -27,9 +27,11 @@ export const search = (
     .then((r) => r.data);
 
 // ── 查询 ──
-export const selectSong = (id: number) =>
+export const selectSong = (id: number, includeDisabled = false) =>
   http
-    .get("/select/song", { params: { id } })
+    .get("/select/song", {
+      params: { id, ...(includeDisabled ? { include_disabled: true } : {}) },
+    })
     .then((r) => r.data as { data: Song });
 
 export const selectVideo = (bvid: string) =>
@@ -68,8 +70,24 @@ export const deleteSong = (id: number) =>
       },
   );
 
+export const disableSong = (id: number) =>
+  http.post(`/edit/song/${id}/disable`).then(
+    (r) =>
+      r.data as {
+        status: string;
+        song_id: number;
+        disabled_bvids: string[];
+      },
+  );
+
 export const deleteVideo = (bvid: string) =>
   http.delete(`/edit/video/${bvid}`).then((r) => r.data);
+
+export const restoreVideo = (bvid: string) =>
+  http.post(`/edit/video/${bvid}/restore`).then((r) => r.data);
+
+export const hardDeleteVideo = (bvid: string) =>
+  http.delete(`/edit/video/${bvid}/hard`).then((r) => r.data);
 
 export const mergeSong = (
   sourceId: number,
@@ -157,6 +175,7 @@ export const checkRanking = (board: string, part: string, issue: number) =>
   http
     .get("/update/check_ranking", { params: { board, part, issue } })
     .then((r) => r.data);
+
 // ── 歌曲关联 ──
 export const getSongRelations = (songId: number) =>
   http.get("/select/song/relations", { params: { id: songId } }).then(
@@ -197,6 +216,7 @@ export const removeSongRelation = (songId: number, relatedSongId: number) =>
       params: { song_id: songId, related_song_id: relatedSongId },
     })
     .then((r) => r.data as { status: string });
+
 export const addSongRelationBatch = (
   songId: number,
   relatedSongIds: number[],

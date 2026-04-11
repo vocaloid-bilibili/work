@@ -5,6 +5,7 @@ import {
   GitMerge,
   Plus,
   Trash2,
+  Ban,
   ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -35,6 +36,8 @@ import type { Song, SongType } from "@/core/types/catalog";
 function SongHeader({ song }: { song: Song }) {
   const name = song.display_name || song.name;
   const videos = song.videos ?? [];
+  const activeVideos = videos.filter((v) => !v.disabled);
+  const disabledVideos = videos.filter((v) => v.disabled);
 
   return (
     <div className="space-y-1.5">
@@ -45,7 +48,15 @@ function SongHeader({ song }: { song: Song }) {
         <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold text-foreground/60">
           {song.type}
         </span>
-        <span>{videos.length} 视频</span>
+        <span>
+          {activeVideos.length} 视频
+          {disabledVideos.length > 0 && (
+            <span className="text-orange-600">
+              {" "}
+              + {disabledVideos.length} 已停止
+            </span>
+          )}
+        </span>
         <a
           href={`https://vocabili.top/song/${song.id}`}
           target="_blank"
@@ -169,6 +180,8 @@ function VideoListSection({
   const [rmTitle, setRmTitle] = useState("");
   const [rmLoading, setRmLoading] = useState(false);
   const videos = song.videos ?? [];
+  const activeVideos = videos.filter((v) => !v.disabled);
+  const disabledVideos = videos.filter((v) => v.disabled);
 
   if (videos.length === 0) return null;
 
@@ -176,13 +189,14 @@ function VideoListSection({
     if (!rmBvid) return;
     setRmLoading(true);
     try {
+      await api.deleteVideo(rmBvid);
       await logEdit({
         targetType: "video",
         targetId: rmBvid,
         action: "delete_video",
         detail: { bvid: rmBvid, title: rmTitle },
       });
-      toast.success(`已提交移除：${rmBvid}`);
+      toast.success(`已停止收录：${rmBvid}`);
       setRmBvid(null);
       onRemoved();
     } catch {
@@ -195,7 +209,7 @@ function VideoListSection({
   return (
     <>
       <Section
-        title={`关联视频（${videos.length}）`}
+        title={`关联视频（${activeVideos.length}${disabledVideos.length ? ` + ${disabledVideos.length} 已停止` : ""}）`}
         noPad
         actions={
           <button
@@ -213,7 +227,7 @@ function VideoListSection({
       >
         {expanded && (
           <div className="p-4 space-y-2">
-            {videos.map((v) => (
+            {activeVideos.map((v) => (
               <VideoRow
                 key={v.bvid}
                 video={v}
@@ -232,6 +246,18 @@ function VideoListSection({
                 }}
               />
             ))}
+            {disabledVideos.length > 0 && (
+              <>
+                <div className="text-xs text-muted-foreground pt-2 pb-1 border-t">
+                  已停止收录
+                </div>
+                {disabledVideos.map((v) => (
+                  <div key={v.bvid} className="opacity-50">
+                    <VideoRow video={v} onEdit={() => openVideo(v.bvid)} />
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         )}
       </Section>
@@ -241,11 +267,11 @@ function VideoListSection({
         onOpenChange={(v) => {
           if (!v) setRmBvid(null);
         }}
-        title="确认移除视频"
+        title="确认停止收录"
         variant="destructive"
         loading={rmLoading}
         onConfirm={doRemove}
-        confirm="确认移除"
+        confirm="确认停止"
       >
         <div className="text-sm">
           <p>
@@ -257,7 +283,7 @@ function VideoListSection({
             </p>
           )}
           <p className="text-xs text-muted-foreground mt-2">
-            仅从 collected 数据移除，数据库不受影响
+            将从 collected 移除并标记为不收录
           </p>
         </div>
       </Confirm>
@@ -268,35 +294,64 @@ function VideoListSection({
 export function SongView({ song }: { song: Song }) {
   const { home, push, replace } = useEditor();
   const rels = useRelations(song);
-  const [rmSongOpen, setRmSongOpen] = useState(false);
-  const [rmSongLoading, setRmSongLoading] = useState(false);
+
+  const [disableOpen, setDisableOpen] = useState(false);
+  const [disableLoading, setDisableLoading] = useState(false);
+
+  const [hardDeleteOpen, setHardDeleteOpen] = useState(false);
+  const [hardDeleteLoading, setHardDeleteLoading] = useState(false);
+
+  const activeVideos = (song.videos ?? []).filter((v) => !v.disabled);
+  const hasActiveVideos = activeVideos.length > 0;
 
   const refresh = useCallback(async () => {
     try {
-      const r = await api.selectSong(song.id);
+      const r = await api.selectSong(song.id, true);
       replace({ id: "song", song: r.data });
     } catch {
       /* silent */
     }
   }, [song.id, replace]);
 
-  const doRemoveSong = async () => {
-    setRmSongLoading(true);
+  const doDisableSong = async () => {
+    setDisableLoading(true);
     try {
-      const bvids = song.videos?.map((v) => v.bvid) ?? [];
+      await api.disableSong(song.id);
+      const bvids = activeVideos.map((v) => v.bvid);
+      await logEdit({
+        targetType: "song",
+        targetId: String(song.id),
+        action: "disable_song",
+        detail: { songName: song.name, bvids },
+      });
+      toast.success(`已停止收录：${song.name}`);
+      setDisableOpen(false);
+      refresh();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || "操作失败");
+    } finally {
+      setDisableLoading(false);
+    }
+  };
+
+  const doHardDeleteSong = async () => {
+    setHardDeleteLoading(true);
+    try {
+      const bvids = (song.videos ?? []).map((v) => v.bvid);
+      await api.deleteSong(song.id);
       await logEdit({
         targetType: "song",
         targetId: String(song.id),
         action: "delete_song",
         detail: { songName: song.name, bvids },
       });
-      toast.success(`已提交移除：${song.name}（${bvids.length} 个视频）`);
-      setRmSongOpen(false);
+      toast.success(`已彻底删除：${song.name}`);
+      setHardDeleteOpen(false);
       home();
-    } catch {
-      toast.error("操作失败");
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || "操作失败");
     } finally {
-      setRmSongLoading(false);
+      setHardDeleteLoading(false);
     }
   };
 
@@ -324,33 +379,65 @@ export function SongView({ song }: { song: Song }) {
         >
           合并到其他歌曲
         </Btn>
+        {hasActiveVideos && (
+          <Btn
+            variant="danger"
+            icon={<Ban className="h-3.5 w-3.5" />}
+            onClick={() => setDisableOpen(true)}
+          >
+            停止收录
+          </Btn>
+        )}
         <Btn
           variant="danger"
           icon={<Trash2 className="h-3.5 w-3.5" />}
-          onClick={() => setRmSongOpen(true)}
+          onClick={() => setHardDeleteOpen(true)}
         >
-          从收录移除
+          彻底删除
         </Btn>
       </div>
 
+      {/* 停止收录确认 */}
       <Confirm
-        open={rmSongOpen}
-        onOpenChange={setRmSongOpen}
-        title="确认移除歌曲"
+        open={disableOpen}
+        onOpenChange={setDisableOpen}
+        title="确认停止收录"
         variant="destructive"
-        loading={rmSongLoading}
-        onConfirm={doRemoveSong}
-        confirm="确认移除"
+        loading={disableLoading}
+        onConfirm={doDisableSong}
+        confirm="确认停止"
       >
         <div className="text-sm">
           <p>
             歌曲：<strong>{song.name}</strong>
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            将移除 {song.videos?.length ?? 0} 个视频的收录行
+            将停止收录 {activeVideos.length} 个视频
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            仅从 collected 数据移除，数据库不受影响
+            从 collected 移除并标记为不收录，历史数据保留
+          </p>
+        </div>
+      </Confirm>
+
+      <Confirm
+        open={hardDeleteOpen}
+        onOpenChange={setHardDeleteOpen}
+        title="确认彻底删除"
+        variant="destructive"
+        loading={hardDeleteLoading}
+        onConfirm={doHardDeleteSong}
+        confirm="确认删除"
+      >
+        <div className="text-sm">
+          <p>
+            歌曲：<strong>{song.name}</strong>
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            将删除 {(song.videos ?? []).length} 个视频
+          </p>
+          <p className="text-xs text-destructive mt-1 font-medium">
+            数据库记录将被永久删除（包括快照、排名关联等），不可恢复
           </p>
         </div>
       </Confirm>
