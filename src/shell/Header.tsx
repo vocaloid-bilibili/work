@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/ui/dropdown-menu";
-import { useCachedSrc } from "@/shared/ui/CachedImg";
+import CachedImg, { useCachedSrc } from "@/shared/ui/CachedImg";
 
 const NAV = [
   { name: "打标", path: "/mark" },
@@ -80,7 +80,7 @@ export default function Header() {
                   className="flex items-center gap-2 rounded-full border bg-background px-1.5 py-1 pr-3 text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {avatar ? (
-                    <img
+                    <CachedImg
                       src={avatar}
                       alt=""
                       className="h-7 w-7 rounded-full object-cover"
@@ -100,7 +100,7 @@ export default function Header() {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex items-center gap-3 py-1">
                     {avatar ? (
-                      <img
+                      <CachedImg
                         src={avatar}
                         alt=""
                         className="h-10 w-10 shrink-0 rounded-full object-cover"

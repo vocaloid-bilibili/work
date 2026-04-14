@@ -20,6 +20,7 @@ import { Section } from "../components/Section";
 import { Field } from "../components/Field";
 import { Input } from "../components/Input";
 import { Btn } from "../components/Btn";
+import CachedImg from "@/shared/ui/CachedImg";
 
 interface Props {
   preset?: Song;
@@ -253,7 +254,7 @@ export function AddView({ preset }: Props) {
           {preview && (
             <div className="flex flex-col sm:flex-row gap-3 rounded-xl bg-muted/30 border border-border/30 p-3">
               {preview.pic && (
-                <img
+                <CachedImg
                   src={preview.pic}
                   alt=""
                   className="h-24 sm:h-16 w-full sm:w-24 shrink-0 rounded-lg object-cover"
