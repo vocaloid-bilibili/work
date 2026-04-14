@@ -1,6 +1,6 @@
 // src/core/auth/token.ts
-const AK = "access_token";
-const RK = "refresh_token";
+const AK = "vbs_access_token";
+const RK = "vbs_refresh_token";
 
 export const getAccess = () => localStorage.getItem(AK);
 export const getRefresh = () => localStorage.getItem(RK);
@@ -57,7 +57,7 @@ export async function refreshAccessToken(): Promise<string | null> {
       return null;
     }
     const d = await res.json();
-    setTokens(d.access_token, rt);
+    setTokens(d.access_token, d.refresh_token ?? rt);
     return d.access_token;
   } catch {
     return null;
