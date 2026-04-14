@@ -279,7 +279,7 @@ export const addVideoToSong = (data: {
   song_id: number;
   bvid: string;
   title: string;
-  aid?: number;
+  aid: number;
   pubdate_ts: number;
   copyright: number;
   thumbnail?: string;
@@ -304,7 +304,7 @@ export const addNewSong = (data: {
   display_name?: string;
   type: string;
   title: string;
-  aid?: number;
+  aid: number;
   pubdate_ts: number;
   copyright: number;
   thumbnail?: string;
