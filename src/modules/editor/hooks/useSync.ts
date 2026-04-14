@@ -26,7 +26,7 @@ async function _fetch() {
 function _startPolling() {
   if (_timer) return;
   _fetch();
-  _timer = setInterval(_fetch, 60_000);
+  _timer = setInterval(_fetch, 15_000);
 }
 
 function _stopPollingIfEmpty() {
