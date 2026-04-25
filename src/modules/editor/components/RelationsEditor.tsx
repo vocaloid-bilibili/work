@@ -67,15 +67,15 @@ function Badge({
 function typeBadgeColor(type?: string) {
   switch (type) {
     case "翻唱":
-      return "bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300";
+      return "bg-blue-500/10 text-blue-600 dark:text-blue-400";
     case "原创":
-      return "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300";
+      return "bg-pink-500/10 text-pink-600 dark:text-pink-400";
     case "本家重置":
-      return "bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300";
+      return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
     case "串烧":
-      return "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300";
+      return "bg-amber-500/10 text-amber-600 dark:text-amber-400";
     default:
-      return "bg-neutral-100 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300";
+      return "bg-blue-500/10 text-blue-600 dark:text-blue-400";
   }
 }
 
