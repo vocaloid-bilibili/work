@@ -324,3 +324,28 @@ export const addNewSong = (data: {
         collected_row: CollectedRow;
       },
   );
+export const addReferenceSong = (data: {
+  name: string;
+  display_name?: string;
+  type?: string;
+  vocalist_names?: string[];
+  producer_names?: string[];
+  synthesizer_names?: string[];
+  bvid?: string;
+  title?: string;
+  aid?: number;
+  pubdate_ts?: number;
+  copyright?: number;
+  thumbnail?: string;
+  uploader_name?: string;
+  duration?: number;
+}) =>
+  http.post("/edit/song/add-reference", data).then(
+    (r) =>
+      r.data as {
+        status: string;
+        song_id: number;
+        bvid: string | null;
+        collected_row: null;
+      },
+  );

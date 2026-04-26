@@ -26,7 +26,9 @@ interface Props {
   preset?: Song;
 }
 
-type Mode = "existing" | "new";
+type TopMode = "collect" | "reference";
+type SubMode = "existing" | "new";
+
 interface SongRef {
   id: number;
   name: string;
@@ -35,23 +37,27 @@ interface SongRef {
 
 export function AddView({ preset }: Props) {
   const { openSong } = useEditor();
+
+  const [topMode, setTopMode] = useState<TopMode>("collect");
+
+  const [subMode, setSubMode] = useState<SubMode>(preset ? "existing" : "new");
+
   const [bvid, setBvid] = useState("");
   const [preview, setPreview] = useState<api.BilibiliVideoInfo | null>(null);
   const [fetching, setFetching] = useState(false);
-  const [mode, setMode] = useState<Mode>(preset ? "existing" : "new");
+
+  // 目标歌曲（existing 模式）
   const [sel, setSel] = useState<SongRef | null>(
     preset
-      ? {
-          id: preset.id,
-          name: preset.name,
-          display_name: preset.display_name,
-        }
+      ? { id: preset.id, name: preset.name, display_name: preset.display_name }
       : null,
   );
   const [sq, setSq] = useState("");
   const [sr, setSr] = useState<SongRef[]>([]);
   const [searching, setSearching] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // 歌曲信息
   const [name, setName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [songType, setSongType] = useState("原创");
@@ -77,7 +83,8 @@ export function AddView({ preset }: Props) {
       const info = await api.fetchBilibiliVideo(id);
       setPreview(info);
       setCopyright(info.copyright);
-      if (mode === "new" && !name) setName(info.title);
+      if ((topMode === "collect" ? subMode === "new" : true) && !name)
+        setName(info.title);
     } catch (err: any) {
       const d = err?.response?.data?.detail;
       toast.error(
@@ -88,8 +95,9 @@ export function AddView({ preset }: Props) {
     }
   };
 
+  // 搜索已有歌曲
   useEffect(() => {
-    if (mode !== "existing" || !sq.trim()) {
+    if (subMode !== "existing" || topMode !== "collect" || !sq.trim()) {
       setSr([]);
       return;
     }
@@ -112,12 +120,20 @@ export function AddView({ preset }: Props) {
       }
     }, 300);
     return () => clearTimeout(timer.current);
-  }, [sq, mode]);
+  }, [sq, subMode, topMode]);
 
-  const handleSubmit = async () => {
+  useEffect(() => {
+    if (topMode === "reference") {
+      setSel(null);
+      setSq("");
+      setSr([]);
+    }
+  }, [topMode]);
+
+  const handleCollectSubmit = async () => {
     if (!preview) return;
 
-    if (mode === "existing") {
+    if (subMode === "existing") {
       if (!sel) {
         toast.error("请选择目标歌曲");
         return;
@@ -233,259 +249,495 @@ export function AddView({ preset }: Props) {
     }
   };
 
+  const handleReferenceSubmit = async () => {
+    if (!name.trim()) {
+      toast.error("请填写歌曲名称");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const params: Record<string, unknown> = {
+        name: name.trim(),
+        display_name: displayName.trim() || undefined,
+        type: songType,
+        vocalist_names: split(vocInput),
+        producer_names: split(proInput),
+        synthesizer_names: split(synInput),
+      };
+
+      if (preview) {
+        params.bvid = preview.bvid;
+        params.title = preview.title;
+        params.aid = preview.aid;
+        params.pubdate_ts = preview.pubdate;
+        params.copyright = copyright;
+        params.thumbnail = preview.pic;
+        params.uploader_name = preview.owner?.name;
+        params.duration = preview.duration;
+      }
+
+      const res = await api.addReferenceSong(params as any);
+
+      logEdit({
+        targetType: "song",
+        targetId: String(res.song_id),
+        action: "add_song",
+        detail: {
+          songId: res.song_id,
+          songName: name.trim(),
+          bvid: res.bvid,
+          videoTitle: preview?.title,
+          type: songType,
+          collected: false,
+          collectedRow: null,
+        },
+      });
+
+      toast.success(`参考歌曲已创建（ID: ${res.song_id}）`);
+      openSong(res.song_id);
+    } catch (err: any) {
+      const d = err?.response?.data?.detail;
+      toast.error(
+        typeof d === "string"
+          ? d
+          : Array.isArray(d)
+            ? d.map((x: any) => x.msg ?? String(x)).join("；")
+            : err?.message || "创建失败",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const pubStr = preview
     ? new Date(preview.pubdate * 1000).toLocaleString("zh-CN")
     : "";
-  const canSubmit =
+
+  const canCollectSubmit =
     !!preview &&
     !submitting &&
-    (mode === "existing"
+    (subMode === "existing"
       ? !!sel
       : !!name.trim() &&
         !!vocInput.trim() &&
         !!proInput.trim() &&
         !!synInput.trim());
 
+  const canRefSubmit = !submitting && !!name.trim();
+
+  const isRef = topMode === "reference";
+
   return (
     <div className="space-y-5">
-      <Section title="视频信息">
-        <div className="space-y-4">
-          <Field label="BV 号">
-            <div className="flex gap-2">
-              <Input
-                placeholder="输入 BV 号"
-                value={bvid}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setBvid(e.target.value)
-                }
-                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) =>
-                  e.key === "Enter" && fetchVideo()
-                }
-              />
-              <Btn
-                variant="primary"
-                onClick={fetchVideo}
-                disabled={fetching || !bvid.trim()}
-                loading={fetching}
-              >
-                获取
-              </Btn>
-            </div>
-          </Field>
-
-          {preview && (
-            <div className="flex flex-col sm:flex-row gap-3 rounded-xl bg-muted/30 border border-border/30 p-3">
-              {preview.pic && (
-                <CachedImg
-                  src={preview.pic}
-                  alt=""
-                  className="h-24 sm:h-16 w-full sm:w-24 shrink-0 rounded-lg object-cover"
-                />
+      {!preset && (
+        <div className="flex gap-3">
+          {(
+            [
+              { key: "collect", label: "收录" },
+              { key: "reference", label: "参考歌曲" },
+            ] as const
+          ).map((m) => (
+            <button
+              key={m.key}
+              onClick={() => setTopMode(m.key)}
+              className={cn(
+                "flex-1 rounded-xl border py-2.5 text-sm font-medium transition-all",
+                topMode === m.key
+                  ? m.key === "reference"
+                    ? "border-amber-500 bg-amber-500/5 text-amber-600 ring-1 ring-amber-500/15"
+                    : "border-primary bg-primary/5 text-primary ring-1 ring-primary/15"
+                  : "border-border/50 text-muted-foreground hover:bg-muted/30",
               )}
-              <div className="min-w-0 flex-1 space-y-1">
-                <p className="text-sm font-medium leading-snug line-clamp-2 sm:truncate">
-                  {preview.title}
-                </p>
-                <p className="text-[11px] text-muted-foreground/60 break-all">
-                  {preview.bvid} · av{preview.aid} · {pubStr}
-                </p>
-                <p className="text-[11px] text-muted-foreground/60">
-                  UP主：{preview.owner?.name} · 播放：
-                  {preview.stat?.view?.toLocaleString()}
-                </p>
-              </div>
-            </div>
-          )}
+            >
+              {m.label}
+            </button>
+          ))}
         </div>
-      </Section>
+      )}
 
-      {preview && (
+      {isRef && (
         <>
-          <div className="flex gap-3">
-            {(["existing", "new"] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                className={cn(
-                  "flex-1 rounded-xl border py-2.5 text-sm font-medium transition-all",
-                  mode === m
-                    ? "border-primary bg-primary/5 text-primary ring-1 ring-primary/15"
-                    : "border-border/50 text-muted-foreground hover:bg-muted/30",
-                )}
-              >
-                {m === "existing" ? "添加到已有歌曲" : "创建新歌曲"}
-              </button>
-            ))}
-          </div>
-
-          {mode === "existing" ? (
-            <Section title="目标歌曲">
-              <div className="space-y-3">
-                {sel && (
-                  <div className="flex items-center justify-between rounded-xl bg-primary/5 border border-primary/20 px-3.5 py-2.5">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold truncate">
-                        {sLabel(sel)}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground/60">
-                        #{sel.id}
-                        {sel.display_name &&
-                          sel.display_name !== sel.name &&
-                          ` · ${sel.name}`}
-                      </p>
-                    </div>
-                    {!preset && (
-                      <button
-                        onClick={() => setSel(null)}
-                        className="ml-2 shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted transition-colors"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {!sel && (
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
-                      <Input
-                        className="pl-9"
-                        placeholder="搜索歌曲名称…"
-                        value={sq}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          setSq(e.target.value)
-                        }
-                      />
-                      {searching && (
-                        <Loader2 className="absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-muted-foreground/40" />
-                      )}
-                    </div>
-                    {sr.length > 0 && (
-                      <div className="max-h-48 overflow-y-auto rounded-xl border divide-y">
-                        {sr.map((s) => (
-                          <button
-                            key={s.id}
-                            className="flex w-full items-center justify-between px-3 py-2.5 text-sm text-left hover:bg-muted/40 transition-colors"
-                            onClick={() => {
-                              setSel(s);
-                              setSq("");
-                              setSr([]);
-                            }}
-                          >
-                            <span className="truncate">{sLabel(s)}</span>
-                            <span className="ml-2 shrink-0 text-xs text-muted-foreground/50">
-                              #{s.id}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </Section>
-          ) : (
-            <Section title="新歌曲信息">
-              <div className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="歌曲名称 *" error={!name.trim()}>
-                    <Input
-                      value={name}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        setName(e.target.value)
-                      }
-                      placeholder="数据库唯一标识"
-                    />
-                  </Field>
-                  <Field label="显示名称">
-                    <Input
-                      value={displayName}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        setDisplayName(e.target.value)
-                      }
-                      placeholder="留空则与歌曲名称相同"
-                    />
-                  </Field>
-                </div>
-                <Field label="歌曲类型">
-                  <Select value={songType} onValueChange={setSongType}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SONG_TYPES.map((t) => (
-                        <SelectItem key={t} value={t}>
-                          {t}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  <Field label="歌手 *" error={!vocInput.trim()}>
-                    <TagEditor
-                      value={vocInput}
-                      onChange={setVocInput}
-                      onInputChange={() => {}}
-                      searchType="vocalist"
-                    />
-                  </Field>
-                  <Field label="作者 *" error={!proInput.trim()}>
-                    <TagEditor
-                      value={proInput}
-                      onChange={setProInput}
-                      onInputChange={() => {}}
-                      searchType="producer"
-                    />
-                  </Field>
-                  <Field label="引擎 *" error={!synInput.trim()}>
-                    <TagEditor
-                      value={synInput}
-                      onChange={setSynInput}
-                      onInputChange={() => {}}
-                      searchType="synthesizer"
-                    />
-                  </Field>
-                </div>
-              </div>
-            </Section>
-          )}
-
-          <Section>
+          <Section title="歌曲信息">
             <div className="space-y-4">
-              <Field label="视频类型">
-                <Select
-                  value={String(copyright)}
-                  onValueChange={(v: string) => setCopyright(Number(v))}
-                >
-                  <SelectTrigger className="h-9 sm:w-auto sm:min-w-52">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="歌曲名称 *" error={!name.trim()}>
+                  <Input
+                    value={name}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setName(e.target.value)
+                    }
+                    placeholder="数据库唯一标识"
+                  />
+                </Field>
+                <Field label="显示名称">
+                  <Input
+                    value={displayName}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setDisplayName(e.target.value)
+                    }
+                    placeholder="留空则与歌曲名称相同"
+                  />
+                </Field>
+              </div>
+              <Field label="歌曲类型">
+                <Select value={songType} onValueChange={setSongType}>
+                  <SelectTrigger className="h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {COPYRIGHT.map((c) => (
-                      <SelectItem key={c.value} value={String(c.value)}>
-                        {c.label}
+                    {SONG_TYPES.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </Field>
-              <Btn
-                variant="primary"
-                className="w-full h-10"
-                onClick={handleSubmit}
-                disabled={!canSubmit}
-                loading={submitting}
-              >
-                {submitting
-                  ? "提交中…"
-                  : mode === "existing"
-                    ? "确认添加视频"
-                    : "确认创建歌曲"}
-              </Btn>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <Field label="歌手">
+                  <TagEditor
+                    value={vocInput}
+                    onChange={setVocInput}
+                    onInputChange={() => {}}
+                    searchType="vocalist"
+                  />
+                </Field>
+                <Field label="作者">
+                  <TagEditor
+                    value={proInput}
+                    onChange={setProInput}
+                    onInputChange={() => {}}
+                    searchType="producer"
+                  />
+                </Field>
+                <Field label="引擎">
+                  <TagEditor
+                    value={synInput}
+                    onChange={setSynInput}
+                    onInputChange={() => {}}
+                    searchType="synthesizer"
+                  />
+                </Field>
+              </div>
             </div>
           </Section>
+
+          <Section title="关联视频（可选）">
+            <div className="space-y-4">
+              <Field label="BV 号">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="输入 BV 号（可留空）"
+                    value={bvid}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setBvid(e.target.value)
+                    }
+                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) =>
+                      e.key === "Enter" && fetchVideo()
+                    }
+                  />
+                  <Btn
+                    variant="primary"
+                    onClick={fetchVideo}
+                    disabled={fetching || !bvid.trim()}
+                    loading={fetching}
+                  >
+                    获取
+                  </Btn>
+                </div>
+              </Field>
+
+              {preview && (
+                <div className="flex flex-col sm:flex-row gap-3 rounded-xl bg-muted/30 border border-border/30 p-3">
+                  {preview.pic && (
+                    <CachedImg
+                      src={preview.pic}
+                      alt=""
+                      className="h-24 sm:h-16 w-full sm:w-24 shrink-0 rounded-lg object-cover"
+                    />
+                  )}
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <p className="text-sm font-medium leading-snug line-clamp-2 sm:truncate">
+                      {preview.title}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/60 break-all">
+                      {preview.bvid} · av{preview.aid} · {pubStr}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/60">
+                      UP主：{preview.owner?.name} · 播放：
+                      {preview.stat?.view?.toLocaleString()}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setPreview(null);
+                      setBvid("");
+                    }}
+                    className="shrink-0 self-start rounded-md p-1 text-muted-foreground hover:bg-muted transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </Section>
+
+          <Section>
+            <Btn
+              variant="primary"
+              className="w-full h-10"
+              onClick={handleReferenceSubmit}
+              disabled={!canRefSubmit}
+              loading={submitting}
+            >
+              {submitting ? "创建中…" : "创建参考歌曲"}
+            </Btn>
+          </Section>
+        </>
+      )}
+
+      {!isRef && (
+        <>
+          <Section title="视频信息">
+            <div className="space-y-4">
+              <Field label="BV 号">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="输入 BV 号"
+                    value={bvid}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setBvid(e.target.value)
+                    }
+                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) =>
+                      e.key === "Enter" && fetchVideo()
+                    }
+                  />
+                  <Btn
+                    variant="primary"
+                    onClick={fetchVideo}
+                    disabled={fetching || !bvid.trim()}
+                    loading={fetching}
+                  >
+                    获取
+                  </Btn>
+                </div>
+              </Field>
+
+              {preview && (
+                <div className="flex flex-col sm:flex-row gap-3 rounded-xl bg-muted/30 border border-border/30 p-3">
+                  {preview.pic && (
+                    <CachedImg
+                      src={preview.pic}
+                      alt=""
+                      className="h-24 sm:h-16 w-full sm:w-24 shrink-0 rounded-lg object-cover"
+                    />
+                  )}
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <p className="text-sm font-medium leading-snug line-clamp-2 sm:truncate">
+                      {preview.title}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/60 break-all">
+                      {preview.bvid} · av{preview.aid} · {pubStr}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/60">
+                      UP主：{preview.owner?.name} · 播放：
+                      {preview.stat?.view?.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Section>
+
+          {preview && (
+            <>
+              <div className="flex gap-3">
+                {(["existing", "new"] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setSubMode(m)}
+                    className={cn(
+                      "flex-1 rounded-xl border py-2.5 text-sm font-medium transition-all",
+                      subMode === m
+                        ? "border-primary bg-primary/5 text-primary ring-1 ring-primary/15"
+                        : "border-border/50 text-muted-foreground hover:bg-muted/30",
+                    )}
+                  >
+                    {m === "existing" ? "添加到已有歌曲" : "创建新歌曲"}
+                  </button>
+                ))}
+              </div>
+
+              {subMode === "existing" ? (
+                <Section title="目标歌曲">
+                  <div className="space-y-3">
+                    {sel && (
+                      <div className="flex items-center justify-between rounded-xl bg-primary/5 border border-primary/20 px-3.5 py-2.5">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold truncate">
+                            {sLabel(sel)}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground/60">
+                            #{sel.id}
+                            {sel.display_name &&
+                              sel.display_name !== sel.name &&
+                              ` · ${sel.name}`}
+                          </p>
+                        </div>
+                        {!preset && (
+                          <button
+                            onClick={() => setSel(null)}
+                            className="ml-2 shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted transition-colors"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {!sel && (
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
+                          <Input
+                            className="pl-9"
+                            placeholder="搜索歌曲名称…"
+                            value={sq}
+                            onChange={(
+                              e: React.ChangeEvent<HTMLInputElement>,
+                            ) => setSq(e.target.value)}
+                          />
+                          {searching && (
+                            <Loader2 className="absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-muted-foreground/40" />
+                          )}
+                        </div>
+                        {sr.length > 0 && (
+                          <div className="max-h-48 overflow-y-auto rounded-xl border divide-y">
+                            {sr.map((s) => (
+                              <button
+                                key={s.id}
+                                className="flex w-full items-center justify-between px-3 py-2.5 text-sm text-left hover:bg-muted/40 transition-colors"
+                                onClick={() => {
+                                  setSel(s);
+                                  setSq("");
+                                  setSr([]);
+                                }}
+                              >
+                                <span className="truncate">{sLabel(s)}</span>
+                                <span className="ml-2 shrink-0 text-xs text-muted-foreground/50">
+                                  #{s.id}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </Section>
+              ) : (
+                <Section title="新歌曲信息">
+                  <div className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field label="歌曲名称 *" error={!name.trim()}>
+                        <Input
+                          value={name}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setName(e.target.value)
+                          }
+                          placeholder="数据库唯一标识"
+                        />
+                      </Field>
+                      <Field label="显示名称">
+                        <Input
+                          value={displayName}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setDisplayName(e.target.value)
+                          }
+                          placeholder="留空则与歌曲名称相同"
+                        />
+                      </Field>
+                    </div>
+                    <Field label="歌曲类型">
+                      <Select value={songType} onValueChange={setSongType}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SONG_TYPES.map((t) => (
+                            <SelectItem key={t} value={t}>
+                              {t}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                      <Field label="歌手 *" error={!vocInput.trim()}>
+                        <TagEditor
+                          value={vocInput}
+                          onChange={setVocInput}
+                          onInputChange={() => {}}
+                          searchType="vocalist"
+                        />
+                      </Field>
+                      <Field label="作者 *" error={!proInput.trim()}>
+                        <TagEditor
+                          value={proInput}
+                          onChange={setProInput}
+                          onInputChange={() => {}}
+                          searchType="producer"
+                        />
+                      </Field>
+                      <Field label="引擎 *" error={!synInput.trim()}>
+                        <TagEditor
+                          value={synInput}
+                          onChange={setSynInput}
+                          onInputChange={() => {}}
+                          searchType="synthesizer"
+                        />
+                      </Field>
+                    </div>
+                  </div>
+                </Section>
+              )}
+
+              <Section>
+                <div className="space-y-4">
+                  <Field label="视频类型">
+                    <Select
+                      value={String(copyright)}
+                      onValueChange={(v: string) => setCopyright(Number(v))}
+                    >
+                      <SelectTrigger className="h-9 sm:w-auto sm:min-w-52">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {COPYRIGHT.map((c) => (
+                          <SelectItem key={c.value} value={String(c.value)}>
+                            {c.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Btn
+                    variant="primary"
+                    className="w-full h-10"
+                    onClick={handleCollectSubmit}
+                    disabled={!canCollectSubmit}
+                    loading={submitting}
+                  >
+                    {submitting
+                      ? "提交中…"
+                      : subMode === "existing"
+                        ? "确认添加视频"
+                        : "确认创建歌曲"}
+                  </Btn>
+                </div>
+              </Section>
+            </>
+          )}
         </>
       )}
     </div>
