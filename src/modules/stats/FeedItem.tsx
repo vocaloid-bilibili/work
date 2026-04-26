@@ -158,6 +158,9 @@ function describe(
 
   const lines: string[] = [];
   const songName = s(detail.songName || detail.title);
+  const songId = detail.songId;
+  const bvid = s(detail.bvid);
+
   const changes = detail.changes as
     | Record<string, { old: unknown; new: unknown }>
     | undefined;
@@ -171,75 +174,189 @@ function describe(
     }
   }
 
-  switch (action) {
-    case "edit_song":
-      return {
-        headline: songName ? `编辑了「${songName}」` : "编辑了歌曲",
-        lines,
-      };
+  const ref = (name: unknown, id: unknown) => {
+    const n = s(name);
+    const i = id != null ? s(id) : "";
+    if (n && i) return `「${n}」#${i}`;
+    if (n) return `「${n}」`;
+    if (i) return `#${i}`;
+    return "?";
+  };
 
-    case "edit_video": {
-      const bvid = s(detail.bvid);
-      return { headline: `编辑了视频 ${bvid}`, lines };
+  switch (action) {
+    case "add_song": {
+      const id = s(songId);
+      const type = s(detail.type);
+      const vocal = s(detail.vocal);
+      const producer = s(detail.producer);
+      const synthesizer = s(detail.synthesizer);
+      const videoTitle = s(detail.videoTitle);
+
+      const headline = songName
+        ? `创建了歌曲${ref(songName, id)}`
+        : "创建了歌曲";
+
+      if (bvid)
+        lines.push(`视频: ${bvid}${videoTitle ? ` ${videoTitle}` : ""}`);
+      if (type) lines.push(`类型: ${type}`);
+      if (vocal) lines.push(`歌手: ${vocal}`);
+      if (producer) lines.push(`作者: ${producer}`);
+      if (synthesizer) lines.push(`引擎: ${synthesizer}`);
+      return { headline, lines };
     }
 
-    case "delete_song":
-      return {
-        headline: songName ? `移除了「${songName}」` : "移除了歌曲",
-        lines,
-      };
+    case "add_video": {
+      const videoTitle = s(detail.videoTitle);
+      const target = ref(songName || detail.songName, detail.songId);
+      const uploader = s(detail.uploader);
+      const headline = videoTitle
+        ? `将「${videoTitle}」添加到${target}`
+        : `将视频 ${bvid} 添加到${target}`;
+      if (bvid) lines.push(`BV号: ${bvid}`);
+      if (uploader) lines.push(`UP主: ${uploader}`);
+      return { headline, lines };
+    }
+
+    case "edit_song": {
+      const id = songId ?? detail.targetId;
+      const headline = songName ? `编辑了${ref(songName, id)}` : "编辑了歌曲";
+      const bvids = detail.bvids as string[] | undefined;
+      if (bvids?.length) lines.push(`关联视频: ${bvids.join(", ")}`);
+      return { headline, lines };
+    }
+
+    case "edit_video": {
+      const song = s(detail.songName);
+      const sId = detail.songId;
+      const headline = `编辑了视频 ${bvid}`;
+      if (song || sId) lines.push(`歌曲: ${ref(song, sId)}`);
+      return { headline, lines };
+    }
+
+    case "delete_song": {
+      const id = songId ?? detail.targetId;
+      const bvids = detail.bvids as string[] | undefined;
+      const headline = songName ? `移除了${ref(songName, id)}` : "移除了歌曲";
+      if (bvids?.length) lines.push(`视频: ${bvids.join(", ")}`);
+      return { headline, lines };
+    }
 
     case "delete_video": {
-      const bvid = s(detail.bvid);
       const title = s(detail.title);
+      const song = s(detail.songName);
+      const sId = detail.songId;
+      const headline = title ? `移除了视频「${title}」` : `移除了视频 ${bvid}`;
+      if (bvid && title) lines.push(`BV号: ${bvid}`);
+      if (song || sId) lines.push(`歌曲: ${ref(song, sId)}`);
+      return { headline, lines };
+    }
+
+    case "restore_video": {
+      const title = s(detail.title);
+      const song = s(detail.songName);
+      const sId = detail.songId;
+      const headline = title ? `恢复收录「${title}」` : `恢复收录视频 ${bvid}`;
+      if (bvid && title) lines.push(`BV号: ${bvid}`);
+      if (song || sId) lines.push(`歌曲: ${ref(song, sId)}`);
+      return { headline, lines };
+    }
+
+    case "reassign_video": {
+      const from = detail.fromSong as { id?: number; name?: string } | null;
+      const toSong = detail.toSong as
+        | { id?: number; name?: string }
+        | undefined;
+      const newName = s(detail.newSongName);
+      const fromRef = from ? ref(from.name, from.id) : "?";
+      const toRef = toSong
+        ? ref(toSong.name, toSong.id)
+        : newName
+          ? `新歌曲「${newName}」`
+          : "?";
       return {
-        headline: title ? `移除了视频「${title}」` : `移除了视频 ${bvid}`,
+        headline: `将视频 ${bvid} 从${fromRef}移动到${toRef}`,
         lines,
       };
     }
 
     case "merge_song": {
-      const src = detail.source as { name?: string } | undefined;
-      const tgt = detail.target as { name?: string } | undefined;
+      const src = detail.source as { id?: number; name?: string } | undefined;
+      const tgt = detail.target as { id?: number; name?: string } | undefined;
       const newName = s(detail.newSongName);
-      const to = tgt?.name ?? (newName ? `新歌曲「${newName}」` : "?");
-      return { headline: `将「${src?.name ?? "?"}」合并到「${to}」`, lines };
+      const srcRef = src ? ref(src.name, src.id) : "?";
+      const tgtRef = tgt
+        ? ref(tgt.name, tgt.id)
+        : newName
+          ? `新歌曲「${newName}」`
+          : "?";
+      return { headline: `将${srcRef}合并到${tgtRef}`, lines };
     }
 
     case "merge_artist": {
-      const src = detail.source as { name?: string } | undefined;
-      const tgt = detail.target as { name?: string } | undefined;
+      const src = detail.source as { id?: number; name?: string } | undefined;
+      const tgt = detail.target as { id?: number; name?: string } | undefined;
       const newName = s(detail.newArtistName);
-      const to =
-        tgt?.name ??
-        (newName ? `新${aLabel(s(detail.artistType))}「${newName}」` : "?");
       const type = detail.artistType ? aLabel(s(detail.artistType)) : "";
+      const srcRef = src ? ref(src.name, src.id) : "?";
+      const tgtRef = tgt
+        ? ref(tgt.name, tgt.id)
+        : newName
+          ? `新${type}「${newName}」`
+          : "?";
       if (detail.songsAffected != null)
         lines.push(`影响 ${s(detail.songsAffected)} 首歌曲`);
       return {
-        headline: `合并${type}「${src?.name ?? "?"}」→「${to}」`,
+        headline: `合并${type}${srcRef}→${tgtRef}`,
         lines,
       };
     }
 
-    case "restore_video": {
-      const bvid = s(detail.bvid);
-      const title = s(detail.title);
+    case "add_relation": {
+      const id = songId ?? detail.targetId;
+      const direction = s(detail.direction);
+      const dirLabel = direction === "original" ? "本家" : "衍生";
+
+      const relations = detail.relations as
+        | { id: number; name: string }[]
+        | undefined;
+
+      if (relations && relations.length > 0) {
+        const names = relations.map((r) => `「${r.name}」#${r.id}`);
+        if (names.length > 5) {
+          lines.push(names.slice(0, 5).join("、") + " 等");
+        } else {
+          lines.push(names.join("、"));
+        }
+        return {
+          headline: songName
+            ? `为${ref(songName, id)}批量添加了 ${relations.length} 首${dirLabel}关联`
+            : `批量添加了 ${relations.length} 首${dirLabel}关联`,
+          lines,
+        };
+      }
+
+      const relatedName = s(detail.relatedSongName);
+      const relatedId = detail.relatedSongId || detail.related_song_id;
+      const relatedRef = ref(relatedName, relatedId);
       return {
-        headline: title ? `恢复收录「${title}」` : `恢复收录视频 ${bvid}`,
+        headline: songName
+          ? `为${ref(songName, id)}添加了${dirLabel}关联${relatedRef}`
+          : `添加了${dirLabel}关联${relatedRef}`,
         lines,
       };
     }
-    case "reassign_video": {
-      const bvid = s(detail.bvid);
-      const from = (detail.fromSong as { name?: string })?.name;
-      const toSong = (detail.toSong as { name?: string })?.name;
-      const newName = s(detail.newSongName);
-      const to = toSong ?? (newName ? `新歌曲「${newName}」` : "?");
+
+    case "remove_relation": {
+      const id = songId ?? detail.targetId;
+      const direction = s(detail.direction);
+      const dirLabel = direction === "original" ? "本家" : "衍生";
+      const relatedName = s(detail.relatedSongName);
+      const relatedId = detail.relatedSongId || detail.related_song_id;
+      const relatedRef = ref(relatedName, relatedId);
       return {
-        headline: from
-          ? `将视频 ${bvid} 从「${from}」移动到「${to}」`
-          : `将视频 ${bvid} 移动到「${to}」`,
+        headline: songName
+          ? `移除了${ref(songName, id)}的${dirLabel}关联${relatedRef}`
+          : `移除了${dirLabel}关联${relatedRef}`,
         lines,
       };
     }
@@ -249,96 +366,10 @@ function describe(
         ? bLabel(s(detail.board))
         : s(detail.boardName);
       const issue = s(detail.issue);
-      const bvid = s(detail.newBvid || detail.bvid);
+      const vid = s(detail.newBvid || detail.bvid);
       const old = s(detail.oldBvid);
-      if (old && old !== bvid) lines.push(`原视频: ${old}`);
-      return { headline: `设置${board}第 ${issue} 期视频 ${bvid}`, lines };
-    }
-
-    case "add_relation": {
-      const direction = s(detail.direction);
-      const dirLabel = direction === "original" ? "本家" : "衍生";
-
-      const relations = detail.relations as
-        | { id: number; name: string }[]
-        | undefined;
-
-      if (relations && relations.length > 0) {
-        const names = relations.map((r) => `「${r.name}」`);
-        if (names.length > 5) {
-          lines.push(names.slice(0, 5).join("、") + ` 等`);
-        } else {
-          lines.push(names.join("、"));
-        }
-        return {
-          headline: songName
-            ? `为「${songName}」批量添加了 ${relations.length} 首${dirLabel}关联`
-            : `批量添加了 ${relations.length} 首${dirLabel}关联`,
-          lines,
-        };
-      }
-
-      const added = detail.added as number[] | undefined;
-      if (added && added.length > 0) {
-        const skipped = detail.skipped as number[] | undefined;
-        if (skipped?.length)
-          lines.push(`跳过(重复): ${skipped.map((id) => `#${id}`).join(", ")}`);
-        lines.push(`ID: ${added.map((id) => `#${id}`).join(", ")}`);
-        return {
-          headline: songName
-            ? `为「${songName}」批量添加了 ${added.length} 首${dirLabel}关联`
-            : `批量添加了 ${added.length} 首${dirLabel}关联`,
-          lines,
-        };
-      }
-
-      const relatedName = s(detail.relatedSongName);
-      const relatedId = s(detail.relatedSongId || detail.related_song_id);
-      const relatedLabel = relatedName || `#${relatedId}`;
-      return {
-        headline: songName
-          ? `为「${songName}」添加了${dirLabel}关联「${relatedLabel}」`
-          : `添加了${dirLabel}关联「${relatedLabel}」`,
-        lines,
-      };
-    }
-
-    case "remove_relation": {
-      const direction = s(detail.direction);
-      const relatedName = s(detail.relatedSongName);
-      const relatedId = s(detail.relatedSongId || detail.related_song_id);
-      const dirLabel = direction === "original" ? "本家" : "衍生";
-      const relatedLabel = relatedName || `#${relatedId}`;
-      return {
-        headline: songName
-          ? `移除了「${songName}」的${dirLabel}关联「${relatedLabel}」`
-          : `移除了${dirLabel}关联「${relatedLabel}」`,
-        lines,
-      };
-    }
-
-    case "add_video": {
-      const bvid = s(detail.bvid);
-      const videoTitle = s(detail.videoTitle);
-      const target = songName || `#${s(detail.songId)}`;
-      return {
-        headline: videoTitle
-          ? `将「${videoTitle}」添加到「${target}」`
-          : `将视频 ${bvid} 添加到「${target}」`,
-        lines,
-      };
-    }
-
-    case "add_song": {
-      const type = s(detail.type);
-      const vocal = s(detail.vocal);
-      if (type) lines.push(`类型: ${type}`);
-      if (vocal) lines.push(`歌手: ${vocal}`);
-      if (detail.producer) lines.push(`作者: ${s(detail.producer)}`);
-      return {
-        headline: songName ? `创建了歌曲「${songName}」` : "创建了歌曲",
-        lines,
-      };
+      if (old && old !== vid) lines.push(`原视频: ${old}`);
+      return { headline: `设置${board}第 ${issue} 期视频 ${vid}`, lines };
     }
 
     default:

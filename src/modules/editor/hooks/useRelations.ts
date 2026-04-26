@@ -107,6 +107,7 @@ export function useRelations(song: Song) {
           targetId: String(song.id),
           action: "add_relation",
           detail: {
+            songId: song.id,
             songName: song.name,
             relatedSongName: target.name,
             relatedSongId: target.id,
@@ -138,6 +139,7 @@ export function useRelations(song: Song) {
           targetId: String(song.id),
           action: "add_relation",
           detail: {
+            songId: song.id,
             songName: song.name,
             direction: "derivative",
             batch: true,
@@ -174,6 +176,7 @@ export function useRelations(song: Song) {
           targetId: String(song.id),
           action: "remove_relation",
           detail: {
+            songId: song.id,
             songName: song.name,
             relatedSongName: t?.name || `#${targetId}`,
             relatedSongId: targetId,

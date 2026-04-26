@@ -121,6 +121,7 @@ export function useSongForm(song: Song) {
         targetId: String(song.id),
         action: "edit_song",
         detail: {
+          songId: song.id,
           songName: song.name,
           bvids: (song.videos ?? []).map((v) => v.bvid),
           changes: rawDiff,

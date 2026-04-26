@@ -53,12 +53,17 @@ function VideoHeader({ video }: { video: Video }) {
 
 function VideoFormSection({
   video,
+  parent,
   onSaved,
 }: {
   video: Video;
+  parent: Song | null;
   onSaved: () => void;
 }) {
-  const form = useVideoForm(video);
+  const form = useVideoForm(
+    video,
+    parent ? { id: parent.id, name: parent.name } : null,
+  );
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const doSave = async () => {
@@ -182,7 +187,12 @@ export function VideoView({ video }: { video: Video }) {
         targetType: "video",
         targetId: video.bvid,
         action: "delete_video",
-        detail: { bvid: video.bvid, title: video.title },
+        detail: {
+          bvid: video.bvid,
+          title: video.title,
+          songId: parent?.id ?? video.song_id ?? null,
+          songName: parent?.name ?? null,
+        },
       });
       toast.success(`已停止收录：${video.bvid}`);
       setRmOpen(false);
@@ -212,6 +222,8 @@ export function VideoView({ video }: { video: Video }) {
         detail: {
           bvid: video.bvid,
           title: video.title,
+          songId: parent?.id ?? video.song_id ?? null,
+          songName: parent?.name ?? null,
           collectedRow,
         },
       });
@@ -236,7 +248,7 @@ export function VideoView({ video }: { video: Video }) {
 
       {parent && <SongCard song={parent} onClick={() => openSong(parent.id)} />}
 
-      <VideoFormSection video={video} onSaved={refresh} />
+      <VideoFormSection video={video} parent={parent} onSaved={refresh} />
 
       <div className="flex flex-wrap gap-2 pt-1">
         <Btn

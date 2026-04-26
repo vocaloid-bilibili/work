@@ -11,7 +11,10 @@ interface Snap {
   copyright: number;
 }
 
-export function useVideoForm(video: Video) {
+export function useVideoForm(
+  video: Video,
+  songInfo?: { id: number; name: string } | null,
+) {
   const snap = useRef<Snap | null>(null);
   const [title, setTitle] = useState("");
   const [copyright, setCopyright] = useState(1);
@@ -63,7 +66,13 @@ export function useVideoForm(video: Video) {
         targetType: "video",
         targetId: video.bvid,
         action: "edit_video",
-        detail: { bvid: video.bvid, title: video.title, changes: rawDiff },
+        detail: {
+          bvid: video.bvid,
+          title: video.title,
+          songId: songInfo?.id ?? null,
+          songName: songInfo?.name ?? null,
+          changes: rawDiff,
+        },
       });
       snap.current = { title, copyright };
       toast.success("视频信息已更新");

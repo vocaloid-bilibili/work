@@ -268,7 +268,12 @@ function VideoListSection({
         targetType: "video",
         targetId: rmBvid,
         action: "delete_video",
-        detail: { bvid: rmBvid, title: rmTitle },
+        detail: {
+          bvid: rmBvid,
+          title: rmTitle,
+          songId: song.id,
+          songName: song.name,
+        },
       });
       toast.success(`已停止收录：${rmBvid}`);
       setRmBvid(null);
@@ -300,6 +305,8 @@ function VideoListSection({
         detail: {
           bvid: video.bvid,
           title: video.title,
+          songId: song.id,
+          songName: song.name,
           collectedRow,
         },
       });
@@ -523,7 +530,7 @@ export function SongView({ song }: { song: Song }) {
         targetType: "song",
         targetId: String(song.id),
         action: "delete_song",
-        detail: { songName: song.name, bvids },
+        detail: { songId: song.id, songName: song.name, bvids },
       });
       toast.success(`已彻底删除：${song.name}`);
       setHardDeleteOpen(false);
