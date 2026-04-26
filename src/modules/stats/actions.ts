@@ -2,6 +2,7 @@
 import {
   CircleCheckBig,
   Ban,
+  RotateCcw,
   Pencil,
   Wrench,
   GitMerge,
@@ -130,7 +131,17 @@ export const ACTIONS: Record<string, ActionDef> = {
     dot: "bg-orange-500",
     bar: "bg-orange-500",
   },
-
+  restore_video: {
+    key: "restore_video",
+    label: "恢复收录",
+    Icon: RotateCcw,
+    category: "edit",
+    color: "text-emerald-600 dark:text-emerald-400",
+    bg: "bg-emerald-500/10",
+    border: "border-l-emerald-500",
+    dot: "bg-emerald-500",
+    bar: "bg-emerald-500",
+  },
   edit_song: {
     key: "edit_song",
     label: "编辑歌曲",

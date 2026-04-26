@@ -222,6 +222,14 @@ function describe(
       };
     }
 
+    case "restore_video": {
+      const bvid = s(detail.bvid);
+      const title = s(detail.title);
+      return {
+        headline: title ? `恢复收录「${title}」` : `恢复收录视频 ${bvid}`,
+        lines,
+      };
+    }
     case "reassign_video": {
       const bvid = s(detail.bvid);
       const from = (detail.fromSong as { name?: string })?.name;

@@ -168,6 +168,18 @@ export function AddView({ preset }: Props) {
         toast.error("请填写歌曲名称");
         return;
       }
+      if (!vocInput.trim()) {
+        toast.error("请填写歌手");
+        return;
+      }
+      if (!proInput.trim()) {
+        toast.error("请填写作者");
+        return;
+      }
+      if (!synInput.trim()) {
+        toast.error("请填写引擎");
+        return;
+      }
       setSubmitting(true);
       try {
         const res = await api.addNewSong({
@@ -187,19 +199,25 @@ export function AddView({ preset }: Props) {
           producer_names: split(proInput),
           synthesizer_names: split(synInput),
         });
+
+        const detail: Record<string, unknown> = {
+          songId: res.song_id,
+          songName: name.trim(),
+          bvid: res.bvid,
+          videoTitle: preview.title,
+          type: songType,
+          vocal: vocInput.trim(),
+          producer: proInput.trim(),
+          synthesizer: synInput.trim(),
+          collectedRow: res.collected_row,
+        };
+        if (displayName.trim()) detail.displayName = displayName.trim();
+
         logEdit({
           targetType: "song",
           targetId: String(res.song_id),
           action: "add_song",
-          detail: {
-            songId: res.song_id,
-            songName: name.trim(),
-            displayName: displayName.trim() || undefined,
-            bvid: res.bvid,
-            videoTitle: preview.title,
-            type: songType,
-            collectedRow: res.collected_row,
-          },
+          detail,
         });
         toast.success(`歌曲已创建（ID: ${res.song_id}）`);
         openSong(res.song_id);
@@ -222,7 +240,14 @@ export function AddView({ preset }: Props) {
     ? new Date(preview.pubdate * 1000).toLocaleString("zh-CN")
     : "";
   const canSubmit =
-    !!preview && !submitting && (mode === "existing" ? !!sel : !!name.trim());
+    !!preview &&
+    !submitting &&
+    (mode === "existing"
+      ? !!sel
+      : !!name.trim() &&
+        !!vocInput.trim() &&
+        !!proInput.trim() &&
+        !!synInput.trim());
 
   return (
     <div className="space-y-5">
@@ -401,7 +426,7 @@ export function AddView({ preset }: Props) {
                   </Select>
                 </Field>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  <Field label="歌手">
+                  <Field label="歌手 *" error={!vocInput.trim()}>
                     <TagEditor
                       value={vocInput}
                       onChange={setVocInput}
@@ -409,7 +434,7 @@ export function AddView({ preset }: Props) {
                       searchType="vocalist"
                     />
                   </Field>
-                  <Field label="作者">
+                  <Field label="作者 *" error={!proInput.trim()}>
                     <TagEditor
                       value={proInput}
                       onChange={setProInput}
@@ -417,7 +442,7 @@ export function AddView({ preset }: Props) {
                       searchType="producer"
                     />
                   </Field>
-                  <Field label="引擎">
+                  <Field label="引擎 *" error={!synInput.trim()}>
                     <TagEditor
                       value={synInput}
                       onChange={setSynInput}

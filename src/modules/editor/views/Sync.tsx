@@ -17,7 +17,6 @@ import {
   Link2,
   Unlink,
   Wrench,
-  Ban,
   RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -37,7 +36,6 @@ const ACTION_META: Record<
   edit_video: { label: "编辑视频", icon: Pencil, color: "text-cyan-600" },
   delete_song: { label: "彻底删除歌曲", icon: Trash2, color: "text-red-600" },
   delete_video: { label: "停止收录视频", icon: Trash2, color: "text-red-600" },
-  disable_song: { label: "停止收录歌曲", icon: Ban, color: "text-orange-600" },
   restore_video: {
     label: "恢复收录视频",
     icon: RotateCcw,
@@ -86,8 +84,6 @@ function describe(log: EditLogEntry): string {
       return name ? `彻底删除「${name}」` : "彻底删除歌曲";
     case "delete_video":
       return `停止收录 ${d.bvid || ""}`;
-    case "disable_song":
-      return name ? `停止收录「${name}」` : "停止收录歌曲";
     case "restore_video":
       return `恢复收录 ${d.bvid || ""}`;
     case "add_song":

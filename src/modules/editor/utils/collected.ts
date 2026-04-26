@@ -31,7 +31,7 @@ export function buildCollectedRow(
     title: video.title,
     bvid: video.bvid,
     aid: bilibili?.aid ?? "",
-    name: song ? song.display_name?.trim() || song.name : "",
+    name: song ? song.name : "",
     view: bilibili?.stat?.view ?? 0,
     pubdate: fmtPubdate(video.pubdate),
     author: song?.producers?.map((p) => p.name).join("、") ?? "",

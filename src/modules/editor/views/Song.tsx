@@ -488,15 +488,23 @@ export function SongView({ song }: { song: Song }) {
   const doDisableSong = async () => {
     setDisableLoading(true);
     try {
-      await api.disableSong(song.id);
-      const bvids = activeVideos.map((v) => v.bvid);
-      await logEdit({
-        targetType: "song",
-        targetId: String(song.id),
-        action: "disable_song",
-        detail: { songName: song.name, bvids },
-      });
-      toast.success(`已停止收录：${song.name}`);
+      for (const v of activeVideos) {
+        await api.deleteVideo(v.bvid);
+        await logEdit({
+          targetType: "video",
+          targetId: v.bvid,
+          action: "delete_video",
+          detail: {
+            bvid: v.bvid,
+            title: v.title,
+            songId: song.id,
+            songName: song.name,
+          },
+        });
+      }
+      toast.success(
+        `已停止收录「${song.display_name || song.name}」的 ${activeVideos.length} 个视频`,
+      );
       setDisableOpen(false);
       refresh();
     } catch (e: any) {
