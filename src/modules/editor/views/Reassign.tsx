@@ -103,7 +103,10 @@ export function ReassignView({ bvid, title, parent }: Props) {
           fromSong: parent ? { id: parent.id, name: parent.name } : null,
           ...(mode === "existing"
             ? { toSong: { id: target!.id, name: target!.name } }
-            : { newSongName: name.trim() }),
+            : {
+                toSong: { id: r.new_song_id, name: name.trim() },
+                newSongName: name.trim(),
+              }),
         },
       });
       toast.success("视频移动成功");

@@ -59,20 +59,20 @@ export function MergeSongView({ preset }: { preset?: Song }) {
     if (!source) return;
     setLoading(true);
     try {
-      await api.mergeSong(
+      const r = await api.mergeSong(
         source.id,
         mode === "existing" ? target?.id : undefined,
         mode === "new" ? newName.trim() : undefined,
       );
       logEdit({
         targetType: "song",
-        targetId: mode === "existing" ? String(target!.id) : newName.trim(),
+        targetId: String(r.into),
         action: "merge_song",
         detail: {
           source: { id: source.id, name: source.name },
           ...(mode === "existing"
             ? { target: { id: target!.id, name: target!.name } }
-            : { newSongName: newName.trim() }),
+            : { newSongName: newName.trim(), newSongId: r.into }),
         },
       });
       toast.success("歌曲合并成功");

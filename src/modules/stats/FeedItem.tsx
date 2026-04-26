@@ -315,6 +315,7 @@ function describe(
       const src = detail.source as { id?: number; name?: string } | undefined;
       const tgt = detail.target as { id?: number; name?: string } | undefined;
       const newName = s(detail.newArtistName);
+      const newId = detail.newArtistId;
       const type = detail.artistType ? aLabel(s(detail.artistType)) : "";
       const srcLabel = src?.name ? `「${src.name}」` : "?";
       const tgtLabel = tgt?.name
@@ -327,6 +328,7 @@ function describe(
       if (src?.id != null) ids.push(`#${src.id}`);
       ids.push("→");
       if (tgt?.id != null) ids.push(`#${tgt.id}`);
+      else if (newId != null) ids.push(`#${s(newId)}`);
       else ids.push(`新${type}`);
       lines.push(ids.join(" "));
       if (detail.songsAffected != null)
@@ -338,7 +340,11 @@ function describe(
       const direction = s(detail.direction);
       const dirLabel = direction === "original" ? "本家" : "衍生";
       const selfRef =
-        songId != null ? `「${songName}」#${s(songId)}` : `「${songName}」`;
+        songId != null
+          ? `「${songName}」#${s(songId)}`
+          : songName
+            ? `「${songName}」`
+            : null;
 
       const relations = detail.relations as
         | { id: number; name: string }[]
@@ -352,7 +358,7 @@ function describe(
           lines.push(names.join("、"));
         }
         return {
-          headline: songName
+          headline: selfRef
             ? `为${selfRef}批量添加了 ${relations.length} 首${dirLabel}关联`
             : `批量添加了 ${relations.length} 首${dirLabel}关联`,
           lines,
@@ -363,7 +369,7 @@ function describe(
       const relatedId = detail.relatedSongId || detail.related_song_id;
       const relatedLabel = songRef(relatedName, relatedId) || "?";
       return {
-        headline: songName
+        headline: selfRef
           ? `为${selfRef}添加了${dirLabel}关联${relatedLabel}`
           : `添加了${dirLabel}关联${relatedLabel}`,
         lines,
@@ -374,13 +380,17 @@ function describe(
       const direction = s(detail.direction);
       const dirLabel = direction === "original" ? "本家" : "衍生";
       const selfRef =
-        songId != null ? `「${songName}」#${s(songId)}` : `「${songName}」`;
+        songId != null
+          ? `「${songName}」#${s(songId)}`
+          : songName
+            ? `「${songName}」`
+            : null;
       const relatedName = s(detail.relatedSongName);
       const relatedId = detail.relatedSongId || detail.related_song_id;
       const relatedLabel = songRef(relatedName, relatedId) || "?";
 
       return {
-        headline: songName
+        headline: selfRef
           ? `移除了${selfRef}的${dirLabel}关联${relatedLabel}`
           : `移除了${dirLabel}关联${relatedLabel}`,
         lines,

@@ -58,14 +58,14 @@ export function MergeArtistView() {
       );
       logEdit({
         targetType: "artist",
-        targetId: mode === "existing" ? String(target!.id) : newName.trim(),
+        targetId: String(r.into),
         action: "merge_artist",
         detail: {
           artistType: at,
           source: { id: source.id, name: source.name },
           ...(mode === "existing"
             ? { target: { id: target!.id, name: target!.name } }
-            : { newArtistName: newName.trim() }),
+            : { newArtistName: newName.trim(), newArtistId: r.into }),
           songsAffected: r.songs_affected,
         },
       });
@@ -187,7 +187,7 @@ export function MergeArtistView() {
         <div className="space-y-3 text-sm">
           <div className="p-3 bg-destructive/10 rounded-xl">
             <p className="text-[10px] text-muted-foreground">删除</p>
-            <p className="font-semibold wrap-break-wordword">{source?.name}</p>
+            <p className="font-semibold wrap-break-word">{source?.name}</p>
           </div>
           <div className="p-3 bg-primary/10 rounded-xl">
             <p className="text-[10px] text-muted-foreground">保留</p>
