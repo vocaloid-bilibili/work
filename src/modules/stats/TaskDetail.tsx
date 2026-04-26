@@ -1,5 +1,5 @@
 // src/modules/stats/TaskDetail.tsx
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/ui/button";
 import { ArrowLeft, Loader2, RefreshCw } from "lucide-react";
@@ -53,17 +53,24 @@ export default function TaskDetail() {
   );
   const clearUser = useCallback(() => setSelectedUser(null), []);
 
+  const sentinelPushed = useRef(false);
+  useEffect(() => {
+    if (!sentinelPushed.current) {
+      window.history.pushState({ sentinel: true }, "");
+      sentinelPushed.current = true;
+    }
+  }, []);
+
   useEffect(() => {
     const handler = () => {
       if (selectedUser || filter !== "all") {
         setSelectedUser(null);
         setFilter("all");
-        window.history.pushState(null, "");
-        return;
+        window.history.pushState({ sentinel: true }, "");
+      } else {
+        nav("/stats", { replace: true });
       }
-      nav("/stats", { replace: true });
     };
-    window.history.pushState(null, "");
     window.addEventListener("popstate", handler);
     return () => window.removeEventListener("popstate", handler);
   }, [nav, selectedUser, filter]);

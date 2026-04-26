@@ -165,39 +165,37 @@ function describe(
     | Record<string, { old: unknown; new: unknown }>
     | undefined;
 
-  if (changes) {
+  const pushChanges = () => {
+    if (!changes) return;
     for (const [field, diff] of Object.entries(changes)) {
       const label = FIELD_LABELS[field] ?? field;
       lines.push(
         `${label}: ${fmtValue(field, diff.old)} → ${fmtValue(field, diff.new)}`,
       );
     }
-  }
+  };
 
-  const ref = (name: unknown, id: unknown) => {
+  const songRef = (name: unknown, id: unknown): string | null => {
     const n = s(name);
     const i = id != null ? s(id) : "";
     if (n && i) return `「${n}」#${i}`;
     if (n) return `「${n}」`;
     if (i) return `#${i}`;
-    return "?";
+    return null;
   };
 
   switch (action) {
     case "add_song": {
-      const id = s(songId);
-      const type = s(detail.type);
-      const vocal = s(detail.vocal);
-      const producer = s(detail.producer);
-      const synthesizer = s(detail.synthesizer);
-      const videoTitle = s(detail.videoTitle);
-
-      const headline = songName
-        ? `创建了歌曲${ref(songName, id)}`
-        : "创建了歌曲";
-
-      if (bvid)
-        lines.push(`视频: ${bvid}${videoTitle ? ` ${videoTitle}` : ""}`);
+      const cr = detail.collectedRow as Record<string, unknown> | undefined;
+      const headline = songName ? `创建了歌曲「${songName}」` : "创建了歌曲";
+      const ids: string[] = [];
+      if (songId != null) ids.push(`#${s(songId)}`);
+      if (bvid) ids.push(bvid);
+      if (ids.length) lines.push(ids.join(" · "));
+      const type = s(detail.type || cr?.type);
+      const vocal = s(cr?.vocal);
+      const producer = s(cr?.author);
+      const synthesizer = s(cr?.synthesizer);
       if (type) lines.push(`类型: ${type}`);
       if (vocal) lines.push(`歌手: ${vocal}`);
       if (producer) lines.push(`作者: ${producer}`);
@@ -207,89 +205,110 @@ function describe(
 
     case "add_video": {
       const videoTitle = s(detail.videoTitle);
-      const target = ref(songName || detail.songName, detail.songId);
-      const uploader = s(detail.uploader);
       const headline = videoTitle
-        ? `将「${videoTitle}」添加到${target}`
-        : `将视频 ${bvid} 添加到${target}`;
-      if (bvid) lines.push(`BV号: ${bvid}`);
-      if (uploader) lines.push(`UP主: ${uploader}`);
+        ? `将「${videoTitle}」添加到「${songName}」`
+        : `将视频 ${bvid} 添加到「${songName}」`;
+      const ids: string[] = [];
+      if (songId != null) ids.push(`歌曲 #${s(songId)}`);
+      if (bvid && videoTitle) ids.push(bvid);
+      if (ids.length) lines.push(ids.join(" · "));
       return { headline, lines };
     }
 
     case "edit_song": {
-      const id = songId ?? detail.targetId;
-      const headline = songName ? `编辑了${ref(songName, id)}` : "编辑了歌曲";
+      const headline = songName ? `编辑了「${songName}」` : "编辑了歌曲";
       const bvids = detail.bvids as string[] | undefined;
-      if (bvids?.length) lines.push(`关联视频: ${bvids.join(", ")}`);
+      const ids: string[] = [];
+      if (songId != null) ids.push(`#${s(songId)}`);
+      if (bvids?.length) ids.push(bvids.join(", "));
+      if (ids.length) lines.push(ids.join(" · "));
+      pushChanges();
       return { headline, lines };
     }
 
     case "edit_video": {
-      const song = s(detail.songName);
-      const sId = detail.songId;
       const headline = `编辑了视频 ${bvid}`;
-      if (song || sId) lines.push(`歌曲: ${ref(song, sId)}`);
+      const ref = songRef(detail.songName, songId);
+      if (ref) lines.push(`歌曲: ${ref}`);
+      pushChanges();
       return { headline, lines };
     }
 
     case "delete_song": {
-      const id = songId ?? detail.targetId;
+      const headline = songName ? `移除了「${songName}」` : "移除了歌曲";
       const bvids = detail.bvids as string[] | undefined;
-      const headline = songName ? `移除了${ref(songName, id)}` : "移除了歌曲";
-      if (bvids?.length) lines.push(`视频: ${bvids.join(", ")}`);
+      const ids: string[] = [];
+      if (songId != null) ids.push(`#${s(songId)}`);
+      if (bvids?.length) ids.push(bvids.join(", "));
+      if (ids.length) lines.push(ids.join(" · "));
       return { headline, lines };
     }
 
     case "delete_video": {
       const title = s(detail.title);
-      const song = s(detail.songName);
-      const sId = detail.songId;
       const headline = title ? `移除了视频「${title}」` : `移除了视频 ${bvid}`;
-      if (bvid && title) lines.push(`BV号: ${bvid}`);
-      if (song || sId) lines.push(`歌曲: ${ref(song, sId)}`);
+      const ids: string[] = [];
+      if (bvid && title) ids.push(bvid);
+      const ref = songRef(detail.songName, songId);
+      if (ref) ids.push(`歌曲: ${ref}`);
+      if (ids.length) lines.push(ids.join(" · "));
       return { headline, lines };
     }
 
     case "restore_video": {
       const title = s(detail.title);
-      const song = s(detail.songName);
-      const sId = detail.songId;
       const headline = title ? `恢复收录「${title}」` : `恢复收录视频 ${bvid}`;
-      if (bvid && title) lines.push(`BV号: ${bvid}`);
-      if (song || sId) lines.push(`歌曲: ${ref(song, sId)}`);
+      const ids: string[] = [];
+      if (bvid && title) ids.push(bvid);
+      const ref = songRef(detail.songName, songId);
+      if (ref) ids.push(`歌曲: ${ref}`);
+      if (ids.length) lines.push(ids.join(" · "));
       return { headline, lines };
     }
 
     case "reassign_video": {
       const from = detail.fromSong as { id?: number; name?: string } | null;
       const toSong = detail.toSong as
-        | { id?: number; name?: string }
+        | {
+            id?: number;
+            name?: string;
+          }
         | undefined;
       const newName = s(detail.newSongName);
-      const fromRef = from ? ref(from.name, from.id) : "?";
-      const toRef = toSong
-        ? ref(toSong.name, toSong.id)
+      const fromLabel = from?.name ? `「${from.name}」` : "?";
+      const toLabel = toSong?.name
+        ? `「${toSong.name}」`
         : newName
           ? `新歌曲「${newName}」`
           : "?";
-      return {
-        headline: `将视频 ${bvid} 从${fromRef}移动到${toRef}`,
-        lines,
-      };
+      const headline = `将视频 ${bvid} 从${fromLabel}移动到${toLabel}`;
+      const ids: string[] = [];
+      if (from?.id != null) ids.push(`从 #${from.id}`);
+      if (toSong?.id != null) ids.push(`到 #${toSong.id}`);
+      if (ids.length) lines.push(ids.join(" → "));
+      return { headline, lines };
     }
 
     case "merge_song": {
       const src = detail.source as { id?: number; name?: string } | undefined;
       const tgt = detail.target as { id?: number; name?: string } | undefined;
       const newName = s(detail.newSongName);
-      const srcRef = src ? ref(src.name, src.id) : "?";
-      const tgtRef = tgt
-        ? ref(tgt.name, tgt.id)
+      const newId = detail.newSongId;
+      const srcLabel = src?.name ? `「${src.name}」` : "?";
+      const tgtLabel = tgt?.name
+        ? `「${tgt.name}」`
         : newName
           ? `新歌曲「${newName}」`
           : "?";
-      return { headline: `将${srcRef}合并到${tgtRef}`, lines };
+      const headline = `将${srcLabel}合并到${tgtLabel}`;
+      const ids: string[] = [];
+      if (src?.id != null) ids.push(`#${src.id}`);
+      ids.push("→");
+      if (tgt?.id != null) ids.push(`#${tgt.id}`);
+      else if (newId != null) ids.push(`#${s(newId)}`);
+      else ids.push("新歌曲");
+      lines.push(ids.join(" "));
+      return { headline, lines };
     }
 
     case "merge_artist": {
@@ -297,24 +316,29 @@ function describe(
       const tgt = detail.target as { id?: number; name?: string } | undefined;
       const newName = s(detail.newArtistName);
       const type = detail.artistType ? aLabel(s(detail.artistType)) : "";
-      const srcRef = src ? ref(src.name, src.id) : "?";
-      const tgtRef = tgt
-        ? ref(tgt.name, tgt.id)
+      const srcLabel = src?.name ? `「${src.name}」` : "?";
+      const tgtLabel = tgt?.name
+        ? `「${tgt.name}」`
         : newName
           ? `新${type}「${newName}」`
           : "?";
+      const headline = `合并${type}${srcLabel}→${tgtLabel}`;
+      const ids: string[] = [];
+      if (src?.id != null) ids.push(`#${src.id}`);
+      ids.push("→");
+      if (tgt?.id != null) ids.push(`#${tgt.id}`);
+      else ids.push(`新${type}`);
+      lines.push(ids.join(" "));
       if (detail.songsAffected != null)
         lines.push(`影响 ${s(detail.songsAffected)} 首歌曲`);
-      return {
-        headline: `合并${type}${srcRef}→${tgtRef}`,
-        lines,
-      };
+      return { headline, lines };
     }
 
     case "add_relation": {
-      const id = songId ?? detail.targetId;
       const direction = s(detail.direction);
       const dirLabel = direction === "original" ? "本家" : "衍生";
+      const selfRef =
+        songId != null ? `「${songName}」#${s(songId)}` : `「${songName}」`;
 
       const relations = detail.relations as
         | { id: number; name: string }[]
@@ -329,7 +353,7 @@ function describe(
         }
         return {
           headline: songName
-            ? `为${ref(songName, id)}批量添加了 ${relations.length} 首${dirLabel}关联`
+            ? `为${selfRef}批量添加了 ${relations.length} 首${dirLabel}关联`
             : `批量添加了 ${relations.length} 首${dirLabel}关联`,
           lines,
         };
@@ -337,26 +361,28 @@ function describe(
 
       const relatedName = s(detail.relatedSongName);
       const relatedId = detail.relatedSongId || detail.related_song_id;
-      const relatedRef = ref(relatedName, relatedId);
+      const relatedLabel = songRef(relatedName, relatedId) || "?";
       return {
         headline: songName
-          ? `为${ref(songName, id)}添加了${dirLabel}关联${relatedRef}`
-          : `添加了${dirLabel}关联${relatedRef}`,
+          ? `为${selfRef}添加了${dirLabel}关联${relatedLabel}`
+          : `添加了${dirLabel}关联${relatedLabel}`,
         lines,
       };
     }
 
     case "remove_relation": {
-      const id = songId ?? detail.targetId;
       const direction = s(detail.direction);
       const dirLabel = direction === "original" ? "本家" : "衍生";
+      const selfRef =
+        songId != null ? `「${songName}」#${s(songId)}` : `「${songName}」`;
       const relatedName = s(detail.relatedSongName);
       const relatedId = detail.relatedSongId || detail.related_song_id;
-      const relatedRef = ref(relatedName, relatedId);
+      const relatedLabel = songRef(relatedName, relatedId) || "?";
+
       return {
         headline: songName
-          ? `移除了${ref(songName, id)}的${dirLabel}关联${relatedRef}`
-          : `移除了${dirLabel}关联${relatedRef}`,
+          ? `移除了${selfRef}的${dirLabel}关联${relatedLabel}`
+          : `移除了${dirLabel}关联${relatedLabel}`,
         lines,
       };
     }

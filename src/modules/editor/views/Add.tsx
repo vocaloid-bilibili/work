@@ -206,9 +206,6 @@ export function AddView({ preset }: Props) {
           bvid: res.bvid,
           videoTitle: preview.title,
           type: songType,
-          vocal: vocInput.trim(),
-          producer: proInput.trim(),
-          synthesizer: synInput.trim(),
           collectedRow: res.collected_row,
         };
         if (displayName.trim()) detail.displayName = displayName.trim();
