@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import * as api from "@/core/api/mainEndpoints";
 import { logEdit } from "@/core/api/collabEndpoints";
 import { SONG_TYPES } from "@/core/types/constants";
+import { cn } from "@/ui/cn";
 import { useEditor } from "../ctx";
 import { useSongForm } from "../hooks/useSongForm";
 import { useRelations } from "../hooks/useRelations";
@@ -41,8 +42,6 @@ import {
 } from "@/ui/dropdown-menu";
 import type { Song, VideoSummary, SongType } from "@/core/types/catalog";
 
-/* ── Header：身份信息 + 内联编辑 display name / type ── */
-
 function SongHeader({
   song,
   form,
@@ -58,9 +57,16 @@ function SongHeader({
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <h2 className="text-xl font-black tracking-tight wrap-break-word">
-          {name}
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-black tracking-tight wrap-break-word">
+            {name}
+          </h2>
+          {!form.collected && (
+            <span className="shrink-0 rounded-md bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+              参考
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-x-2 gap-y-1 flex-wrap text-xs text-muted-foreground">
           {song.display_name && (
             <span className="wrap-break-word">{song.name}</span>
@@ -86,7 +92,7 @@ function SongHeader({
         </div>
       </div>
 
-      {/* 内联编辑：显示名称 + 类型 */}
+      {/* 内联编辑：显示名称 + 类型 + 收录状态 */}
       <div className="flex items-end gap-3">
         <div className="flex-1 min-w-0">
           <label className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">
@@ -120,6 +126,29 @@ function SongHeader({
               ))}
             </SelectContent>
           </Select>
+        </div>
+        <div className="shrink-0">
+          <label className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">
+            收录
+          </label>
+          <button
+            type="button"
+            onClick={() => form.setCollected(!form.collected)}
+            className={cn(
+              "mt-1 flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-all",
+              form.collected
+                ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-600 hover:bg-emerald-500/10"
+                : "border-amber-500/30 bg-amber-500/5 text-amber-600 hover:bg-amber-500/10",
+            )}
+          >
+            <span
+              className={cn(
+                "h-2 w-2 rounded-full",
+                form.collected ? "bg-emerald-500" : "bg-amber-500",
+              )}
+            />
+            {form.collected ? "收录" : "参考"}
+          </button>
         </div>
       </div>
     </div>

@@ -47,6 +47,7 @@ export const editSong = (data: {
   id: number;
   display_name?: string;
   type?: string;
+  collected?: boolean;
   vocalist_ids?: number[];
   producer_ids?: number[];
   synthesizer_ids?: number[];

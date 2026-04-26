@@ -34,6 +34,7 @@ export interface Song {
   display_name?: string | null;
   type: SongType;
   vocadb_id?: number | null;
+  collected?: boolean;
   vocalists?: Artist[];
   producers?: Artist[];
   synthesizers?: Artist[];

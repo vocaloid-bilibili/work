@@ -15,6 +15,7 @@ function split(s: string) {
 interface Snap {
   displayName: string;
   type: SongType;
+  collected: boolean;
   vocalists: string;
   producers: string;
   synthesizers: string;
@@ -24,6 +25,7 @@ export function useSongForm(song: Song) {
   const snap = useRef<Snap | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [type, setType] = useState<SongType>("原创");
+  const [collected, setCollected] = useState(true);
   const [vocalists, setVocalists] = useState("");
   const [producers, setProducers] = useState("");
   const [synthesizers, setSynthesizers] = useState("");
@@ -33,6 +35,7 @@ export function useSongForm(song: Song) {
     const s: Snap = {
       displayName: song.display_name ?? "",
       type: song.type,
+      collected: song.collected ?? true,
       vocalists: (song.vocalists ?? []).map((a) => a.name).join("、"),
       producers: (song.producers ?? []).map((a) => a.name).join("、"),
       synthesizers: (song.synthesizers ?? []).map((a) => a.name).join("、"),
@@ -40,6 +43,7 @@ export function useSongForm(song: Song) {
     snap.current = s;
     setDisplayName(s.displayName);
     setType(s.type);
+    setCollected(s.collected);
     setVocalists(s.vocalists);
     setProducers(s.producers);
     setSynthesizers(s.synthesizers);
@@ -51,11 +55,12 @@ export function useSongForm(song: Song) {
     return (
       displayName !== s.displayName ||
       type !== s.type ||
+      collected !== s.collected ||
       vocalists !== s.vocalists ||
       producers !== s.producers ||
       synthesizers !== s.synthesizers
     );
-  }, [displayName, type, vocalists, producers, synthesizers]);
+  }, [displayName, type, collected, vocalists, producers, synthesizers]);
 
   const diff = () => {
     const s = snap.current;
@@ -67,6 +72,11 @@ export function useSongForm(song: Song) {
         new: displayName || "（空）",
       };
     if (type !== s.type) c["类型"] = { old: s.type, new: type };
+    if (collected !== s.collected)
+      c["收录状态"] = {
+        old: s.collected ? "收录" : "参考",
+        new: collected ? "收录" : "参考",
+      };
     if (vocalists !== s.vocalists)
       c["歌手"] = { old: s.vocalists || "（空）", new: vocalists || "（空）" };
     if (producers !== s.producers)
@@ -97,17 +107,23 @@ export function useSongForm(song: Song) {
         id: song.id,
         display_name: displayName || undefined,
         type,
+        collected,
         vocalist_ids: v.data.map((a) => a.id),
         producer_ids: p.data.map((a) => a.id),
         synthesizer_ids: s.data.map((a) => a.id),
       });
 
-      const rawDiff: Record<string, { old: string; new: string }> = {};
+      const rawDiff: Record<
+        string,
+        { old: string | boolean; new: string | boolean }
+      > = {};
       const sc = snap.current;
       if (sc) {
         if (displayName !== sc.displayName)
           rawDiff.display_name = { old: sc.displayName, new: displayName };
         if (type !== sc.type) rawDiff.type = { old: sc.type, new: type };
+        if (collected !== sc.collected)
+          rawDiff.collected = { old: sc.collected, new: collected };
         if (vocalists !== sc.vocalists)
           rawDiff.vocal = { old: sc.vocalists, new: vocalists };
         if (producers !== sc.producers)
@@ -127,7 +143,14 @@ export function useSongForm(song: Song) {
           changes: rawDiff,
         },
       });
-      snap.current = { displayName, type, vocalists, producers, synthesizers };
+      snap.current = {
+        displayName,
+        type,
+        collected,
+        vocalists,
+        producers,
+        synthesizers,
+      };
       toast.success("歌曲信息已更新");
       return true;
     } catch (e: any) {
@@ -143,6 +166,8 @@ export function useSongForm(song: Song) {
     setDisplayName,
     type,
     setType,
+    collected,
+    setCollected,
     vocalists,
     setVocalists,
     producers,
