@@ -19,7 +19,6 @@ import { cn } from "@/ui/cn";
 import { useEditor } from "../ctx";
 import { useSongForm } from "../hooks/useSongForm";
 import { useRelations } from "../hooks/useRelations";
-import { buildCollectedRow } from "../utils/collected";
 import { Section } from "../components/Section";
 import { Input } from "../components/Input";
 import { Btn } from "../components/Btn";
@@ -313,20 +312,11 @@ function VideoListSection({
       setRmLoading(false);
     }
   };
-
   const doRestore = async (video: VideoSummary) => {
     setRestoringBvid(video.bvid);
     try {
-      await api.restoreVideo(video.bvid);
+      const res = await api.restoreVideo(video.bvid);
 
-      let bilibili: api.BilibiliVideoInfo | null = null;
-      try {
-        bilibili = await api.fetchBilibiliVideo(video.bvid);
-      } catch {
-        /* best-effort */
-      }
-
-      const collectedRow = buildCollectedRow(video, song, bilibili);
       await logEdit({
         targetType: "video",
         targetId: video.bvid,
@@ -336,7 +326,7 @@ function VideoListSection({
           title: video.title,
           songId: song.id,
           songName: song.name,
-          collectedRow,
+          collectedRow: res.collected_row ?? null,
         },
       });
       toast.success(`已恢复收录：${video.bvid}`);

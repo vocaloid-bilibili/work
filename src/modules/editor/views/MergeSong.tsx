@@ -64,7 +64,7 @@ export function MergeSongView({ preset }: { preset?: Song }) {
         mode === "existing" ? target?.id : undefined,
         mode === "new" ? newName.trim() : undefined,
       );
-      logEdit({
+      await logEdit({
         targetType: "song",
         targetId: String(r.into),
         action: "merge_song",
@@ -75,11 +75,11 @@ export function MergeSongView({ preset }: { preset?: Song }) {
             : { newSongName: newName.trim(), newSongId: r.into }),
         },
       });
-      toast.success("歌曲合并成功");
+      await toast.success("歌曲合并成功");
       setConfirmOpen(false);
       back();
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || "合并失败");
+      await toast.error(e?.response?.data?.detail || "合并失败");
     } finally {
       setLoading(false);
     }

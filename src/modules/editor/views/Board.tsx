@@ -53,7 +53,7 @@ export function BoardView() {
     setSaving(true);
     try {
       await api.setBoardVideo(board, n, bvid.trim());
-      logEdit({
+      await logEdit({
         targetType: "ranking_video",
         targetId: `${board}_${n}`,
         action: "set_board_video",

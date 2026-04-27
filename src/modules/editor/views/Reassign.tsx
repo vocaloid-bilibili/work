@@ -93,7 +93,7 @@ export function ReassignView({ bvid, title, parent }: Props) {
           toast.warning("视频已移动，但新歌曲属性设置失败");
         }
       }
-      logEdit({
+      await logEdit({
         targetType: "video",
         targetId: bvid,
         action: "reassign_video",
@@ -107,6 +107,7 @@ export function ReassignView({ bvid, title, parent }: Props) {
                 toSong: { id: r.new_song_id, name: name.trim() },
                 newSongName: name.trim(),
               }),
+          collectedUpdate: r.collected_update,
         },
       });
       toast.success("视频移动成功");

@@ -14,7 +14,6 @@ import { logEdit } from "@/core/api/collabEndpoints";
 import { COPYRIGHT, COPYRIGHT_MAP } from "@/core/types/constants";
 import { useEditor } from "../ctx";
 import { useVideoForm } from "../hooks/useVideoForm";
-import { buildCollectedRow } from "../utils/collected";
 import { Section } from "../components/Section";
 import { Field } from "../components/Field";
 import { Input } from "../components/Input";
@@ -203,18 +202,11 @@ export function VideoView({ video }: { video: Video }) {
       setRmLoading(false);
     }
   };
-
   const doRestore = async () => {
     setRestoreLoading(true);
     try {
-      await api.restoreVideo(video.bvid);
+      const res = await api.restoreVideo(video.bvid);
 
-      let bilibili: api.BilibiliVideoInfo | null = null;
-      try {
-        bilibili = await api.fetchBilibiliVideo(video.bvid);
-      } catch {}
-
-      const collectedRow = buildCollectedRow(video, parent, bilibili);
       await logEdit({
         targetType: "video",
         targetId: video.bvid,
@@ -224,7 +216,7 @@ export function VideoView({ video }: { video: Video }) {
           title: video.title,
           songId: parent?.id ?? video.song_id ?? null,
           songName: parent?.name ?? null,
-          collectedRow,
+          collectedRow: res.collected_row ?? null,
         },
       });
       toast.success(`已恢复收录：${video.bvid}`);

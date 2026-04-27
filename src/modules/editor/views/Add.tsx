@@ -152,7 +152,7 @@ export function AddView({ preset }: Props) {
           duration: preview.duration,
           view: preview.stat?.view || 0,
         });
-        logEdit({
+        await logEdit({
           targetType: "video",
           targetId: res.bvid,
           action: "add_video",
@@ -226,7 +226,7 @@ export function AddView({ preset }: Props) {
         };
         if (displayName.trim()) detail.displayName = displayName.trim();
 
-        logEdit({
+        await logEdit({
           targetType: "song",
           targetId: String(res.song_id),
           action: "add_song",
@@ -278,7 +278,7 @@ export function AddView({ preset }: Props) {
 
       const res = await api.addReferenceSong(params as any);
 
-      logEdit({
+      await logEdit({
         targetType: "song",
         targetId: String(res.song_id),
         action: "add_song",

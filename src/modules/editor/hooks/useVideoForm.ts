@@ -62,7 +62,7 @@ export function useVideoForm(
           rawDiff.copyright = { old: s.copyright, new: copyright };
       }
 
-      logEdit({
+      await logEdit({
         targetType: "video",
         targetId: video.bvid,
         action: "edit_video",

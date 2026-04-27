@@ -51,7 +51,15 @@ export const editSong = (data: {
   vocalist_ids?: number[];
   producer_ids?: number[];
   synthesizer_ids?: number[];
-}) => http.post("/edit/song", data).then((r) => r.data);
+}) =>
+  http.post("/edit/song", data).then(
+    (r) =>
+      r.data as {
+        status: string;
+        id: number;
+        collected_rows: CollectedRow[] | null;
+      },
+  );
 
 export const editVideo = (data: {
   bvid: string;
@@ -85,10 +93,14 @@ export const deleteVideo = (bvid: string) =>
   http.delete(`/edit/video/${bvid}`).then((r) => r.data);
 
 export const restoreVideo = (bvid: string) =>
-  http
-    .post(`/edit/video/${bvid}/restore`)
-    .then((r) => r.data as { status: string; restored: string });
-
+  http.post(`/edit/video/${bvid}/restore`).then(
+    (r) =>
+      r.data as {
+        status: string;
+        restored: string;
+        collected_row: CollectedRow | null;
+      },
+  );
 export const hardDeleteVideo = (bvid: string) =>
   http.delete(`/edit/video/${bvid}/hard`).then((r) => r.data);
 
@@ -123,6 +135,13 @@ export const reassignVideo = (
           bvid: string;
           old_song_id: number;
           new_song_id: number;
+          collected_update: {
+            name: string;
+            type: string;
+            vocal: string;
+            author: string;
+            synthesizer: string;
+          } | null;
         },
     );
 

@@ -56,7 +56,7 @@ export function MergeArtistView() {
         mode === "existing" ? target?.id : undefined,
         mode === "new" ? newName.trim() : undefined,
       );
-      logEdit({
+      await logEdit({
         targetType: "artist",
         targetId: String(r.into),
         action: "merge_artist",

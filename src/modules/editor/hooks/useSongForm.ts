@@ -103,7 +103,7 @@ export function useSongForm(song: Song) {
           ? api.resolveArtists("synthesizer", split(synthesizers))
           : { data: [] },
       ]);
-      await api.editSong({
+      const res = await api.editSong({
         id: song.id,
         display_name: displayName || undefined,
         type,
@@ -132,16 +132,24 @@ export function useSongForm(song: Song) {
           rawDiff.synthesizer = { old: sc.synthesizers, new: synthesizers };
       }
 
-      logEdit({
+      const detail: Record<string, unknown> = {
+        songId: song.id,
+        songName: song.name,
+        bvids: (song.videos ?? [])
+          .filter((v) => !v.disabled)
+          .map((v) => v.bvid),
+        changes: rawDiff,
+      };
+
+      if (res.collected_rows) {
+        detail.collectedRows = res.collected_rows;
+      }
+
+      await logEdit({
         targetType: "song",
         targetId: String(song.id),
         action: "edit_song",
-        detail: {
-          songId: song.id,
-          songName: song.name,
-          bvids: (song.videos ?? []).map((v) => v.bvid),
-          changes: rawDiff,
-        },
+        detail,
       });
       snap.current = {
         displayName,

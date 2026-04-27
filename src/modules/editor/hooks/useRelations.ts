@@ -102,7 +102,7 @@ export function useRelations(song: Song) {
       try {
         if (dir === "original") await api.addSongRelation(song.id, target.id);
         else await api.addSongRelation(target.id, song.id);
-        logEdit({
+        await logEdit({
           targetType: "song",
           targetId: String(song.id),
           action: "add_relation",
@@ -134,7 +134,7 @@ export function useRelations(song: Song) {
       const r = await api.addSongRelationBatch(song.id, ids);
 
       if (r.added.length > 0) {
-        logEdit({
+        await logEdit({
           targetType: "song",
           targetId: String(song.id),
           action: "add_relation",
@@ -171,7 +171,7 @@ export function useRelations(song: Song) {
       try {
         if (dir === "original") await api.removeSongRelation(song.id, targetId);
         else await api.removeSongRelation(targetId, song.id);
-        logEdit({
+        await logEdit({
           targetType: "song",
           targetId: String(song.id),
           action: "remove_relation",
