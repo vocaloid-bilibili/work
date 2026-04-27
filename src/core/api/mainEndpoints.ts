@@ -294,7 +294,7 @@ export const addVideoToSong = (data: {
         status: string;
         bvid: string;
         song_id: number;
-        collected_row: CollectedRow;
+        collected_row: CollectedRow | null;
       },
   );
 
