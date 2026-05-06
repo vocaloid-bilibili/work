@@ -156,19 +156,17 @@ function LogRow({ log, isPending }: { log: EditLogEntry; isPending: boolean }) {
 /* ── 主页面 ── */
 
 export function SyncView() {
-  const { st, err, busy, load, doSync } = useSync();
+  const { st, err, busy, checking, load, verify, doSync } = useSync();
   const {
     pending,
     synced,
     loading: logsLoading,
-    reload,
   } = useSyncLogs(st?.cursor ?? null);
   const [showSynced, setShowSynced] = useState(false);
 
   const handleSync = async () => {
     try {
       const msg = await doSync();
-      await reload();
       toast.success(msg);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "同步失败");
@@ -177,11 +175,20 @@ export function SyncView() {
 
   const handleRefresh = async () => {
     await load();
-    await reload();
+  };
+
+  const handleVerify = async () => {
+    const d = await verify();
+    if (d?.health?.hashMatches) {
+      toast.success("校验通过，远端数据一致");
+    } else if (d?.health && !d.health.hashMatches) {
+      toast.error("远端文件已被修改，需要重新同步");
+    }
   };
 
   const health = st?.health;
-  const hasErr = health && !health.ok;
+  const hashMismatch = health && health.hashMatches === false;
+  const hasErr = health && (!health.ok || hashMismatch);
   const hasPending = !!st && st.pending > 0;
   const isOk = !!st && !hasErr && !hasPending;
 
@@ -219,13 +226,16 @@ export function SyncView() {
                 )}
               >
                 {hasErr
-                  ? "同步异常"
+                  ? hashMismatch
+                    ? "远端文件已被修改"
+                    : "同步异常"
                   : hasPending
                     ? `${st.pending} 条操作待同步`
                     : "已全部同步"}
               </p>
 
-              {hasErr && health.reasons?.length > 0 && (
+              {/* 异常原因（非 hash 问题） */}
+              {hasErr && health.reasons?.length > 0 && !hashMismatch && (
                 <div className="mt-1.5 space-y-0.5">
                   {health.reasons.map((r, i) => (
                     <p
@@ -238,6 +248,14 @@ export function SyncView() {
                 </div>
               )}
 
+              {/* hash 不一致 */}
+              {hashMismatch && (
+                <p className="text-xs sm:text-sm text-red-700 dark:text-red-300 mt-1">
+                  操作可能未生效，请点击「立即同步」重新推送
+                </p>
+              )}
+
+              {/* 有待同步 */}
               {!hasErr && hasPending && (
                 <p className="text-xs sm:text-sm text-amber-700 dark:text-amber-300 mt-1">
                   已记录，等待推送到主数据库
@@ -249,6 +267,7 @@ export function SyncView() {
                 </p>
               )}
 
+              {/* 一切正常 */}
               {isOk && st.lastSuccessAt && (
                 <p className="text-xs sm:text-sm text-emerald-700 dark:text-emerald-300 mt-1">
                   上次同步 {fmtTimeAgo(st.lastSuccessAt)}
@@ -261,7 +280,7 @@ export function SyncView() {
             <Btn
               className="flex-1 sm:flex-initial"
               onClick={handleRefresh}
-              disabled={busy || logsLoading}
+              disabled={busy || checking || logsLoading}
               loading={logsLoading}
               icon={<RefreshCw className="h-3.5 w-3.5" />}
               size="sm"
@@ -270,10 +289,20 @@ export function SyncView() {
             </Btn>
             <Btn
               className="flex-1 sm:flex-initial"
+              onClick={handleVerify}
+              disabled={busy || checking}
+              loading={checking}
+              icon={<CheckCircle2 className="h-3.5 w-3.5" />}
+              size="sm"
+            >
+              校验
+            </Btn>
+            <Btn
+              className="flex-1 sm:flex-initial"
               variant="primary"
               size="sm"
               onClick={handleSync}
-              disabled={busy || !!st?.locked}
+              disabled={busy || checking || !!st?.locked}
               loading={busy}
               icon={<RefreshCw className="h-3.5 w-3.5" />}
             >
@@ -382,17 +411,21 @@ export function SyncView() {
               <p
                 className={cn(
                   "text-2xl sm:text-3xl font-black",
-                  health?.ok
+                  isOk
                     ? "text-emerald-600"
-                    : health
+                    : hasErr
                       ? "text-red-600"
                       : "text-muted-foreground",
                 )}
               >
-                {health ? (health.ok ? "✓" : "✗") : "—"}
+                {health
+                  ? health.ok && health.hashMatches !== false
+                    ? "✓"
+                    : "✗"
+                  : "—"}
               </p>
               <p className="text-[11px] sm:text-xs text-muted-foreground mt-1">
-                健康
+                状态
               </p>
             </div>
           </div>

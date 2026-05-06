@@ -1,8 +1,9 @@
 // src/modules/editor/hooks/useSync.ts
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   getSyncStatus,
   triggerSync,
+  checkSync,
   getEditLogs,
   type SyncStatus,
   type EditLogEntry,
@@ -36,10 +37,13 @@ function _stopPollingIfEmpty() {
   }
 }
 
+/* ── useSync：带基线对比 ── */
+
 export function useSync() {
   const [st, setSt] = useState<SyncStatus | null>(_cache);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     const fn = (d: SyncStatus | null) => {
@@ -61,15 +65,57 @@ export function useSync() {
     return d;
   }, []);
 
+  const verify = useCallback(async () => {
+    setChecking(true);
+    setErr("");
+    try {
+      await checkSync();
+      const d = await _fetch();
+      if (!d) setErr("加载失败");
+      return d;
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "校验失败");
+      return null;
+    } finally {
+      setChecking(false);
+    }
+  }, []);
+
   const doSync = useCallback(async () => {
     setBusy(true);
     setErr("");
+
+    const baseline = _cache;
+    const cursorBefore = baseline?.cursor ?? 0;
+
     try {
       const r = await triggerSync();
-      await _fetch();
-      return r.triggered
-        ? `处理 ${r.result?.logsProcessed ?? 0} 条，共 ${r.result?.runs ?? 0} 轮`
-        : r.message || "无待同步";
+      const after = await _fetch();
+
+      if (!r.triggered) {
+        return r.message || "无待同步";
+      }
+
+      const cursorAfter = after?.cursor ?? cursorBefore;
+      const advanced = cursorAfter - cursorBefore;
+      const health = after?.health;
+
+      if (health && !health.hashMatches) {
+        setErr("同步已执行，但本地与远端数据不一致");
+        return "同步完成但哈希不匹配";
+      }
+
+      const parts: string[] = [];
+      if (r.result?.logsProcessed)
+        parts.push(`处理 ${r.result.logsProcessed} 条`);
+      if (advanced > 0) parts.push(`推进 ${advanced} 条`);
+      if (after?.pending === 0 && health?.hashMatches) {
+        parts.push("已全部同步 ✓");
+      } else if ((after?.pending ?? 0) > 0) {
+        parts.push(`剩余 ${after!.pending} 条待同步`);
+      }
+
+      return parts.join("，") || "同步完成";
     } catch (e) {
       const msg = e instanceof Error ? e.message : "同步失败";
       setErr(msg);
@@ -79,13 +125,15 @@ export function useSync() {
     }
   }, []);
 
-  return { st, err, busy, load, doSync };
+  return { st, err, busy, checking, load, verify, doSync };
 }
 
-/** 专门给 Sync 页面用的日志加载 */
+/* ── useSyncLogs：cursor 变化时自动刷新 ── */
+
 export function useSyncLogs(cursor: number | null) {
   const [logs, setLogs] = useState<EditLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const prevCursorRef = useRef<number | null>(null);
 
   const loadLogs = useCallback(async () => {
     setLoading(true);
@@ -99,9 +147,18 @@ export function useSyncLogs(cursor: number | null) {
     }
   }, []);
 
+  // 初始加载
   useEffect(() => {
     loadLogs();
   }, [loadLogs]);
+
+  // cursor 变化时自动重新加载日志
+  useEffect(() => {
+    if (prevCursorRef.current !== null && cursor !== prevCursorRef.current) {
+      loadLogs();
+    }
+    prevCursorRef.current = cursor;
+  }, [cursor, loadLogs]);
 
   const pending =
     cursor != null ? logs.filter((l) => (l.id ?? l.logId ?? 0) > cursor) : [];
