@@ -67,14 +67,12 @@ function applyUser(user: CachedUser | null): State {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<State>({ ...EMPTY, loading: true });
 
-  // 从缓存或 /auth/me 恢复登录态
   const verifySession = useCallback(async (): Promise<boolean> => {
     try {
       const res = await fetch(`${AUTH_BASE}/auth/me`, {
         credentials: "include",
       });
       if (!res.ok) {
-        // 尝试刷新
         const refreshRes = await fetch(`${AUTH_BASE}/auth/refresh`, {
           method: "POST",
           credentials: "include",
@@ -84,7 +82,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setState({ ...EMPTY });
           return false;
         }
-        // 刷新成功后重新获取
         const retryRes = await fetch(`${AUTH_BASE}/auth/me`, {
           credentials: "include",
         });
@@ -133,23 +130,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // 初始化：有缓存先渲染，后台验证
   useEffect(() => {
     const cached = getCachedUser();
     if (cached && checkAccess(cached.role)) {
-      // 先用缓存渲染
       setState(applyUser(cached));
-      // 后台验证 Cookie 是否还有效
-      verifySession();
     } else {
-      // 没有缓存，尝试验证（可能主站登录过，Cookie 在）
       verifySession().finally(() => {
         setState((prev) => (prev.loading ? { ...prev, loading: false } : prev));
       });
     }
   }, [verifySession]);
 
-  // 监听 401 事件（mainClient 拦截器触发）
   useEffect(() => {
     const handler = () => {
       clearCachedUser();
@@ -163,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (u: string, p: string, codeId: number, codeAnswer: string) => {
       const res = await fetch(`${AUTH_BASE}/auth/login`, {
         method: "POST",
-        credentials: "include", // ← 接收 Set-Cookie
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: u,
@@ -179,7 +170,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
       const user = data.user as CachedUser;
       if (!checkAccess(user.role)) {
-        // 登录成功但权限不够
         await fetch(`${AUTH_BASE}/auth/logout`, {
           method: "POST",
           credentials: "include",
