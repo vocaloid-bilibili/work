@@ -8,7 +8,6 @@ export interface WsEvent {
 
 interface Opts {
   urlProvider: () => Promise<string>;
-  tokenProvider: () => Promise<string | null>;
   onMessage: (e: WsEvent) => void;
   onStatus: (s: ConnState) => void;
 }
@@ -16,7 +15,7 @@ interface Opts {
 const HB = 15_000;
 const STALE = 45_000;
 const Q_MAX = 200;
-const AUTH_TIMEOUT = 10_000;
+const CONNECT_TIMEOUT = 10_000;
 const RECON_DELAYS = [1e3, 2e3, 5e3, 1e4, 15e3, 3e4] as const;
 
 export class RealtimeSocket {
@@ -27,7 +26,7 @@ export class RealtimeSocket {
   private hb: number | null = null;
   private stale: number | null = null;
   private reconTimer: number | null = null;
-  private authTimer: number | null = null;
+  private connectTimer: number | null = null;
   private lastPong = 0;
   private queue: string[] = [];
   private joined = false;
@@ -44,11 +43,8 @@ export class RealtimeSocket {
     this.opts.onStatus(this.attempt > 0 ? "reconnecting" : "connecting");
     if (this.attempt > 0) this.queue = [];
 
-    const [url, token] = await Promise.all([
-      this.opts.urlProvider(),
-      this.opts.tokenProvider(),
-    ]);
-    if (!url || !token) {
+    const url = await this.opts.urlProvider();
+    if (!url) {
       this.opts.onStatus("offline");
       return;
     }
@@ -62,13 +58,12 @@ export class RealtimeSocket {
 
     this.ws.onopen = () => {
       this.lastPong = Date.now();
-      this.ws!.send(JSON.stringify({ type: "auth", token }));
-      this.authTimer = window.setTimeout(() => {
+      this.connectTimer = window.setTimeout(() => {
         if (!this.authenticated) {
-          console.warn("[ws] 认证超时，断开重连");
+          console.warn("[ws] 连接超时，断开重连");
           this.ws?.close();
         }
-      }, AUTH_TIMEOUT);
+      }, CONNECT_TIMEOUT);
     };
 
     this.ws.onmessage = (e) => {
@@ -83,7 +78,7 @@ export class RealtimeSocket {
         if (d.type === "connected" && !this.authenticated) {
           this.authenticated = true;
           this.attempt = 0;
-          this.clearAuthTimer();
+          this.clearConnectTimer();
           this.opts.onStatus("connected");
           this.startHB();
           this.opts.onMessage(d);
@@ -105,7 +100,7 @@ export class RealtimeSocket {
 
     this.ws.onclose = () => {
       this.stopHB();
-      this.clearAuthTimer();
+      this.clearConnectTimer();
       this.joined = false;
       this.authenticated = false;
       if (this.manual) {
@@ -121,7 +116,7 @@ export class RealtimeSocket {
     this.joined = false;
     this.authenticated = false;
     this.stopHB();
-    this.clearAuthTimer();
+    this.clearConnectTimer();
     this.queue = [];
     if (this.reconTimer) {
       clearTimeout(this.reconTimer);
@@ -161,10 +156,10 @@ export class RealtimeSocket {
     this.reconTimer = window.setTimeout(() => this.connect(), w);
   }
 
-  private clearAuthTimer() {
-    if (this.authTimer) {
-      clearTimeout(this.authTimer);
-      this.authTimer = null;
+  private clearConnectTimer() {
+    if (this.connectTimer) {
+      clearTimeout(this.connectTimer);
+      this.connectTimer = null;
     }
   }
 

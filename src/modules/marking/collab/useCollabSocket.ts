@@ -6,7 +6,6 @@ import {
   type WsEvent,
 } from "@/core/ws/RealtimeSocket";
 import { collabBase } from "@/core/api/collabClient";
-import { validToken } from "@/core/auth/token";
 
 export function useCollabSocket(
   onMessage: (e: WsEvent) => void,
@@ -29,7 +28,6 @@ export function useCollabSocket(
         u.pathname = u.pathname.replace(/\/$/, "") + "/ws";
         return u.toString();
       },
-      tokenProvider: () => validToken().then((t) => t || null),
       onMessage: (e) => onMsgRef.current(e),
       onStatus: setConnState,
     });

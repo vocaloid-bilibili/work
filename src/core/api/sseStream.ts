@@ -1,6 +1,5 @@
 // src/core/api/sseStream.ts
 import { fetchEventSource } from "@microsoft/fetch-event-source";
-import { authHeaders } from "../auth/token";
 
 const BASE = "https://api.vocabili.top/v2";
 
@@ -17,10 +16,9 @@ class FatalSSEError extends Error {
 export function streamSSE(path: string, handlers: SSEHandlers): () => void {
   const ac = new AbortController();
   (async () => {
-    const h = await authHeaders();
     fetchEventSource(`${BASE}${path}`, {
       method: "GET",
-      headers: h,
+      credentials: "include",
       signal: ac.signal,
       async onopen(res) {
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);

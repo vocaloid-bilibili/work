@@ -1,81 +1,44 @@
 // src/core/auth/token.ts
-const AK = "vbs_access_token";
-const RK = "vbs_refresh_token";
+/**
+ * Cookie 版认证
+ * - Token 由 HttpOnly Cookie 管理，JS 不可见
+ * - 前端只缓存用户展示信息
+ */
 
-export const getAccess = () => localStorage.getItem(AK);
-export const getRefresh = () => localStorage.getItem(RK);
-export const setTokens = (a: string, r: string) => {
-  localStorage.setItem(AK, a);
-  localStorage.setItem(RK, r);
-};
-export const clearTokens = () => {
-  localStorage.removeItem(AK);
-  localStorage.removeItem(RK);
-};
+const USER_INFO_KEY = "vbs_collab_user";
 
-export interface TokenPayload {
+export interface CachedUser {
+  id: number;
+  username: string;
+  nickname: string;
   role: string;
-  avatar?: string | null;
-  nickname?: string | null;
-  username?: string | null;
-  exp: number;
+  avatar_url: string | null;
 }
 
-export function parseToken(token: string): TokenPayload | null {
+export function getCachedUser(): CachedUser | null {
   try {
-    const p = JSON.parse(atob(token.split(".")[1]));
-    if (typeof p.role !== "string" || typeof p.exp !== "number") return null;
-    return p as TokenPayload;
+    const raw = localStorage.getItem(USER_INFO_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as CachedUser;
   } catch {
     return null;
   }
 }
 
-export function isExpired(token: string, buffer = 30): boolean {
-  const p = parseToken(token);
-  return !p || p.exp * 1000 < Date.now() + buffer * 1000;
+export function setCachedUser(user: CachedUser): void {
+  localStorage.setItem(USER_INFO_KEY, JSON.stringify(user));
+}
+
+export function clearCachedUser(): void {
+  localStorage.removeItem(USER_INFO_KEY);
+  // 清理旧 token 残留
+  localStorage.removeItem("vbs_access_token");
+  localStorage.removeItem("vbs_refresh_token");
+}
+
+export function isLoggedIn(): boolean {
+  return getCachedUser() !== null;
 }
 
 export const AUTH_BASE =
   import.meta.env.VITE_AUTH_BASE_URL ?? "https://api.vocabili.top/v2";
-
-let refreshing: Promise<string | null> | null = null;
-
-export async function refreshAccessToken(): Promise<string | null> {
-  const rt = getRefresh();
-  if (!rt) return null;
-  try {
-    const res = await fetch(`${AUTH_BASE}/auth/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: rt }),
-    });
-    if (!res.ok) {
-      if (res.status === 401 || res.status === 403) {
-        clearTokens();
-      }
-      return null;
-    }
-    const d = await res.json();
-    setTokens(d.access_token, d.refresh_token ?? rt);
-    return d.access_token;
-  } catch {
-    return null;
-  }
-}
-
-export async function validToken(): Promise<string | null> {
-  const t = getAccess();
-  if (!t) return null;
-  if (!isExpired(t)) return t;
-  if (!refreshing)
-    refreshing = refreshAccessToken().finally(() => {
-      refreshing = null;
-    });
-  return refreshing;
-}
-
-export async function authHeaders(): Promise<Record<string, string>> {
-  const t = await validToken();
-  return t ? { Authorization: `Bearer ${t}` } : {};
-}

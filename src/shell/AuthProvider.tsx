@@ -9,13 +9,11 @@ import {
   type ReactNode,
 } from "react";
 import {
-  getAccess,
-  getRefresh,
-  setTokens,
-  clearTokens,
-  parseToken,
-  isExpired,
+  getCachedUser,
+  setCachedUser,
+  clearCachedUser,
   AUTH_BASE,
+  type CachedUser,
 } from "@/core/auth/token";
 import { hasAccess as checkAccess } from "@/core/auth/roles";
 import { authExpiredEvent } from "@/core/api/mainClient";
@@ -53,78 +51,119 @@ export function useAuth() {
   return c;
 }
 
+function applyUser(user: CachedUser | null): State {
+  if (!user || !checkAccess(user.role)) {
+    return { ...EMPTY };
+  }
+  return {
+    role: user.role,
+    avatarUrl: user.avatar_url,
+    nickname: user.nickname,
+    username: user.username,
+    loading: false,
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<State>({ ...EMPTY, loading: true });
 
-  const apply = useCallback((token: string | null) => {
-    if (!token) {
+  // 从缓存或 /auth/me 恢复登录态
+  const verifySession = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await fetch(`${AUTH_BASE}/auth/me`, {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        // 尝试刷新
+        const refreshRes = await fetch(`${AUTH_BASE}/auth/refresh`, {
+          method: "POST",
+          credentials: "include",
+        });
+        if (!refreshRes.ok) {
+          clearCachedUser();
+          setState({ ...EMPTY });
+          return false;
+        }
+        // 刷新成功后重新获取
+        const retryRes = await fetch(`${AUTH_BASE}/auth/me`, {
+          credentials: "include",
+        });
+        if (!retryRes.ok) {
+          clearCachedUser();
+          setState({ ...EMPTY });
+          return false;
+        }
+        const retryData = await retryRes.json();
+        const user = retryData.user as CachedUser;
+        setCachedUser(user);
+        setState(applyUser(user));
+        return true;
+      }
+      const data = await res.json();
+      const user = data.user as CachedUser;
+      setCachedUser(user);
+      setState(applyUser(user));
+      return true;
+    } catch {
+      clearCachedUser();
       setState({ ...EMPTY });
-      return;
+      return false;
     }
-    const p = parseToken(token);
-    if (!p || !checkAccess(p.role)) {
-      clearTokens();
-      setState({ ...EMPTY });
-      return;
-    }
-    setState({
-      role: p.role,
-      avatarUrl: p.avatar ?? null,
-      nickname: p.nickname ?? null,
-      username: p.username ?? null,
-      loading: false,
-    });
   }, []);
 
   const refreshAuth = useCallback(async (): Promise<boolean> => {
-    const rt = getRefresh();
-    if (!rt) return false;
     try {
       const res = await fetch(`${AUTH_BASE}/auth/refresh`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: rt }),
+        credentials: "include",
       });
       if (!res.ok) {
-        clearTokens();
-        apply(null);
+        clearCachedUser();
+        setState({ ...EMPTY });
         return false;
       }
-      const d = await res.json();
-      setTokens(d.access_token, rt);
-      apply(d.access_token);
+      const data = await res.json();
+      if (data.user) {
+        setCachedUser(data.user as CachedUser);
+        setState(applyUser(data.user as CachedUser));
+      }
       return true;
     } catch {
       return false;
     }
-  }, [apply]);
+  }, []);
 
+  // 初始化：有缓存先渲染，后台验证
   useEffect(() => {
-    const t = getAccess();
-    if (!t) {
-      apply(null);
-      return;
-    }
-    if (isExpired(t)) {
-      refreshAuth().then((ok) => {
-        if (!ok) apply(null);
+    const cached = getCachedUser();
+    if (cached && checkAccess(cached.role)) {
+      // 先用缓存渲染
+      setState(applyUser(cached));
+      // 后台验证 Cookie 是否还有效
+      verifySession();
+    } else {
+      // 没有缓存，尝试验证（可能主站登录过，Cookie 在）
+      verifySession().finally(() => {
+        setState((prev) => (prev.loading ? { ...prev, loading: false } : prev));
       });
-    } else apply(t);
-  }, [apply, refreshAuth]);
+    }
+  }, [verifySession]);
 
+  // 监听 401 事件（mainClient 拦截器触发）
   useEffect(() => {
     const handler = () => {
-      clearTokens();
-      apply(null);
+      clearCachedUser();
+      setState({ ...EMPTY });
     };
     authExpiredEvent.addEventListener("expired", handler);
     return () => authExpiredEvent.removeEventListener("expired", handler);
-  }, [apply]);
+  }, []);
 
   const login = useCallback(
     async (u: string, p: string, codeId: number, codeAnswer: string) => {
       const res = await fetch(`${AUTH_BASE}/auth/login`, {
         method: "POST",
+        credentials: "include", // ← 接收 Set-Cookie
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: u,
@@ -137,17 +176,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const e = await res.json().catch(() => ({ detail: "登录失败" }));
         throw new Error(e.detail || "登录失败");
       }
-      const d = await res.json();
-      setTokens(d.access_token, d.refresh_token);
-      apply(d.access_token);
+      const data = await res.json();
+      const user = data.user as CachedUser;
+      if (!checkAccess(user.role)) {
+        // 登录成功但权限不够
+        await fetch(`${AUTH_BASE}/auth/logout`, {
+          method: "POST",
+          credentials: "include",
+        });
+        throw new Error("需要 worker 或更高权限");
+      }
+      setCachedUser(user);
+      setState(applyUser(user));
     },
-    [apply],
+    [],
   );
 
-  const logout = useCallback(() => {
-    clearTokens();
-    apply(null);
-  }, [apply]);
+  const logout = useCallback(async () => {
+    try {
+      await fetch(`${AUTH_BASE}/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } finally {
+      clearCachedUser();
+      setState({ ...EMPTY });
+    }
+  }, []);
 
   const actions = useMemo(
     () => ({ login, logout, refreshAuth }),

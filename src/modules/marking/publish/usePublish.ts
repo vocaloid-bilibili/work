@@ -2,7 +2,6 @@
 import { useState, useCallback, useRef } from "react";
 import * as api from "@/core/api/mainEndpoints";
 import { streamRanking, streamSnapshot } from "@/core/api/sseStream";
-import { validToken } from "@/core/auth/token";
 import { collabBase } from "@/core/api/collabClient";
 import type { PubFile, FileStatus, Phase, PublishMode } from "./types";
 import { PARTS } from "@/core/types/constants";
@@ -61,11 +60,9 @@ export function usePublish({ taskId }: { taskId: string }) {
   }, []);
 
   const checkLock = async () => {
-    const t = await validToken();
-    if (!t) return false;
     try {
       const r = await fetch(`${collabBase()}/mark/tasks/publish/status`, {
-        headers: { Authorization: `Bearer ${t}` },
+        credentials: "include",
       });
       if (!r.ok) return false;
       return !(await r.json()).publishing;
@@ -78,13 +75,10 @@ export function usePublish({ taskId }: { taskId: string }) {
     mode: PublishMode,
     signal: AbortSignal,
   ): Promise<PubFile[]> => {
-    const t = await validToken();
     const res = await fetch(`${collabBase()}/mark/tasks/${taskId}/publish`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${t}`,
-        "Content-Type": "application/json",
-      },
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mode }),
       signal,
     });
@@ -120,11 +114,10 @@ export function usePublish({ taskId }: { taskId: string }) {
   };
 
   const processFile = async (file: PubFile) => {
-    const t = await validToken();
     setFStatus((p) => ({ ...p, [file.fileKey]: "downloading" }));
     const dl = await fetch(
       `${collabBase()}/mark/tasks/publish/files/${file.fileKey}`,
-      { headers: { Authorization: `Bearer ${t}` } },
+      { credentials: "include" },
     );
     if (!dl.ok) throw new Error(`下载 ${file.filename} 失败`);
     const blob = await dl.blob();
@@ -162,10 +155,9 @@ export function usePublish({ taskId }: { taskId: string }) {
     }
     setFStatus((p) => ({ ...p, [file.fileKey]: "done" }));
 
-    const cleanupToken = await validToken();
     fetch(`${collabBase()}/mark/tasks/publish/files/${file.fileKey}`, {
       method: "DELETE",
-      headers: { Authorization: `Bearer ${cleanupToken}` },
+      credentials: "include",
     }).catch(() => {});
   };
 

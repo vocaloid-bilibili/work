@@ -1,5 +1,5 @@
 // src/core/api/collabClient.ts
-import { validToken, refreshAccessToken } from "../auth/token";
+import { clearCachedUser, AUTH_BASE } from "../auth/token";
 
 const BASE = "https://api.vocabili.top/collab";
 export const collabBase = () => BASE;
@@ -11,25 +11,33 @@ async function request<T>(
   method: string,
   body?: unknown,
 ): Promise<T> {
-  const token = await validToken();
-  const doFetch = async (t: string | null) => {
-    const res = await fetch(url, {
+  const doFetch = () =>
+    fetch(url, {
       method,
-      headers: {
-        "Content-Type": "application/json",
-        ...(t ? { Authorization: `Bearer ${t}` } : {}),
-      },
+      credentials: "include", // ← Cookie 自动带
+      headers: { "Content-Type": "application/json" },
       body: body ? JSON.stringify(body) : undefined,
     });
-    return res;
-  };
 
-  let res = await doFetch(token);
+  let res = await doFetch();
 
+  // 401 → 尝试刷新一次
   if (res.status === 401) {
-    const newToken = await refreshAccessToken();
-    if (newToken) {
-      res = await doFetch(newToken);
+    try {
+      const refreshRes = await fetch(`${AUTH_BASE}/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (refreshRes.ok) {
+        res = await doFetch();
+      } else {
+        clearCachedUser();
+        throw new Error("登录已过期");
+      }
+    } catch (e) {
+      clearCachedUser();
+      throw e instanceof Error ? e : new Error("登录已过期");
     }
   }
 
@@ -59,13 +67,11 @@ export async function collabPost<T>(path: string, body?: unknown): Promise<T> {
 }
 
 export async function collabUpload<T>(path: string, file: File): Promise<T> {
-  const token = await validToken();
-  if (!token) throw new Error("未登录");
   const fd = new FormData();
   fd.append("file", file);
   const res = await fetch(`${BASE}${path}`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    credentials: "include", // ← Cookie 自动带，不需要手动 Authorization
     body: fd,
   });
   let json: any;
@@ -82,9 +88,8 @@ export async function collabUpload<T>(path: string, file: File): Promise<T> {
 export async function collabDownload(
   path: string,
 ): Promise<{ blob: Blob; filename: string }> {
-  const token = await validToken();
   const res = await fetch(`${BASE}${path}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: "include", // ← Cookie 自动带
   });
   if (!res.ok) {
     let msg = "下载失败";
