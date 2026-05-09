@@ -1,9 +1,4 @@
 // src/core/auth/token.ts
-/**
- * Cookie 版认证
- * - Token 由 HttpOnly Cookie 管理，JS 不可见
- * - 前端只缓存用户展示信息
- */
 
 const USER_INFO_KEY = "vbs_collab_user";
 
@@ -31,9 +26,6 @@ export function setCachedUser(user: CachedUser): void {
 
 export function clearCachedUser(): void {
   localStorage.removeItem(USER_INFO_KEY);
-  // 清理旧 token 残留
-  localStorage.removeItem("vbs_access_token");
-  localStorage.removeItem("vbs_refresh_token");
 }
 
 export function isLoggedIn(): boolean {

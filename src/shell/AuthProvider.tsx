@@ -6,6 +6,7 @@ import {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
   type ReactNode,
 } from "react";
 import {
@@ -64,8 +65,17 @@ function applyUser(user: CachedUser | null): State {
   };
 }
 
+function getInitialState(): State {
+  const cached = getCachedUser();
+  if (cached && checkAccess(cached.role)) {
+    return applyUser(cached);
+  }
+  return { ...EMPTY, loading: true };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<State>({ ...EMPTY, loading: true });
+  const [state, setState] = useState<State>(getInitialState);
+  const didInit = useRef(false);
 
   const verifySession = useCallback(async (): Promise<boolean> => {
     try {
@@ -131,16 +141,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (didInit.current) return;
+    didInit.current = true;
+
     const cached = getCachedUser();
     if (cached && checkAccess(cached.role)) {
-      setState(applyUser(cached));
-    } else {
-      verifySession().finally(() => {
-        setState((prev) => (prev.loading ? { ...prev, loading: false } : prev));
-      });
+      return;
     }
+
+    verifySession().finally(() => {
+      setState((prev) => (prev.loading ? { ...prev, loading: false } : prev));
+    });
   }, [verifySession]);
 
+  // 监听 401 事件
   useEffect(() => {
     const handler = () => {
       clearCachedUser();
