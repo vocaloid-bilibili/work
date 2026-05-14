@@ -4,6 +4,7 @@ import { checkRanking } from "@/core/api/mainEndpoints";
 import { streamRanking, streamSnapshot } from "@/core/api/sseStream";
 import { isBoardId, type BoardId, type DataId } from "@/core/helpers/filename";
 import FileUploader from "./FileUploader";
+import ManualRankingUploader from "./ManualRankingUploader";
 import StepRow from "./StepRow";
 import {
   Dialog,
@@ -61,6 +62,12 @@ export default function IngestPage() {
       setDataOpen(true);
       runData(id);
     }
+  };
+
+  const onManualUpload = (id: BoardId) => {
+    setBoard(id);
+    resetBoard();
+    setBoardOpen(true);
   };
 
   const runCheck = async () => {
@@ -121,10 +128,17 @@ export default function IngestPage() {
     });
   };
 
-  return (
-    <div className="flex flex-col items-center p-8 w-full max-w-xl mx-auto">
-      <FileUploader onComplete={onUpload} />
+  const issueLabel =
+    board?.board === "vocaloid-annual"
+      ? `${board.issue} 年`
+      : `第 ${board?.issue} 期`;
 
+  return (
+    <div className="flex flex-col items-center p-8 w-full max-w-xl mx-auto gap-4">
+      <FileUploader onComplete={onUpload} />
+      <ManualRankingUploader onComplete={onManualUpload} />
+
+      {/* ── 排名检查/更新对话框 ── */}
       <Dialog open={boardOpen} onOpenChange={setBoardOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -136,7 +150,7 @@ export default function IngestPage() {
               <div className="bg-muted p-3 rounded text-sm flex gap-4">
                 <span>{bLabel(board.board)}</span>
                 <span>{pLabel(board.part)}</span>
-                <span>第 {board.issue} 期</span>
+                <span>{issueLabel}</span>
               </div>
               <StepRow
                 label="检查"
@@ -177,6 +191,7 @@ export default function IngestPage() {
         </DialogContent>
       </Dialog>
 
+      {/* ── 数据文件对话框 ── */}
       <Dialog open={dataOpen} onOpenChange={setDataOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

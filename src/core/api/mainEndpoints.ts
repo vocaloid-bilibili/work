@@ -15,6 +15,28 @@ export const uploadFile = (file: File, onProgress?: (p: number) => void) => {
   });
 };
 
+/** 手动指定 board/part/issue 上传排名文件 */
+export const uploadRankingFile = (
+  file: File,
+  board: string,
+  part: string,
+  issue: number,
+  onProgress?: (p: number) => void,
+) => {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("board", board);
+  fd.append("part", part);
+  fd.append("issue", String(issue));
+  return http.post("/upload/ranking", fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+    timeout: 100_000,
+    onUploadProgress: (e) => {
+      if (e.total) onProgress?.(e.loaded / e.total);
+    },
+  });
+};
+
 // ── 搜索 ──
 export const search = (
   type: string,

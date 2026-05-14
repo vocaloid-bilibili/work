@@ -36,12 +36,22 @@ export const BOARDS = [
   { value: "vocaloid-daily", label: "日刊" },
   { value: "vocaloid-weekly", label: "周刊" },
   { value: "vocaloid-monthly", label: "月刊" },
+  { value: "vocaloid-annual", label: "年刊" },
+  { value: "cover-weekly", label: "翻唱周刊" },
+  { value: "special", label: "特刊" },
 ] as const;
 
 export const PARTS = [
   { value: "main", label: "主榜" },
   { value: "new", label: "新曲榜" },
 ] as const;
+
+/** 这些 board 没有新曲榜 */
+export const NO_NEW_PART_BOARDS = new Set([
+  "vocaloid-annual",
+  "cover-weekly",
+  "special",
+]);
 
 export const FIELD_LABELS: Record<string, string> = {
   name: "歌名",

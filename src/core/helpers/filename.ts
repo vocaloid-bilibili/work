@@ -1,7 +1,13 @@
 // src/core/helpers/filename.ts
 import { DateTime } from "luxon";
 
-type SeqBoard = "vocaloid-monthly" | "vocaloid-weekly" | "vocaloid-daily";
+type SeqBoard =
+  | "vocaloid-monthly"
+  | "vocaloid-weekly"
+  | "vocaloid-daily"
+  | "vocaloid-annual"
+  | "cover-weekly";
+
 export interface BoardId {
   board: SeqBoard;
   part: "main" | "new";
@@ -14,6 +20,21 @@ export const isBoardId = (x: BoardId | DataId): x is BoardId => "board" in x;
 
 export function parseFilename(name: string): BoardId | DataId {
   name = name.replace(/\.xlsx$/, "");
+
+  if (name.startsWith("翻唱")) {
+    const ds = name.slice(2);
+    const d = DateTime.fromFormat(ds, "yyyy-MM-dd");
+    return {
+      board: "cover-weekly",
+      part: "main",
+      issue:
+        Math.floor(
+          d.diff(DateTime.fromObject({ year: 2026, month: 4, day: 1 }), "days")
+            .days / 7,
+        ) + 1,
+    };
+  }
+
   const hc = name.split("-").length - 1;
   if (hc === 1) {
     const part = name.startsWith("新曲") ? ("new" as const) : ("main" as const);
@@ -52,6 +73,14 @@ export function parseFilename(name: string): BoardId | DataId {
         DateTime.fromObject({ year: 2024, month: 7, day: 3 }),
         "days",
       ).days,
+    };
+  }
+  // 年刊：4 位数字年份，如 2025
+  if (/^\d{4}$/.test(name)) {
+    return {
+      board: "vocaloid-annual",
+      part: "main",
+      issue: parseInt(name, 10),
     };
   }
   return { date: DateTime.fromFormat(name, "yyyyMMdd") };
