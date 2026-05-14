@@ -1,13 +1,13 @@
 // src/modules/ingest/StepRow.tsx
+
 import { Button } from "@/ui/button";
 import { Loader2, CheckCircle2, XCircle, RotateCcw } from "lucide-react";
 import { cn } from "@/ui/cn";
+import type { StepStatus } from "./types";
 
-type Status = "idle" | "loading" | "success" | "failed";
-
-interface P {
+interface Props {
   label: string;
-  status: Status;
+  status: StepStatus;
   error?: string;
   onAction: () => void;
   actionLabel: string;
@@ -23,7 +23,7 @@ export default function StepRow({
   actionLabel,
   disabled,
   showActionOnlyOnFail,
-}: P) {
+}: Props) {
   return (
     <div
       className={cn("space-y-1", disabled && "opacity-50 pointer-events-none")}

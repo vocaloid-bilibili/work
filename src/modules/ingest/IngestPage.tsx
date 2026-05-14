@@ -1,237 +1,232 @@
 // src/modules/ingest/IngestPage.tsx
-import { useState, useCallback } from "react";
-import { checkRanking } from "@/core/api/mainEndpoints";
-import { streamRanking, streamSnapshot } from "@/core/api/sseStream";
-import { isBoardId, type BoardId, type DataId } from "@/core/helpers/filename";
-import FileUploader from "./FileUploader";
-import ManualRankingUploader from "./ManualRankingUploader";
-import StepRow from "./StepRow";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/ui/dialog";
-import { Button } from "@/ui/button";
-import { BOARDS, PARTS } from "@/core/types/constants";
 
-const bLabel = (v: string) => BOARDS.find((b) => b.value === v)?.label ?? v;
-const pLabel = (v: string) => PARTS.find((p) => p.value === v)?.label ?? v;
+import { Card, CardContent } from "@/ui/card";
+import { Button } from "@/ui/button";
+import { Input } from "@/ui/input";
+import { Label } from "@/ui/label";
+import { Progress } from "@/ui/progress";
+import {
+  Upload,
+  FileText,
+  X,
+  CheckCircle,
+  AlertCircle,
+  FileQuestion,
+} from "lucide-react";
+import { useIngest } from "./useIngest";
+import { bLabel, pLabel, formatIssue } from "./types";
+import StepRow from "./StepRow";
 
 export default function IngestPage() {
-  const [board, setBoard] = useState<BoardId | null>(null);
-  const [boardOpen, setBoardOpen] = useState(false);
-  const [checkSt, setCheckSt] = useState<
-    "idle" | "loading" | "success" | "failed"
-  >("idle");
-  const [checkErr, setCheckErr] = useState("");
-  const [updSt, setUpdSt] = useState<"idle" | "loading" | "success" | "failed">(
-    "idle",
-  );
-  const [updErr, setUpdErr] = useState("");
-  const [progress, setProgress] = useState("");
-
-  const [data, setData] = useState<DataId | null>(null);
-  const [dataOpen, setDataOpen] = useState(false);
-  const [dataSt, setDataSt] = useState<
-    "idle" | "loading" | "success" | "failed"
-  >("idle");
-  const [dataErr, setDataErr] = useState("");
-  const [dataProg, setDataProg] = useState("");
-
-  const resetBoard = useCallback(() => {
-    setCheckSt("idle");
-    setCheckErr("");
-    setUpdSt("idle");
-    setUpdErr("");
-    setProgress("");
-  }, []);
-
-  const onUpload = (id: BoardId | DataId) => {
-    if (isBoardId(id)) {
-      setBoard(id);
-      resetBoard();
-      setBoardOpen(true);
-    } else {
-      setData(id);
-      setDataSt("idle");
-      setDataErr("");
-      setDataProg("");
-      setDataOpen(true);
-      runData(id);
-    }
-  };
-
-  const onManualUpload = (id: BoardId) => {
-    setBoard(id);
-    resetBoard();
-    setBoardOpen(true);
-  };
-
-  const runCheck = async () => {
-    if (!board) return;
-    setCheckSt("loading");
-    setCheckErr("");
-    try {
-      const r = await checkRanking(board.board, board.part, board.issue);
-      if (r.detail === "") setCheckSt("success");
-      else {
-        setCheckSt("failed");
-        setCheckErr(r.detail);
-      }
-    } catch (e: any) {
-      setCheckSt("failed");
-      setCheckErr(e?.response?.data?.message || e.message || "检查失败");
-    }
-  };
-
-  const runUpdate = async () => {
-    if (!board) return;
-    setUpdSt("loading");
-    setUpdErr("");
-    setProgress("");
-    await new Promise<void>((ok) => {
-      streamRanking(board.board, board.part, board.issue, {
-        onProgress: setProgress,
-        onComplete: () => {
-          setUpdSt("success");
-          ok();
-        },
-        onError: (e: any) => {
-          setUpdSt("failed");
-          setUpdErr(e?.message || "更新失败");
-          ok();
-        },
-      });
-    });
-  };
-
-  const runData = async (id: DataId) => {
-    setDataSt("loading");
-    setDataErr("");
-    setDataProg("");
-    await new Promise<void>((ok) => {
-      streamSnapshot(id.date.toFormat("yyyy-MM-dd"), {
-        onProgress: (m) => setDataProg(m),
-        onComplete: () => {
-          setDataSt("success");
-          ok();
-        },
-        onError: (e: any) => {
-          setDataSt("failed");
-          setDataErr(e?.message || "处理失败");
-          ok();
-        },
-      });
-    });
-  };
-
-  const issueLabel =
-    board?.board === "vocaloid-annual"
-      ? `${board.issue} 年`
-      : `第 ${board?.issue} 期`;
+  const s = useIngest();
 
   return (
-    <div className="flex flex-col items-center p-8 w-full max-w-xl mx-auto gap-4">
-      <FileUploader onComplete={onUpload} />
-      <ManualRankingUploader onComplete={onManualUpload} />
+    <div className="flex flex-col items-center p-8 w-full max-w-xl mx-auto">
+      <Card className="w-full">
+        <CardContent className="space-y-4 pt-6">
+          {/* ═══ idle: 选文件 ═══ */}
+          {s.phase === "idle" && (
+            <div className="space-y-3 text-center">
+              <Upload className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+              <p className="mb-3 text-sm text-muted-foreground">选择文件</p>
+              <Input
+                ref={s.inputRef}
+                type="file"
+                onChange={s.handleFileChange}
+                className="mx-auto max-w-xs cursor-pointer"
+              />
+            </div>
+          )}
 
-      {/* ── 排名检查/更新对话框 ── */}
-      <Dialog open={boardOpen} onOpenChange={setBoardOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>排名文件</DialogTitle>
-            <DialogDescription>检查并更新排名数据</DialogDescription>
-          </DialogHeader>
-          {board && (
+          {/* ═══ configure: 确认参数 ═══ */}
+          {s.phase === "configure" && s.file && (
             <div className="space-y-4">
-              <div className="bg-muted p-3 rounded text-sm flex gap-4">
-                <span>{bLabel(board.board)}</span>
-                <span>{pLabel(board.part)}</span>
-                <span>{issueLabel}</span>
+              <div className="flex items-center justify-between rounded-lg bg-muted p-3">
+                <div className="flex items-center gap-2 truncate text-sm">
+                  <FileText className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{s.file.name}</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={s.fullReset}
+                  className="shrink-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
+
+              {/* 识别出排名 */}
+              {s.parseResult?.type === "board" && (
+                <div className="flex items-center gap-2 rounded-lg bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
+                  <CheckCircle className="h-4 w-4 shrink-0" />
+                  <span>
+                    {bLabel(s.parseResult.id.board)} /{" "}
+                    {pLabel(s.parseResult.id.part)} /{" "}
+                    {formatIssue(s.parseResult.id)}
+                  </span>
+                </div>
+              )}
+
+              {/* 识别出数据快照 */}
+              {s.parseResult?.type === "data" && (
+                <div className="flex items-center gap-2 rounded-lg bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
+                  <CheckCircle className="h-4 w-4 shrink-0" />
+                  <span>
+                    数据快照 {s.parseResult.id.date.toFormat("yyyy-MM-dd")}
+                  </span>
+                </div>
+              )}
+
+              {/* 没认出来 → 当特刊处理 */}
+              {s.parseResult?.type === "unknown" && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+                    <FileQuestion className="h-4 w-4 shrink-0" />
+                    <span>没认出来，按特刊处理</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">板块</Label>
+                      <Input
+                        value={s.part}
+                        onChange={(e) => s.setPart(e.target.value)}
+                        placeholder="板块名称"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">期号</Label>
+                      <Input
+                        type="number"
+                        value={s.issue}
+                        onChange={(e) =>
+                          s.setIssue(
+                            e.target.value ? parseInt(e.target.value, 10) : "",
+                          )
+                        }
+                        placeholder="期号"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {s.uploadError && (
+                <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3 text-red-700 dark:bg-red-900/20 dark:text-red-300">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span className="text-sm">{s.uploadError}</span>
+                </div>
+              )}
+
+              <Button
+                onClick={s.doUpload}
+                disabled={!s.canUpload}
+                className="w-full"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                上传
+              </Button>
+            </div>
+          )}
+
+          {/* ═══ uploading ═══ */}
+          {s.phase === "uploading" && s.file && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 truncate rounded-lg bg-muted p-3 text-sm">
+                <FileText className="h-4 w-4 shrink-0" />
+                <span className="truncate">{s.file.name}</span>
+              </div>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>上传中…</span>
+                  <span>{Math.floor(s.uploadProgress)}%</span>
+                </div>
+                <Progress value={s.uploadProgress} />
+              </div>
+            </div>
+          )}
+
+          {/* ═══ process: 排名 ═══ */}
+          {s.phase === "process" && s.resolvedBoard && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 rounded-lg bg-green-50 p-3 text-sm text-green-700 dark:bg-green-900/20 dark:text-green-300">
+                <CheckCircle className="h-4 w-4 shrink-0" />
+                <span>
+                  已上传 {bLabel(s.resolvedBoard.board)} /{" "}
+                  {pLabel(s.resolvedBoard.part)} /{" "}
+                  {formatIssue(s.resolvedBoard)}
+                </span>
+              </div>
+
               <StepRow
                 label="检查"
-                status={checkSt}
-                error={checkErr}
-                onAction={runCheck}
+                status={s.checkSt}
+                error={s.checkErr}
+                onAction={s.runCheck}
                 actionLabel="检查"
               />
               <StepRow
                 label="更新"
-                status={updSt}
-                error={updErr}
-                onAction={runUpdate}
+                status={s.updSt}
+                error={s.updErr}
+                onAction={s.runUpdate}
                 actionLabel="更新"
-                disabled={checkSt !== "success"}
+                disabled={s.checkSt !== "success"}
               />
-              {updSt === "loading" && progress && (
-                <div className="text-xs font-mono bg-muted p-2 rounded max-h-20 overflow-y-auto">
-                  {progress}
+              {s.updSt === "loading" && s.updProg && (
+                <div className="max-h-20 overflow-y-auto rounded bg-muted p-2 font-mono text-xs">
+                  {s.updProg}
                 </div>
               )}
+
+              <Button
+                variant="outline"
+                onClick={s.fullReset}
+                className="w-full"
+                disabled={s.updSt === "loading"}
+              >
+                {s.updSt === "success" ? "继续上传" : "返回"}
+              </Button>
             </div>
           )}
-          <DialogFooter>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setBoardOpen(false);
-                if (updSt === "success") {
-                  setBoard(null);
-                  resetBoard();
-                }
-              }}
-            >
-              {updSt === "success" ? "完成" : "关闭"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
-      {/* ── 数据文件对话框 ── */}
-      <Dialog open={dataOpen} onOpenChange={setDataOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>数据文件</DialogTitle>
-            <DialogDescription>导入快照数据</DialogDescription>
-          </DialogHeader>
-          {data && (
+          {/* ═══ process: 数据 ═══ */}
+          {s.phase === "process" && s.resolvedData && (
             <div className="space-y-4">
-              <div className="bg-muted p-3 rounded text-sm">
-                {data.date.toFormat("yyyy-MM-dd")}
+              <div className="flex items-center gap-2 rounded-lg bg-green-50 p-3 text-sm text-green-700 dark:bg-green-900/20 dark:text-green-300">
+                <CheckCircle className="h-4 w-4 shrink-0" />
+                <span>
+                  已上传 数据快照 {s.resolvedData.date.toFormat("yyyy-MM-dd")}
+                </span>
               </div>
+
               <StepRow
                 label="处理"
-                status={dataSt}
-                error={dataErr}
-                onAction={() => runData(data)}
+                status={s.dataSt}
+                error={s.dataErr}
+                onAction={s.runData}
                 actionLabel="重试"
                 showActionOnlyOnFail
               />
-              {dataSt === "loading" && dataProg && (
-                <div className="text-xs font-mono bg-muted p-2 rounded max-h-32 overflow-y-auto whitespace-pre-wrap">
-                  {dataProg}
+              {s.dataSt === "loading" && s.dataProg && (
+                <div className="max-h-32 overflow-y-auto whitespace-pre-wrap rounded bg-muted p-2 font-mono text-xs">
+                  {s.dataProg}
                 </div>
               )}
+
+              <Button
+                variant="outline"
+                onClick={s.fullReset}
+                className="w-full"
+                disabled={s.dataSt === "loading"}
+              >
+                {s.dataSt === "success" ? "继续上传" : "返回"}
+              </Button>
             </div>
           )}
-          <DialogFooter>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setDataOpen(false);
-                if (dataSt === "success") setData(null);
-              }}
-              disabled={dataSt === "loading"}
-            >
-              {dataSt === "success" ? "完成" : "关闭"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </CardContent>
+      </Card>
     </div>
   );
 }
