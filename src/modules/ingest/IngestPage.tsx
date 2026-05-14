@@ -78,12 +78,11 @@ export default function IngestPage() {
                 </div>
               )}
 
-              {/* 没认出来 → 当特刊处理 */}
               {s.parseResult?.type === "unknown" && (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
                     <FileQuestion className="h-4 w-4 shrink-0" />
-                    <span>没认出来，按特刊处理</span>
+                    <span>特刊</span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
