@@ -27,12 +27,10 @@ export function formatIssue(b: BoardId): string {
 }
 
 export function tryParse(name: string): ParseResult {
-  try {
-    const id = parseFilename(name);
-    if (isBoardId(id)) return { type: "board", id };
-    if (id.date && id.date.isValid) return { type: "data", id };
-    return { type: "unknown" };
-  } catch {
-    return { type: "unknown" };
-  }
+  const id = parseFilename(name);
+
+  if (id === null) return { type: "unknown" };
+  if (isBoardId(id)) return { type: "board", id };
+  if (id.date?.isValid) return { type: "data", id };
+  return { type: "unknown" };
 }

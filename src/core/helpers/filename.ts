@@ -1,87 +1,95 @@
 // src/core/helpers/filename.ts
+
 import { DateTime } from "luxon";
 
-type SeqBoard =
-  | "vocaloid-monthly"
-  | "vocaloid-weekly"
-  | "vocaloid-daily"
-  | "vocaloid-annual"
-  | "cover-weekly";
-
 export interface BoardId {
-  board: SeqBoard;
+  board: string;
   part: "main" | "new";
   issue: number;
 }
+
 export interface DataId {
   date: DateTime;
 }
-export const isBoardId = (x: BoardId | DataId): x is BoardId => "board" in x;
 
-export function parseFilename(name: string): BoardId | DataId {
-  name = name.replace(/\.xlsx$/, "");
+export function isBoardId(id: BoardId | DataId): id is BoardId {
+  return "board" in id;
+}
 
-  if (name.startsWith("翻唱")) {
-    const ds = name.slice(2);
-    const d = DateTime.fromFormat(ds, "yyyy-MM-dd");
-    return {
-      board: "cover-weekly",
-      part: "main",
-      issue:
-        Math.floor(
-          d.diff(DateTime.fromObject({ year: 2026, month: 4, day: 1 }), "days")
-            .days / 7,
-        ) + 1,
-    };
+/**
+ * 日刊:       20260514与20260513 / 新曲榜20260514与20260513
+ * 周刊:       2026-05-09         / 新曲2026-05-09
+ * 月刊:       2026-04            / 新曲2026-04
+ * 年刊:       2025
+ * 翻唱周刊:   翻唱2026-05-06
+ * 数据快照:   20260514
+ */
+
+export function parseFilename(raw: string): BoardId | DataId | null {
+  const name = raw.replace(/\.[^.]+$/, "");
+  let m: RegExpMatchArray | null;
+
+  // 日刊
+  if ((m = name.match(/^(新曲榜)?(\d{8})与\d{8}$/))) {
+    const part = m[1] ? "new" : "main";
+    const endDate = DateTime.fromFormat(m[2], "yyyyMMdd");
+    const base = DateTime.fromISO("2024-07-03");
+    const issue = Math.round(endDate.diff(base, "days").days);
+    return { board: "vocaloid-daily", part, issue };
   }
 
-  const hc = name.split("-").length - 1;
-  if (hc === 1) {
-    const part = name.startsWith("新曲") ? ("new" as const) : ("main" as const);
-    const ds = part === "new" ? name.slice(2) : name;
-    const d = DateTime.fromFormat(ds, "yyyy-MM");
-    return {
-      board: "vocaloid-monthly",
-      part,
-      issue: (d.year - 2024) * 12 + d.month - 6,
-    };
+  // 翻唱周刊
+  if ((m = name.match(/^翻唱(\d{4}-\d{2}-\d{2})$/))) {
+    const d = DateTime.fromISO(m[1]);
+    const base = DateTime.fromISO("2026-04-01");
+    const issue = Math.round(d.diff(base, "days").days / 7) + 1;
+    return { board: "cover-weekly", part: "main", issue };
   }
-  if (hc > 1) {
-    const part = name.startsWith("新曲") ? ("new" as const) : ("main" as const);
-    const ds = part === "new" ? name.slice(2) : name;
-    const d = DateTime.fromFormat(ds, "yyyy-MM-dd");
-    return {
-      board: "vocaloid-weekly",
-      part,
-      issue: d.diff(
-        DateTime.fromObject({ year: 2024, month: 8, day: 31 }),
-        "weeks",
-      ).weeks,
-    };
+
+  // 周刊新曲
+  if ((m = name.match(/^新曲(\d{4}-\d{2}-\d{2})$/))) {
+    const d = DateTime.fromISO(m[1]);
+    const base = DateTime.fromISO("2024-08-31");
+    const issue = Math.round(d.diff(base, "days").days / 7);
+    return { board: "vocaloid-weekly", part: "new", issue };
   }
-  if (name.includes("与")) {
-    const part = name.startsWith("新曲榜")
-      ? ("new" as const)
-      : ("main" as const);
-    const ds =
-      part === "new" ? name.slice(3).split("与")[0]! : name.split("与")[0]!;
-    const d = DateTime.fromFormat(ds, "yyyyMMdd");
-    return {
-      board: "vocaloid-daily",
-      part,
-      issue: d.diff(
-        DateTime.fromObject({ year: 2024, month: 7, day: 3 }),
-        "days",
-      ).days,
-    };
+
+  // 月刊新曲
+  if ((m = name.match(/^新曲(\d{4}-\d{2})$/))) {
+    const d = DateTime.fromFormat(m[1], "yyyy-MM");
+    const issue = (d.year - 2024) * 12 + d.month - 6;
+    return { board: "vocaloid-monthly", part: "new", issue };
   }
-  // 年刊：4 位数字年份，如 2025
-  if (/^\d{4}$/.test(name)) {
+
+  // 周刊
+  if ((m = name.match(/^(\d{4}-\d{2}-\d{2})$/))) {
+    const d = DateTime.fromISO(m[1]);
+    const base = DateTime.fromISO("2024-08-31");
+    const issue = Math.round(d.diff(base, "days").days / 7);
+    return { board: "vocaloid-weekly", part: "main", issue };
+  }
+
+  // 月刊
+  if ((m = name.match(/^(\d{4}-\d{2})$/))) {
+    const d = DateTime.fromFormat(m[1], "yyyy-MM");
+    const issue = (d.year - 2024) * 12 + d.month - 6;
+    return { board: "vocaloid-monthly", part: "main", issue };
+  }
+
+  // 年刊
+  if ((m = name.match(/^(\d{4})$/))) {
     return {
       board: "vocaloid-annual",
       part: "main",
-      issue: parseInt(name, 10),
+      issue: parseInt(m[1], 10),
     };
   }
-  return { date: DateTime.fromFormat(name, "yyyyMMdd") };
+
+  // 数据快照
+  if ((m = name.match(/^(\d{8})$/))) {
+    return { date: DateTime.fromFormat(m[1], "yyyyMMdd") };
+  }
+
+  // 都不匹配 → null
+  return null;
 }
