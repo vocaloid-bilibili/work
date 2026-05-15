@@ -14,7 +14,6 @@ import TagEditor from "@/shared/ui/TagEditor";
 import * as api from "@/core/api/mainEndpoints";
 import { logEdit } from "@/core/api/collabEndpoints";
 import { COPYRIGHT, SONG_TYPES } from "@/core/types/constants";
-import type { Song } from "@/core/types/catalog";
 import { cn } from "@/ui/cn";
 import { Section } from "../components/Section";
 import { Field } from "../components/Field";
@@ -35,8 +34,6 @@ export function AddPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const presetSongId = searchParams.get("songId");
-
-  const [presetSong, setPresetSong] = useState<Song | null>(null);
 
   const [topMode, setTopMode] = useState<TopMode>("collect");
 
@@ -68,7 +65,6 @@ export function AddPage() {
     if (!presetSongId) return;
     api.selectSong(Number(presetSongId)).then((r) => {
       const song = r.data;
-      setPresetSong(song);
       setSel({ id: song.id, name: song.name, display_name: song.display_name });
       setSubMode("existing");
     }).catch(() => {

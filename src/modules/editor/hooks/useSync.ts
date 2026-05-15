@@ -161,10 +161,10 @@ export function useSyncLogs(cursor: number | null) {
   }, [cursor, loadLogs]);
 
   const pending =
-    cursor != null ? logs.filter((l) => (l.id ?? l.logId ?? 0) > cursor) : [];
+    cursor != null ? logs.filter((l) => (l.id ?? 0) > cursor) : [];
   const synced =
     cursor != null
-      ? logs.filter((l) => (l.id ?? l.logId ?? 0) <= cursor).slice(0, 30)
+      ? logs.filter((l) => (l.id ?? 0) <= cursor).slice(0, 30)
       : logs.slice(0, 30);
 
   return { logs, pending, synced, loading, reload: loadLogs };

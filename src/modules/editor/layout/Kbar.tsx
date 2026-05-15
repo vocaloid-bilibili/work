@@ -18,11 +18,11 @@ import type { Song } from "@/core/types/catalog";
 import { cn } from "@/ui/cn";
 
 const COMMANDS = [
-  { path: "/edit/add", icon: Plus, label: "添加收录" },
-  { path: "/edit/merge-song", icon: GitMerge, label: "合并歌曲" },
-  { path: "/edit/merge-artist", icon: Users, label: "合并艺人" },
-  { path: "/edit/board", icon: Tv, label: "榜单视频" },
-  { path: "/edit/sync", icon: RefreshCcw, label: "同步状态" },
+  { id: "add", path: "/edit/add", icon: Plus, label: "添加收录" },
+  { id: "merge-song", path: "/edit/merge-song", icon: GitMerge, label: "合并歌曲" },
+  { id: "merge-artist", path: "/edit/merge-artist", icon: Users, label: "合并艺人" },
+  { id: "board", path: "/edit/board", icon: Tv, label: "榜单视频" },
+  { id: "sync", path: "/edit/sync", icon: RefreshCcw, label: "同步状态" },
 ];
 
 interface Props {

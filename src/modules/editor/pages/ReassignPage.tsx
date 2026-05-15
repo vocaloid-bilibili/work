@@ -259,7 +259,7 @@ export function ReassignPage() {
         )}
 
         <div className="flex gap-3 pt-2">
-          <Btn className="flex-1" onClick={back}>
+          <Btn className="flex-1" onClick={() => navigate(-1)}>
             取消
           </Btn>
           <Btn
