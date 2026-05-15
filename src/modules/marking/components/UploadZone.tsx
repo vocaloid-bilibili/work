@@ -1,24 +1,25 @@
-// src/modules/marking/UploadZone.tsx
+// src/modules/marking/components/UploadZone.tsx
 import { useState, useCallback } from "react";
 import { Upload, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/ui/button";
 import { cn } from "@/ui/cn";
 
-interface P {
+interface UploadZoneProps {
   fileRef: React.RefObject<HTMLInputElement | null>;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-export default function UploadZone({ fileRef, onFileChange }: P) {
-  const [drag, setDrag] = useState(false);
-  const drop = useCallback(
+export default function UploadZone({ fileRef, onFileChange }: UploadZoneProps) {
+  const [dragging, setDragging] = useState(false);
+
+  const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
-      setDrag(false);
-      const f = e.dataTransfer.files?.[0];
-      if (!f) return;
+      setDragging(false);
+      const file = e.dataTransfer.files?.[0];
+      if (!file) return;
       const dt = new DataTransfer();
-      dt.items.add(f);
+      dt.items.add(file);
       if (fileRef.current) {
         fileRef.current.files = dt.files;
         fileRef.current.dispatchEvent(new Event("change", { bubbles: true }));
@@ -31,16 +32,16 @@ export default function UploadZone({ fileRef, onFileChange }: P) {
     <div
       className={cn(
         "w-full max-w-lg mx-auto border-2 border-dashed rounded-xl p-12 flex flex-col items-center gap-4 text-center transition-colors",
-        drag
+        dragging
           ? "border-primary bg-primary/5"
           : "border-muted-foreground/25 hover:border-muted-foreground/40",
       )}
       onDragOver={(e) => {
         e.preventDefault();
-        setDrag(true);
+        setDragging(true);
       }}
-      onDragLeave={() => setDrag(false)}
-      onDrop={drop}
+      onDragLeave={() => setDragging(false)}
+      onDrop={handleDrop}
     >
       <div className="rounded-full bg-muted p-4">
         <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />

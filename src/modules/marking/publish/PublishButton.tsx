@@ -4,10 +4,19 @@ import { Button } from "@/ui/button";
 import { Loader2, Send } from "lucide-react";
 import PublishDialog from "./PublishDialog";
 import { usePublish } from "./usePublish";
+import type { Row } from "@/core/types/collab";
 
-export function PublishButton({ taskId }: { taskId: string }) {
+export function PublishButton({
+  taskId,
+  records,
+  includes,
+}: {
+  taskId: string;
+  records: Row[];
+  includes: boolean[];
+}) {
   const [open, setOpen] = useState(false);
-  const pub = usePublish({ taskId });
+  const pub = usePublish({ taskId, records, includes });
   const toggle = (v: boolean) => {
     if (pub.busy) return;
     setOpen(v);

@@ -1,4 +1,4 @@
-// src/modules/marking/Pagination.tsx
+// src/modules/marking/components/Pagination.tsx
 import { Input } from "@/ui/input";
 import {
   Pagination as PaginationUI,
@@ -10,16 +10,21 @@ import {
   PaginationPrevious,
 } from "@/ui/pagination";
 
-interface P {
+interface PaginationProps {
   current: number;
   total: number;
   onChange: (p: number) => void;
 }
 
-export default function Pagination({ current, total, onChange }: P) {
+export default function Pagination({
+  current,
+  total,
+  onChange,
+}: PaginationProps) {
   const items: React.ReactNode[] = [];
+
   if (total <= 7) {
-    for (let i = 1; i <= total; i++)
+    for (let i = 1; i <= total; i++) {
       items.push(
         <PaginationItem key={i}>
           <PaginationLink
@@ -31,6 +36,7 @@ export default function Pagination({ current, total, onChange }: P) {
           </PaginationLink>
         </PaginationItem>,
       );
+    }
   } else {
     items.push(
       <PaginationItem key={1}>
@@ -43,17 +49,21 @@ export default function Pagination({ current, total, onChange }: P) {
         </PaginationLink>
       </PaginationItem>,
     );
-    let s = Math.max(2, current - 2),
-      e = Math.min(total - 1, current + 2);
-    if (current <= 4) e = Math.min(5, total - 1);
-    else if (current >= total - 3) s = Math.max(2, total - 4);
-    if (s > 2)
+
+    let start = Math.max(2, current - 2);
+    let end = Math.min(total - 1, current + 2);
+    if (current <= 4) end = Math.min(5, total - 1);
+    else if (current >= total - 3) start = Math.max(2, total - 4);
+
+    if (start > 2) {
       items.push(
-        <PaginationItem key="s">
+        <PaginationItem key="ellipsis-start">
           <PaginationEllipsis />
         </PaginationItem>,
       );
-    for (let i = s; i <= e; i++)
+    }
+
+    for (let i = start; i <= end; i++) {
       items.push(
         <PaginationItem key={i}>
           <PaginationLink
@@ -65,12 +75,16 @@ export default function Pagination({ current, total, onChange }: P) {
           </PaginationLink>
         </PaginationItem>,
       );
-    if (e < total - 1)
+    }
+
+    if (end < total - 1) {
       items.push(
-        <PaginationItem key="e">
+        <PaginationItem key="ellipsis-end">
           <PaginationEllipsis />
         </PaginationItem>,
       );
+    }
+
     items.push(
       <PaginationItem key={total}>
         <PaginationLink
@@ -105,6 +119,7 @@ export default function Pagination({ current, total, onChange }: P) {
           }
         />
       </div>
+
       <PaginationUI className="hidden sm:flex">
         <PaginationContent>
           <PaginationItem>
@@ -139,9 +154,9 @@ export default function Pagination({ current, total, onChange }: P) {
               className="w-16 h-8 text-center px-1 tabular-nums"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  const p = parseInt(e.currentTarget.value);
-                  if (!isNaN(p) && p >= 1 && p <= total) {
-                    onChange(p);
+                  const page = parseInt(e.currentTarget.value);
+                  if (!isNaN(page) && page >= 1 && page <= total) {
+                    onChange(page);
                     e.currentTarget.value = "";
                   }
                 }

@@ -5,7 +5,7 @@ import { Badge } from "@/ui/badge";
 import { ChevronDown, ChevronRight, ShieldCheck } from "lucide-react";
 import { cn } from "@/ui/cn";
 
-interface P {
+interface CheckSectionProps {
   icon: React.ReactNode;
   label: string;
   count: number;
@@ -25,17 +25,18 @@ export default function CheckSection({
   onConfirm,
   children,
   defaultOpen = false,
-}: P) {
+}: CheckSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
   if (count === 0) return null;
-  const isErr = severity === "error";
-  const isDone = !isErr && confirmed;
+
+  const isError = severity === "error";
+  const isDone = !isError && confirmed;
 
   return (
     <div
       className={cn(
         "rounded-lg border overflow-hidden transition-colors",
-        isErr
+        isError
           ? "border-red-200/80 dark:border-red-900/60 bg-red-50/30 dark:bg-red-950/10"
           : isDone
             ? "border-emerald-200/80 dark:border-emerald-900/60 bg-emerald-50/20 dark:bg-emerald-950/10"
@@ -52,7 +53,7 @@ export default function CheckSection({
           {label}
         </span>
         <Badge
-          variant={isErr ? "destructive" : isDone ? "secondary" : "outline"}
+          variant={isError ? "destructive" : isDone ? "secondary" : "outline"}
           className="text-[11px] h-5 px-1.5 tabular-nums shrink-0"
         >
           {count}
@@ -60,14 +61,14 @@ export default function CheckSection({
         <span
           className={cn(
             "text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0 hidden sm:inline",
-            isErr
+            isError
               ? "text-red-600 dark:text-red-400 bg-red-100/60 dark:bg-red-900/30"
               : isDone
                 ? "text-emerald-600 dark:text-emerald-400 bg-emerald-100/60 dark:bg-emerald-900/30"
                 : "text-amber-600 dark:text-amber-400 bg-amber-100/60 dark:bg-amber-900/30",
           )}
         >
-          {isErr ? "阻止导出" : isDone ? "已确认" : "需确认"}
+          {isError ? "需修复" : isDone ? "已确认" : "需确认"}
         </span>
         {open ? (
           <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />

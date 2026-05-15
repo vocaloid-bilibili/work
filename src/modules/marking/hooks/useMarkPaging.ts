@@ -1,9 +1,9 @@
-// src/modules/marking/state/useMarkPaging.ts
+// src/modules/marking/hooks/useMarkPaging.ts
 import { useState, useMemo, useCallback } from "react";
 
 export type Filter = "included" | "blacklisted" | "pending" | null;
 
-interface Opts<T> {
+interface MarkPagingOpts<T> {
   records: T[];
   includes: boolean[];
   blacklists: boolean[];
@@ -15,7 +15,7 @@ export function useMarkPaging<T>({
   includes,
   blacklists,
   pageSize,
-}: Opts<T>) {
+}: MarkPagingOpts<T>) {
   const [filter, setFilter] = useState<Filter>(null);
   const [page, setPage] = useState(1);
 
@@ -24,7 +24,7 @@ export function useMarkPaging<T>({
   const pendingN = useMemo(
     () =>
       records.reduce<number>(
-        (s, _, i) => s + (!includes[i] && !blacklists[i] ? 1 : 0),
+        (sum, _, i) => sum + (!includes[i] && !blacklists[i] ? 1 : 0),
         0,
       ),
     [records, includes, blacklists],
@@ -45,27 +45,31 @@ export function useMarkPaging<T>({
 
   const filteredN = indices ? indices.length : records.length;
   const totalPages = Math.max(1, Math.ceil(filteredN / pageSize));
-
   const safePage = Math.min(page, totalPages);
 
   const { data, realIndices } = useMemo(() => {
     const start = (safePage - 1) * pageSize;
     if (!indices) {
-      const d = records.slice(start, start + pageSize);
+      const slice = records.slice(start, start + pageSize);
       return {
-        data: d,
-        realIndices: Array.from({ length: d.length }, (_, i) => start + i),
+        data: slice,
+        realIndices: Array.from({ length: slice.length }, (_, i) => start + i),
       };
     }
-    const pi = indices.slice(start, start + pageSize);
-    const validPi = pi.filter((i) => i >= 0 && i < records.length);
-    return { data: validPi.map((i) => records[i]), realIndices: validPi };
+    const pageIndices = indices
+      .slice(start, start + pageSize)
+      .filter((i) => i >= 0 && i < records.length);
+    return {
+      data: pageIndices.map((i) => records[i]),
+      realIndices: pageIndices,
+    };
   }, [records, safePage, pageSize, indices]);
 
   const changeFilter = useCallback((f: Filter) => {
     setFilter(f);
     setPage(1);
   }, []);
+
   const changePage = useCallback(
     (p: number) => {
       if (p >= 1 && p <= totalPages) {

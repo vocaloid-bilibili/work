@@ -9,6 +9,7 @@ const EDITABLE_FIELDS = new Set([
   "synthesizer",
   "copyright",
   "type",
+  "_original",
 ]);
 
 const uid = () =>

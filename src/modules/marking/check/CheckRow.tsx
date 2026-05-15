@@ -3,7 +3,7 @@ import { Button } from "@/ui/button";
 import { Badge } from "@/ui/badge";
 import { MapPin } from "lucide-react";
 
-interface P {
+interface CheckRowProps {
   index: number;
   title: string;
   extra?: React.ReactNode;
@@ -11,7 +11,13 @@ interface P {
   onJump: () => void;
 }
 
-export default function CheckRow({ index, title, extra, badges, onJump }: P) {
+export default function CheckRow({
+  index,
+  title,
+  extra,
+  badges,
+  onJump,
+}: CheckRowProps) {
   return (
     <div className="group flex items-start gap-2 sm:gap-2.5 py-1.5 px-2 sm:px-2.5 rounded-md hover:bg-muted/60 active:bg-muted/80 transition-colors overflow-hidden">
       <span className="text-muted-foreground/70 text-[11px] font-mono w-6 sm:w-7 shrink-0 text-right pt-0.5 tabular-nums">

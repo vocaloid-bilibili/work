@@ -1,6 +1,6 @@
-// src/modules/marking/check/ExportChecker.ts
-import { FIELD_LABELS } from "./checkTypes";
-import type { CheckResult } from "./checkTypes";
+// src/modules/marking/check/runChecks.ts
+import { FIELD_LABELS } from "./types";
+import type { CheckResult } from "./types";
 import type { Row } from "@/core/types/collab";
 
 const REQ = ["name", "vocal", "author", "synthesizer", "copyright", "type"];
@@ -25,70 +25,81 @@ export function runChecks(
   for (let i = 0; i < records.length; i++) {
     const r = records[i];
     const title = strOf(i, "title") || strOf(i, "name") || `#${i + 1}`;
+
     if (!inc[i] && !bl[i]) {
       pending.push({ index: i, title });
       continue;
     }
     if (!inc[i]) continue;
+
     incIdx.push(i);
+
     const miss = REQ.filter((f) => !ok(r[f]));
-    if (miss.length)
+    if (miss.length) {
       missingFields.push({
         index: i,
         title,
         missingLabels: miss.map((f) => FIELD_LABELS[f] || f),
       });
-    if (ok(r.name) && ok(r.title) && strOf(i, "name") === strOf(i, "title"))
+    }
+
+    if (ok(r.name) && ok(r.title) && strOf(i, "name") === strOf(i, "title")) {
       nameMatchTitle.push({ index: i, title });
+    }
+
     if (ok(r.author) && ok(r.uploader)) {
-      const au = strOf(i, "author")
+      const authors = strOf(i, "author")
         .split("、")
         .map((s) => s.trim());
-      if (au.includes(strOf(i, "uploader")))
+      if (authors.includes(strOf(i, "uploader"))) {
         authorMatchUp.push({
           index: i,
           title,
           detail: `作者 "${strOf(i, "author")}" 含UP主 "${strOf(i, "uploader")}"`,
         });
+      }
     }
   }
 
   const inconsistentEntries: CheckResult["inconsistentEntries"] = [];
   const sameAuthorDiffName: CheckResult["sameAuthorDiffName"] = [];
+
   const byAuth = new Map<
     string,
     { index: number; name: string; title: string; record: Row }[]
   >();
   for (const i of incIdx) {
-    const r = records[i];
-    const a = strOf(i, "author");
-    if (!a) continue;
-    const t = strOf(i, "title") || strOf(i, "name") || `#${i + 1}`;
-    if (!byAuth.has(a)) byAuth.set(a, []);
+    const author = strOf(i, "author");
+    if (!author) continue;
+    const title = strOf(i, "title") || strOf(i, "name") || `#${i + 1}`;
+    if (!byAuth.has(author)) byAuth.set(author, []);
     byAuth
-      .get(a)!
-      .push({ index: i, name: strOf(i, "name"), title: t, record: r });
+      .get(author)!
+      .push({ index: i, name: strOf(i, "name"), title, record: records[i] });
   }
+
   for (const [author, entries] of byAuth) {
     if (entries.length < 2) continue;
-    const byN = new Map<string, typeof entries>();
+
+    const byName = new Map<string, typeof entries>();
     for (const e of entries) {
-      const n = e.name || "(空)";
-      if (!byN.has(n)) byN.set(n, []);
-      byN.get(n)!.push(e);
+      const name = e.name || "(空)";
+      if (!byName.has(name)) byName.set(name, []);
+      byName.get(name)!.push(e);
     }
-    for (const [name, g] of byN) {
-      if (g.length < 2) continue;
+
+    for (const [name, group] of byName) {
+      if (group.length < 2) continue;
       const diff = CONS.filter(
-        (f) => new Set(g.map((x) => str(x.record[f]))).size > 1,
+        (f) => new Set(group.map((x) => str(x.record[f]))).size > 1,
       );
-      if (diff.length)
+      if (diff.length) {
         inconsistentEntries.push({
           key: `${author}|||${name}`,
           author,
           name,
           inconsistentFields: diff,
-          entries: g.map((x) => ({
+          entries: group.map((x) => ({
             index: x.index,
             title: x.title,
             values: Object.fromEntries(
@@ -96,8 +107,10 @@ export function runChecks(
             ),
           })),
         });
+      }
     }
-    if ([...byN.keys()].length >= 2)
+
+    if (byName.size >= 2) {
       sameAuthorDiffName.push({
         author,
         songs: entries.map((e) => ({
@@ -106,6 +119,7 @@ export function runChecks(
           title: e.title,
         })),
       });
+    }
   }
 
   return {

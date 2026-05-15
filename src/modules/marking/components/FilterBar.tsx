@@ -1,11 +1,12 @@
-// src/modules/marking/FilterBar.tsx
+// src/modules/marking/components/FilterBar.tsx
 import { Badge } from "@/ui/badge";
 import { CheckCircle2, Ban, CircleDot, FilterX } from "lucide-react";
 import { cn } from "@/ui/cn";
 import SearchBar from "./SearchBar";
-import type { Filter } from "./state/useMarkPaging";
+import type { Filter } from "../hooks/useMarkPaging";
 import type { Row } from "@/core/types/collab";
-interface P {
+
+interface FilterBarProps {
   total: number;
   included: number;
   blacklisted: number;
@@ -18,6 +19,7 @@ interface P {
   blacklistedEntries: boolean[];
   onJump: (i: number) => void;
 }
+
 const FILTER_CFG = {
   included: {
     Icon: CheckCircle2,
@@ -57,13 +59,9 @@ export default function FilterBar({
   includeEntries,
   blacklistedEntries,
   onJump,
-}: P) {
-  const tog = (k: Filter) => onFilterChange(filter === k ? null : k);
-  const counts: Record<string, number> = {
-    included,
-    blacklisted,
-    pending,
-  };
+}: FilterBarProps) {
+  const toggle = (k: Filter) => onFilterChange(filter === k ? null : k);
+  const counts: Record<string, number> = { included, blacklisted, pending };
 
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pb-3 border-b">
@@ -108,7 +106,7 @@ export default function FilterBar({
                 isActive ? cfg.active : cfg.inactive,
                 filter && filter !== key && "opacity-40",
               )}
-              onClick={() => tog(key)}
+              onClick={() => toggle(key)}
             >
               <cfg.Icon className="h-3 w-3" />
               {cfg.label} {count}

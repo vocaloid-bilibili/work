@@ -13,7 +13,6 @@ import { Badge } from "@/ui/badge";
 import {
   XCircle,
   AlertTriangle,
-  Download,
   CheckCircle2,
   CircleDot,
   FileWarning,
@@ -23,17 +22,16 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/ui/cn";
-import type { CheckResult } from "./checkTypes";
-import { FIELD_LABELS } from "./checkTypes";
+import type { CheckResult } from "./types";
+import { FIELD_LABELS } from "./types";
 import CheckSection from "./CheckSection";
 import CheckRow from "./CheckRow";
 
-interface P {
+interface CheckDialogProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   result: CheckResult;
   onJump: (i: number) => void;
-  onExport: () => void;
 }
 
 export default function CheckDialog({
@@ -41,14 +39,13 @@ export default function CheckDialog({
   onOpenChange,
   result,
   onJump,
-  onExport,
-}: P) {
+}: CheckDialogProps) {
   const [confirmed, setConfirmed] = useState<Set<string>>(new Set());
-  const add = useCallback(
-    (k: string) => setConfirmed((p) => new Set(p).add(k)),
+  const confirm = useCallback(
+    (k: string) => setConfirmed((prev) => new Set(prev).add(k)),
     [],
   );
-  const reset = useCallback(() => setConfirmed(new Set()), []);
+  const resetConfirmed = useCallback(() => setConfirmed(new Set()), []);
 
   const {
     pending,
@@ -58,23 +55,22 @@ export default function CheckDialog({
     sameAuthorDiffName,
     inconsistentEntries,
   } = result;
-  const inconsN = inconsistentEntries.reduce((s, g) => s + g.entries.length, 0);
-  const sameN = sameAuthorDiffName.reduce((s, g) => s + g.songs.length, 0);
-  const hasMand =
+
+  const inconsN = inconsistentEntries.reduce(
+    (sum, g) => sum + g.entries.length,
+    0,
+  );
+  const sameN = sameAuthorDiffName.reduce((sum, g) => sum + g.songs.length, 0);
+  const hasMandatory =
     pending.length > 0 ||
     missingFields.length > 0 ||
     inconsistentEntries.length > 0;
-  const hasAdv =
+  const hasAdvisory =
     nameMatchTitle.length > 0 ||
     authorMatchUp.length > 0 ||
     sameAuthorDiffName.length > 0;
-  const advOk =
-    (nameMatchTitle.length === 0 || confirmed.has("nm")) &&
-    (authorMatchUp.length === 0 || confirmed.has("am")) &&
-    (sameAuthorDiffName.length === 0 || confirmed.has("sad"));
-  const canExport = !hasMand && advOk;
-  const allClear = !hasMand && !hasAdv;
-  const mandN = pending.length + missingFields.length + inconsN;
+  const allClear = !hasMandatory && !hasAdvisory;
+  const mandatoryN = pending.length + missingFields.length + inconsN;
 
   const jump = useCallback(
     (i: number) => {
@@ -84,37 +80,37 @@ export default function CheckDialog({
     [onOpenChange, onJump],
   );
 
-  const segs = useMemo(() => {
-    const s: { count: number; color: string; label: string }[] = [];
+  const segments = useMemo(() => {
+    const out: { count: number; color: string; label: string }[] = [];
     if (pending.length)
-      s.push({ count: pending.length, color: "bg-red-500", label: "待处理" });
+      out.push({ count: pending.length, color: "bg-red-500", label: "待处理" });
     if (missingFields.length)
-      s.push({
+      out.push({
         count: missingFields.length,
         color: "bg-red-400",
         label: "字段缺失",
       });
     if (inconsistentEntries.length)
-      s.push({ count: inconsN, color: "bg-red-300", label: "不一致" });
+      out.push({ count: inconsN, color: "bg-red-300", label: "不一致" });
     if (nameMatchTitle.length)
-      s.push({
+      out.push({
         count: nameMatchTitle.length,
         color: confirmed.has("nm") ? "bg-emerald-400" : "bg-amber-400",
         label: "歌名=标题",
       });
     if (authorMatchUp.length)
-      s.push({
+      out.push({
         count: authorMatchUp.length,
         color: confirmed.has("am") ? "bg-emerald-400" : "bg-amber-400",
         label: "作者=UP",
       });
     if (sameAuthorDiffName.length)
-      s.push({
+      out.push({
         count: sameN,
         color: confirmed.has("sad") ? "bg-emerald-400" : "bg-amber-300",
         label: "同作者异名",
       });
-    return s;
+    return out;
   }, [
     pending,
     missingFields,
@@ -132,51 +128,48 @@ export default function CheckDialog({
       open={open}
       onOpenChange={(v) => {
         onOpenChange(v);
-        if (!v) reset();
+        if (!v) resetConfirmed();
       }}
     >
-      <DialogContent
-        className={cn(
-          "max-w-lg p-0 flex flex-col gap-0 overflow-hidden h-[90dvh] sm:h-auto sm:max-h-[80vh]",
-        )}
-      >
+      <DialogContent className="max-w-lg p-0 flex flex-col gap-0 overflow-hidden h-[90dvh] sm:h-auto sm:max-h-[80vh]">
         <DialogHeader className="px-4 sm:px-5 pt-4 sm:pt-5 pb-3 space-y-2 shrink-0">
           <DialogTitle className="flex items-center gap-2 text-base">
             {allClear ? (
               <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-            ) : hasMand ? (
+            ) : hasMandatory ? (
               <FileWarning className="h-5 w-5 text-red-500" />
             ) : (
               <AlertTriangle className="h-5 w-5 text-amber-500" />
             )}
-            导出前检查
+            数据检查
           </DialogTitle>
           <DialogDescription className="sr-only">
-            检查导出数据
+            检查标注数据
           </DialogDescription>
+
           {!allClear && (
             <div className="space-y-1.5">
               <div className="flex h-1.5 rounded-full overflow-hidden bg-muted">
-                {segs.map((s, i) => (
+                {segments.map((seg, i) => (
                   <div
                     key={i}
-                    className={cn("transition-all", s.color)}
-                    style={{ flex: s.count }}
+                    className={cn("transition-all", seg.color)}
+                    style={{ flex: seg.count }}
                   />
                 ))}
               </div>
               <div className="flex gap-2 flex-wrap">
-                {segs.map((s, i) => (
+                {segments.map((seg, i) => (
                   <span
                     key={i}
                     className="flex items-center gap-1 text-[11px] text-muted-foreground"
                   >
                     <span
-                      className={cn("w-2 h-2 rounded-full shrink-0", s.color)}
+                      className={cn("w-2 h-2 rounded-full shrink-0", seg.color)}
                     />
-                    {s.label}{" "}
+                    {seg.label}{" "}
                     <span className="font-medium text-foreground/80">
-                      {s.count}
+                      {seg.count}
                     </span>
                   </span>
                 ))}
@@ -184,6 +177,7 @@ export default function CheckDialog({
             </div>
           )}
         </DialogHeader>
+
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <div className="px-4 sm:px-5 pb-4">
             {allClear ? (
@@ -191,7 +185,7 @@ export default function CheckDialog({
                 <CheckCircle2 className="h-10 w-10 text-emerald-500 mb-2" />
                 <p className="font-semibold">所有检查已通过</p>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  数据完整，可以导出
+                  数据完整，可以发布
                 </p>
               </div>
             ) : (
@@ -212,6 +206,7 @@ export default function CheckDialog({
                     />
                   ))}
                 </CheckSection>
+
                 <CheckSection
                   icon={<XCircle className="h-4 w-4 text-red-500" />}
                   label="字段缺失"
@@ -232,6 +227,7 @@ export default function CheckDialog({
                     />
                   ))}
                 </CheckSection>
+
                 <CheckSection
                   icon={<GitCompareArrows className="h-4 w-4 text-red-500" />}
                   label="标注不一致"
@@ -277,13 +273,14 @@ export default function CheckDialog({
                     </div>
                   ))}
                 </CheckSection>
+
                 <CheckSection
                   icon={<TextCursorInput className="h-4 w-4 text-amber-500" />}
                   label="歌名与标题一致"
                   count={nameMatchTitle.length}
                   severity="warn"
                   confirmed={confirmed.has("nm")}
-                  onConfirm={() => add("nm")}
+                  onConfirm={() => confirm("nm")}
                   defaultOpen={nameMatchTitle.length <= 10}
                 >
                   {nameMatchTitle.map((it) => (
@@ -296,13 +293,14 @@ export default function CheckDialog({
                     />
                   ))}
                 </CheckSection>
+
                 <CheckSection
                   icon={<UserCheck className="h-4 w-4 text-amber-500" />}
                   label="作者与UP主一致"
                   count={authorMatchUp.length}
                   severity="warn"
                   confirmed={confirmed.has("am")}
-                  onConfirm={() => add("am")}
+                  onConfirm={() => confirm("am")}
                   defaultOpen={authorMatchUp.length <= 10}
                 >
                   {authorMatchUp.map((it) => (
@@ -315,13 +313,14 @@ export default function CheckDialog({
                     />
                   ))}
                 </CheckSection>
+
                 <CheckSection
                   icon={<Users className="h-4 w-4 text-amber-500" />}
                   label="同作者不同歌名"
                   count={sameN}
                   severity="warn"
                   confirmed={confirmed.has("sad")}
-                  onConfirm={() => add("sad")}
+                  onConfirm={() => confirm("sad")}
                   defaultOpen={sameN <= 15}
                 >
                   {sameAuthorDiffName.map((g) => (
@@ -351,47 +350,34 @@ export default function CheckDialog({
             )}
           </div>
         </div>
+
         <DialogFooter className="px-4 sm:px-5 py-3 border-t bg-muted/20 shrink-0">
           <div className="flex items-center justify-between w-full">
             <div className="text-xs">
-              {hasMand ? (
+              {hasMandatory ? (
                 <span className="text-red-500 flex items-center gap-1.5">
                   <XCircle className="h-3.5 w-3.5" />
-                  {mandN} 项阻止导出
+                  {mandatoryN} 项需要修复
                 </span>
-              ) : hasAdv && !advOk ? (
+              ) : hasAdvisory ? (
                 <span className="text-amber-500 flex items-center gap-1.5">
                   <AlertTriangle className="h-3.5 w-3.5" />
-                  请确认提醒项
+                  请关注提醒项
                 </span>
               ) : (
                 <span className="text-emerald-600 flex items-center gap-1.5">
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  可以导出
+                  全部通过
                 </span>
               )}
             </div>
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onOpenChange(false)}
-              >
-                取消
-              </Button>
-              <Button
-                size="sm"
-                disabled={!canExport}
-                className="gap-1.5"
-                onClick={() => {
-                  onOpenChange(false);
-                  onExport();
-                }}
-              >
-                <Download className="h-3.5 w-3.5" />
-                导出
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+            >
+              关闭
+            </Button>
           </div>
         </DialogFooter>
       </DialogContent>
