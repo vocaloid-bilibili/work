@@ -5,6 +5,7 @@ import Header from "./Header";
 import Router from "./Router";
 import { Toaster } from "@/ui/sonner";
 import BackToTop from "@/shared/ui/BackToTop";
+import AuthGate from "./AuthGate";
 
 class ErrorBoundary extends Component<
   { children: ReactNode },
@@ -44,7 +45,9 @@ export default function App() {
         <div className="flex flex-col min-h-screen bg-background text-foreground">
           <Header />
           <main className="w-full grow">
-            <Router />
+            <AuthGate>
+              <Router />
+            </AuthGate>
           </main>
         </div>
         <BackToTop />

@@ -44,7 +44,24 @@ const EMPTY: State = {
   username: null,
   loading: false,
 };
+
+// 调试模式配置
+const DEBUG_MODE = import.meta.env.VITE_DEBUG_AUTO_LOGIN === "true";
+const DEBUG_USERNAME = import.meta.env.VITE_DEBUG_USERNAME ?? "debug";
+const DEBUG_ROLE = import.meta.env.VITE_DEBUG_ROLE ?? "admin";
+const DEBUG_ROLE_ID = Number(import.meta.env.VITE_DEBUG_ROLE_ID) || 1;
+
 const AuthCtx = createContext<Ctx | null>(null);
+
+function getDebugUser(): CachedUser {
+  return {
+    id: DEBUG_ROLE_ID,
+    username: DEBUG_USERNAME,
+    nickname: DEBUG_USERNAME,
+    role: DEBUG_ROLE,
+    avatar_url: null,
+  };
+}
 
 export function useAuth() {
   const c = useContext(AuthCtx);
@@ -66,6 +83,11 @@ function applyUser(user: CachedUser | null): State {
 }
 
 function getInitialState(): State {
+  // 调试模式：直接使用配置的用户信息
+  if (DEBUG_MODE) {
+    return applyUser(getDebugUser());
+  }
+
   const cached = getCachedUser();
   if (cached && checkAccess(cached.role)) {
     return applyUser(cached);
@@ -144,6 +166,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (didInit.current) return;
     didInit.current = true;
 
+    // 调试模式：跳过后端验证
+    if (DEBUG_MODE) {
+      return;
+    }
+
     const cached = getCachedUser();
     if (cached && checkAccess(cached.role)) {
       return;
@@ -166,6 +193,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (u: string, p: string, codeId: number, codeAnswer: string) => {
+      // 调试模式：直接设置调试用户
+      if (DEBUG_MODE) {
+        const debugUser = getDebugUser();
+        setCachedUser(debugUser);
+        setState(applyUser(debugUser));
+        return;
+      }
+
       const res = await fetch(`${AUTH_BASE}/auth/login`, {
         method: "POST",
         credentials: "include",
@@ -197,6 +232,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    // 调试模式：只清除本地缓存
+    if (DEBUG_MODE) {
+      clearCachedUser();
+      setState(applyUser(getDebugUser()));
+      return;
+    }
+
     try {
       await fetch(`${AUTH_BASE}/auth/logout`, {
         method: "POST",

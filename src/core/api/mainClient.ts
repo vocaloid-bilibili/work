@@ -10,13 +10,35 @@ declare module "axios" {
 
 export const authExpiredEvent = new EventTarget();
 
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+export const IS_DEBUG_AUTO_LOGIN =
+  import.meta.env.VITE_DEBUG_AUTO_LOGIN === "true";
+export const DEBUG_USERNAME = import.meta.env.VITE_DEBUG_USERNAME || "";
+
+export function getDebugHeaders(): Record<string, string> {
+  if (!IS_DEBUG_AUTO_LOGIN) return {};
+  return { "X-Debug-Auto-Login": "true" };
+}
+
+
 const http = axios.create({
-  baseURL: "https://api.vocabili.top/v2",
+  baseURL: API_BASE_URL,
   timeout: 120_000,
   withCredentials: true,
 });
 
 let _refreshPromise: Promise<boolean> | null = null;
+
+http.interceptors.request.use(
+  (config) => {
+    const debugHeaders = getDebugHeaders();
+    if (Object.keys(debugHeaders).length > 0)
+      Object.assign(config.headers, debugHeaders);
+    return config;
+  },
+  (error) => Promise.reject(error),
+);
+
 
 http.interceptors.response.use(
   (r) => r,

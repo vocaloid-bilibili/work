@@ -2,7 +2,6 @@
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { lazy, Suspense, useEffect } from "react";
 import { Loader2 } from "lucide-react";
-import AuthGate from "./AuthGate";
 import LoginPage from "./LoginPage";
 import MarkPage from "@/modules/marking/MarkPage";
 import IngestPage from "@/modules/ingest/IngestPage";
@@ -38,60 +37,33 @@ export default function Router() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route
-        path="/mark"
-        element={
-          <AuthGate>
-            <MarkPage />
-          </AuthGate>
-        }
-      />
+      <Route path="/mark" element={<MarkPage />} />
       <Route
         path="/stats"
         element={
-          <AuthGate>
-            <Suspense fallback={<Fb />}>
-              <Dashboard />
-            </Suspense>
-          </AuthGate>
+          <Suspense fallback={<Fb />}>
+            <Dashboard />
+          </Suspense>
         }
       />
       <Route
         path="/stats/history"
         element={
-          <AuthGate>
-            <Suspense fallback={<Fb />}>
-              <HistoryPage />
-            </Suspense>
-          </AuthGate>
+          <Suspense fallback={<Fb />}>
+            <HistoryPage />
+          </Suspense>
         }
       />
       <Route
         path="/stats/:taskId"
         element={
-          <AuthGate>
-            <Suspense fallback={<Fb />}>
-              <TaskDetail />
-            </Suspense>
-          </AuthGate>
+          <Suspense fallback={<Fb />}>
+            <TaskDetail />
+          </Suspense>
         }
       />
-      <Route
-        path="/upload"
-        element={
-          <AuthGate>
-            <IngestPage />
-          </AuthGate>
-        }
-      />
-      <Route
-        path="/edit/*"
-        element={
-          <AuthGate>
-            <EditorPage />
-          </AuthGate>
-        }
-      />
+      <Route path="/upload" element={<IngestPage />} />
+      <Route path="/edit/*" element={<EditorPage />} />
       <Route path="/contributions" element={<Navigate to="/stats" replace />} />
       <Route path="/" element={<Navigate to="/mark" replace />} />
       <Route path="*" element={<NotFoundPage />} />
