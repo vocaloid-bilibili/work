@@ -1,31 +1,13 @@
 // src/modules/marking/collab/useCollab.ts
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  collabGet,
-  collabUpload,
-  collabDownload,
-} from "@/core/api/collabClient";
+import { collabGet } from "@/core/api/collabClient";
 import { useCollabSnapshot } from "./useCollabSnapshot";
 import { useCollabOps } from "./useCollabOps";
 import { useCollabSocket } from "./useCollabSocket";
-import type { Snapshot, MarkOp, Row } from "@/core/types/collab";
+import { useCollabEvents } from "./useCollabEvents";
+import { useCollabApi } from "./useCollabApi";
+import type { Row } from "@/core/types/collab";
 import type { Attribution } from "@/core/types/stats";
-import type { WsEvent } from "@/core/ws/RealtimeSocket";
-
-interface TaskStatsResult {
-  contributors: { user: { id: string } }[];
-  [key: string]: unknown;
-}
-
-interface TaskOpsResult {
-  ops: Record<string, unknown>[];
-  total: number;
-  hasMore: boolean;
-}
-
-interface TaskListResult {
-  tasks: Record<string, unknown>[];
-}
 
 export function useCollab(enabled: boolean) {
   const [loading, setLoading] = useState(true);
@@ -37,6 +19,9 @@ export function useCollab(enabled: boolean) {
   const [attributions, setAttributions] = useState<Attribution[]>([]);
   const [conflict, setConflict] = useState<string | null>(null);
   const initRef = useRef(false);
+
+  // ── snapshot ──
+
   const snap = useCollabSnapshot({
     setTaskId,
     setVersion,
@@ -46,110 +31,34 @@ export function useCollab(enabled: boolean) {
     setAttributions,
   });
 
+  // ── cross-refs for event handler ──
+
   const opsRef = useRef<ReturnType<typeof useCollabOps>>(null!);
   const refreshRef = useRef<() => Promise<void>>(null!);
   const wsRef = useRef<{ send: (data: Record<string, unknown>) => void }>(
     null!,
   );
 
-  const handleEvent = useCallback(
-    (event: WsEvent) => {
-      const ops = opsRef.current;
-      const ws = wsRef.current;
+  // ── events ──
 
-      if (event.type === "connected") return;
+  const handleEvent = useCollabEvents({
+    snap,
+    opsRef,
+    wsRef,
+    refreshRef,
+    setVersion,
+    setAttributions,
+    setConflict,
+  });
 
-      if (event.type === "task_joined") {
-        const v =
-          typeof event.version === "number"
-            ? event.version
-            : snap.versionRef.current;
-        snap.versionRef.current = Math.max(snap.versionRef.current, v);
-        setVersion((p) => Math.max(p, v));
-        return;
-      }
-
-      if (event.type === "operation_committed") {
-        const op = event.operation as MarkOp | undefined;
-        if (!op) return;
-        ops.handleCommitted(
-          op,
-          typeof event.version === "number"
-            ? event.version
-            : snap.versionRef.current,
-        );
-        if (
-          op.action === "toggle_include" ||
-          op.action === "blacklist" ||
-          op.action === "unblacklist"
-        ) {
-          const profile = (
-            event as WsEvent & {
-              userProfile?: Attribution["actionByProfile"];
-            }
-          ).userProfile;
-          setAttributions((prev) => {
-            const next = [...prev];
-            if (
-              op.action === "unblacklist" ||
-              (op.action === "toggle_include" && !op.value)
-            ) {
-              next[op.recordIndex] = {};
-            } else if (op.action === "toggle_include" && op.value) {
-              next[op.recordIndex] = {
-                actionByProfile: profile,
-                action: "include",
-                actionAt: new Date().toISOString(),
-              };
-            } else if (op.action === "blacklist") {
-              next[op.recordIndex] = {
-                actionByProfile: profile,
-                action: "blacklist",
-                actionAt: new Date().toISOString(),
-              };
-            }
-            return next;
-          });
-        }
-        return;
-      }
-
-      if (event.type === "operation_conflicted") {
-        ops.handleConflict({
-          opId: typeof event.opId === "string" ? event.opId : "",
-          currentVersion: event.currentVersion as number | undefined,
-          recordIndex: event.recordIndex as number | undefined,
-          field: event.field as string | undefined,
-          currentValue: event.currentValue,
-        });
-        setConflict(typeof event.message === "string" ? event.message : "冲突");
-        void refreshRef.current();
-        return;
-      }
-
-      if (event.type === "snapshot_reloaded") {
-        const s = event.snapshot as Snapshot | undefined;
-        if (s) {
-          snap.apply(s);
-          ops.clearPending();
-          setConflict(null);
-        }
-        return;
-      }
-
-      if (event.type === "error") {
-        const msg = typeof event.message === "string" ? event.message : "";
-        if (msg.includes("join_task") && snap.taskIdRef.current)
-          ws.send({ type: "join_task", taskId: snap.taskIdRef.current });
-        return;
-      }
-    },
-    // snap is stable
-    [snap],
-  );
+  // ── socket ──
 
   const ws = useCollabSocket(handleEvent, enabled);
-  wsRef.current = ws;
+  useEffect(() => {
+    wsRef.current = ws;
+  }, [ws]);
+
+  // ── ops ──
 
   const ops = useCollabOps(
     {
@@ -162,7 +71,11 @@ export function useCollab(enabled: boolean) {
     },
     { setRecords, setIncludes, setBlacklists },
   );
-  opsRef.current = ops;
+  useEffect(() => {
+    opsRef.current = ops;
+  });
+
+  // ── refresh ──
 
   const refreshSnapshot = useCallback(async () => {
     const tid = snap.taskIdRef.current;
@@ -171,11 +84,14 @@ export function useCollab(enabled: boolean) {
     opsRef.current.clearPending();
     setConflict(null);
   }, [snap]);
-  refreshRef.current = refreshSnapshot;
+  useEffect(() => {
+    refreshRef.current = refreshSnapshot;
+  }, [refreshSnapshot]);
+
+  // ── init ──
 
   useEffect(() => {
-    if (!enabled) return;
-    if (initRef.current) return;
+    if (!enabled || initRef.current) return;
     initRef.current = true;
     (async () => {
       setLoading(true);
@@ -187,17 +103,26 @@ export function useCollab(enabled: boolean) {
           await snap.load(active.taskId);
           setConflict(null);
         }
+      } catch (err) {
+        console.warn(
+          "[collab] init failed:",
+          err instanceof Error ? err.message : err,
+        );
       } finally {
         setLoading(false);
       }
     })();
   }, [enabled, snap]);
 
+  // ── auto join ──
+
   useEffect(() => {
-    if (!enabled) return;
-    if (ws.connState === "connected" && taskId)
+    if (enabled && ws.connState === "connected" && taskId) {
       ws.send({ type: "join_task", taskId });
+    }
   }, [ws.connState, taskId, enabled, ws]);
+
+  // ── local record update (修复 #5: 归还给 collab 层) ──
 
   const updateLocalRecord = useCallback(
     (i: number, fn: (r: Row) => Row) => {
@@ -207,66 +132,36 @@ export function useCollab(enabled: boolean) {
       if (updated === prev[i]) return;
       const next = [...prev];
       next[i] = updated;
-      snap.recordsRef.current = next;
+      snap.setRecordsRef(next);
       setRecords(next);
     },
     [snap],
   );
 
+  // ── API layer ──
+
+  const api = useCollabApi(snap.taskIdRef);
+
   const uploadFile = useCallback(
     async (file: File) => {
-      const s = await collabUpload<Snapshot>("/mark/tasks", file);
+      const s = await api.uploadTask(file);
       snap.apply(s);
       opsRef.current.clearPending();
       setConflict(null);
     },
-    [snap],
+    [snap, api],
   );
 
   const exportFile = useCallback(
     async (keepExcluded: boolean) => {
       const tid = snap.taskIdRef.current;
       if (!tid) throw new Error("任务未初始化");
-      const { blob, filename } = await collabDownload(
-        `/mark/tasks/${tid}/export?keepExcluded=${keepExcluded}`,
-      );
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      await api.exportTask(tid, keepExcluded);
     },
-    [snap],
+    [snap, api],
   );
 
-  const fetchTaskStats = useCallback(
-    async (tid?: string) => {
-      const id = tid || snap.taskIdRef.current;
-      if (!id) return null;
-      return collabGet<TaskStatsResult>(`/mark/tasks/${id}/stats`);
-    },
-    [snap],
-  );
-
-  const fetchTaskOps = useCallback(
-    async (tid: string, limit: number, offset: number) =>
-      collabGet<TaskOpsResult>(
-        `/mark/tasks/${tid}/ops?limit=${limit}&offset=${offset}`,
-      ),
-    [],
-  );
-
-  const fetchTaskList = useCallback(
-    () => collabGet<TaskListResult>("/mark/tasks"),
-    [],
-  );
-  const fetchGlobalStats = useCallback(
-    () => collabGet<Record<string, unknown>>("/mark/tasks/stats/global"),
-    [],
-  );
+  // ── status ──
 
   const statusLabel = useMemo(() => {
     if (ws.connState === "connected") return "已连接";
@@ -276,6 +171,7 @@ export function useCollab(enabled: boolean) {
   }, [ws.connState]);
 
   return {
+    // state
     loading,
     taskId,
     version,
@@ -286,15 +182,20 @@ export function useCollab(enabled: boolean) {
     conflict,
     connState: ws.connState,
     statusLabel,
+
+    // ops (分组返回)
     ...ops,
     updateLocalRecord,
     refreshSnapshot,
+
+    // file
     uploadFile,
     exportFile,
-    fetchTaskStats,
-    fetchTaskOps,
-    fetchTaskList,
-    fetchGlobalStats,
+
+    // api (分组)
+    ...api,
+
+    // socket
     reconnect: ws.reconnect,
   };
 }

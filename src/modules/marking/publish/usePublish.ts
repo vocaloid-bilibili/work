@@ -1,27 +1,10 @@
 // src/modules/marking/publish/usePublish.ts
-import { useState, useCallback, useRef, useEffect } from "react";
-import * as api from "@/core/api/mainEndpoints";
-import { streamRanking, streamSnapshot } from "@/core/api/sseStream";
+import { useState, useCallback, useRef } from "react";
 import { collabBase } from "@/core/api/collabClient";
+import { usePublishFiles } from "./usePublishFiles";
+import { usePublishRelations } from "./usePublishRelations";
 import type { PubFile, FileStatus, Phase, PublishMode } from "./types";
 import type { Row } from "@/core/types/collab";
-import type { Song } from "@/core/types/catalog";
-import { PARTS } from "@/core/types/constants";
-
-interface LinkedSong {
-  id: number;
-  name: string;
-}
-
-function parseOriginals(raw: unknown): LinkedSong[] {
-  if (!raw) return [];
-  try {
-    const arr = typeof raw === "string" ? JSON.parse(raw) : raw;
-    return Array.isArray(arr) ? arr : [];
-  } catch {
-    return [];
-  }
-}
 
 export function usePublish({
   taskId,
@@ -43,17 +26,23 @@ export function usePublish({
   );
   const running = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+
   const busy = phase === "checking" || phase === "phase1" || phase === "phase2";
   const log = useCallback((m: string) => setLogs((p) => [...p, m]), []);
 
-  const recordsRef = useRef(records);
-  const includesRef = useRef(includes);
-  useEffect(() => {
-    recordsRef.current = records;
+  const setOneStatus = useCallback((key: string, s: FileStatus) => {
+    setFStatus((p) => ({ ...p, [key]: s }));
+  }, []);
+
+  const setOneError = useCallback((key: string, msg: string) => {
+    setFErrors((p) => ({ ...p, [key]: msg }));
+  }, []);
+
+  const { processFile } = usePublishFiles({
+    setStatus: setOneStatus,
+    log,
   });
-  useEffect(() => {
-    includesRef.current = includes;
-  });
+  const { linkOriginals } = usePublishRelations(records, includes, log);
 
   const reset = useCallback(() => {
     setPhase("idle");
@@ -89,21 +78,7 @@ export function usePublish({
     });
   }, [files, fStatus]);
 
-  const deselectAll = useCallback(() => {
-    setFileSelection({});
-  }, []);
-
-  const checkLock = async () => {
-    try {
-      const r = await fetch(`${collabBase()}/mark/tasks/publish/status`, {
-        credentials: "include",
-      });
-      if (!r.ok) return false;
-      return !(await r.json()).publishing;
-    } catch {
-      return false;
-    }
-  };
+  const deselectAll = useCallback(() => setFileSelection({}), []);
 
   const runPhase1 = useCallback(
     async (mode: PublishMode, signal: AbortSignal): Promise<PubFile[]> => {
@@ -120,6 +95,7 @@ export function usePublish({
         };
         throw new Error(b.message || `HTTP ${res.status}`);
       }
+
       const reader = res.body!.getReader();
       const dec = new TextDecoder();
       let buf = "";
@@ -154,120 +130,24 @@ export function usePublish({
     [taskId, log],
   );
 
-  const processFile = useCallback(
-    async (file: PubFile) => {
-      setFStatus((p) => ({ ...p, [file.fileKey]: "downloading" }));
-      const dl = await fetch(
-        `${collabBase()}/mark/tasks/publish/files/${file.fileKey}`,
-        { credentials: "include" },
-      );
-      if (!dl.ok) throw new Error(`下载 ${file.filename} 失败`);
-      const blob = await dl.blob();
-      const fo = new File([blob], file.filename, { type: blob.type });
-      setFStatus((p) => ({ ...p, [file.fileKey]: "uploading" }));
-      log(`上传 ${file.filename}`);
-      await api.uploadFile(fo);
-      setFStatus((p) => ({ ...p, [file.fileKey]: "importing" }));
-      if (file.type === "board") {
-        const label =
-          PARTS.find((p) => p.value === file.part)?.label ?? file.part;
-        log(`导入${label}第${file.issue}期`);
-        await new Promise<void>((ok, fail) => {
-          streamRanking(file.board, file.part, file.issue, {
-            onProgress: (m) => log(`  ${m}`),
-            onComplete: () => {
-              log(`${label}第${file.issue}期导入完成`);
-              ok();
-            },
-            onError: (e) =>
-              fail(e instanceof Error ? e : new Error("导入失败")),
-          });
-        });
-      } else {
-        log(`导入快照 ${file.date}`);
-        await new Promise<void>((ok, fail) => {
-          streamSnapshot(file.date, {
-            onProgress: (m) => log(`  ${m}`),
-            onComplete: () => {
-              log(`快照 ${file.date} 导入完成`);
-              ok();
-            },
-            onError: (e) =>
-              fail(e instanceof Error ? e : new Error("导入失败")),
-          });
-        });
-      }
-      setFStatus((p) => ({ ...p, [file.fileKey]: "done" }));
-
-      fetch(`${collabBase()}/mark/tasks/publish/files/${file.fileKey}`, {
-        method: "DELETE",
-        credentials: "include",
-      }).catch(() => {});
-    },
-    [log],
-  );
-
-  const linkOriginals = useCallback(
-    async (signal: AbortSignal) => {
-      const recs = recordsRef.current;
-      const incs = includesRef.current;
-
-      const withOrig = recs
-        .map((r, i) => ({ record: r, index: i }))
-        .filter(
-          ({ record, index }) =>
-            incs[index] && parseOriginals(record._original).length > 0,
-        );
-
-      if (withOrig.length === 0) return;
-
-      log(`创建关联关系 (${withOrig.length} 首)…`);
-      let ok = 0;
-      let fail = 0;
-
-      for (const { record } of withOrig) {
+  const runPhase2 = useCallback(
+    async (fl: PubFile[], signal: AbortSignal) => {
+      let allOk = true;
+      for (const f of fl) {
         if (signal.aborted) break;
-        const originals = parseOriginals(record._original);
-        const songName = String(record.name || "").trim();
-        if (!songName) continue;
-
         try {
-          const searchResult = (await api.search("song", songName, 1, 10)) as {
-            data?: Song[];
-          };
-          const songs = Array.isArray(searchResult.data)
-            ? searchResult.data
-            : [];
-          const song = songs.find(
-            (s) =>
-              s.name === songName || (s.display_name || s.name) === songName,
-          );
-
-          if (!song) {
-            log(`  ✗「${songName}」未找到对应歌曲，跳过`);
-            fail++;
-            continue;
-          }
-
-          for (const orig of originals) {
-            try {
-              await api.addSongRelation(orig.id, song.id);
-              log(`  ✓「${songName}」→ 原曲「${orig.name}」`);
-              ok++;
-            } catch {
-              log(`  ✗「${songName}」→「${orig.name}」失败`);
-              fail++;
-            }
-          }
-        } catch {
-          log(`  ✗ 搜索「${songName}」失败`);
-          fail++;
+          await processFile(f);
+        } catch (err: unknown) {
+          allOk = false;
+          const msg = err instanceof Error ? err.message : "失败";
+          setOneStatus(f.fileKey, "error");
+          setOneError(f.fileKey, msg);
+          log(`${f.filename} 失败: ${msg}`);
         }
       }
-
-      log(`关联创建完成：${ok} 成功${fail > 0 ? `，${fail} 失败` : ""}`);
+      return allOk;
     },
-    [log],
+    [processFile, setOneStatus, setOneError, log],
   );
 
   const startPublish = useCallback(
@@ -282,14 +162,27 @@ export function usePublish({
       setFErrors({});
       setGlobalError("");
       setFileSelection({});
+
       setPhase("checking");
-      if (!(await checkLock())) {
+      try {
+        const lockRes = await fetch(
+          `${collabBase()}/mark/tasks/publish/status`,
+          { credentials: "include" },
+        );
+        if (!lockRes.ok || (await lockRes.json()).publishing) {
+          setPhase("error");
+          setGlobalError("已有其他发布任务");
+          log("发布被锁定");
+          running.current = false;
+          return;
+        }
+      } catch {
         setPhase("error");
-        setGlobalError("已有其他发布任务");
-        log("发布被锁定");
+        setGlobalError("检查锁定失败");
         running.current = false;
         return;
       }
+
       try {
         setPhase("phase1");
         const fl = await runPhase1(mode, ctrl.signal);
@@ -297,21 +190,11 @@ export function usePublish({
         setFStatus(
           Object.fromEntries(fl.map((f) => [f.fileKey, "pending" as const])),
         );
+
         setPhase("phase2");
-        let allOk = true;
-        for (const f of fl) {
-          if (ctrl.signal.aborted) break;
-          try {
-            await processFile(f);
-          } catch (err: unknown) {
-            allOk = false;
-            const msg = err instanceof Error ? err.message : "失败";
-            setFStatus((p) => ({ ...p, [f.fileKey]: "error" }));
-            setFErrors((p) => ({ ...p, [f.fileKey]: msg }));
-            log(`${f.filename} 失败: ${msg}`);
-          }
-        }
+        const allOk = await runPhase2(fl, ctrl.signal);
         if (ctrl.signal.aborted) return;
+
         if (allOk) {
           await linkOriginals(ctrl.signal);
           setPhase("done");
@@ -330,7 +213,7 @@ export function usePublish({
         running.current = false;
       }
     },
-    [log, runPhase1, processFile, linkOriginals],
+    [log, runPhase1, runPhase2, linkOriginals],
   );
 
   const retryFile = useCallback(
@@ -353,12 +236,12 @@ export function usePublish({
         });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "失败";
-        setFStatus((p) => ({ ...p, [file.fileKey]: "error" }));
-        setFErrors((p) => ({ ...p, [file.fileKey]: msg }));
+        setOneStatus(file.fileKey, "error");
+        setOneError(file.fileKey, msg);
         log(`${file.filename} 失败: ${msg}`);
       }
     },
-    [log, processFile],
+    [log, processFile, setOneStatus, setOneError],
   );
 
   const retrySelected = useCallback(async () => {
@@ -376,8 +259,8 @@ export function usePublish({
       } catch (err: unknown) {
         allOk = false;
         const msg = err instanceof Error ? err.message : "失败";
-        setFStatus((p) => ({ ...p, [f.fileKey]: "error" }));
-        setFErrors((p) => ({ ...p, [f.fileKey]: msg }));
+        setOneStatus(f.fileKey, "error");
+        setOneError(f.fileKey, msg);
         log(`${f.filename} 失败: ${msg}`);
       }
     }
@@ -394,7 +277,15 @@ export function usePublish({
       }
       return prev;
     });
-  }, [files, fileSelection, fStatus, log, processFile]);
+  }, [
+    files,
+    fileSelection,
+    fStatus,
+    log,
+    processFile,
+    setOneStatus,
+    setOneError,
+  ]);
 
   const selectedCount = Object.values(fileSelection).filter(Boolean).length;
 

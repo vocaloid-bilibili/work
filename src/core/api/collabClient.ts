@@ -1,10 +1,35 @@
 // src/core/api/collabClient.ts
 import { clearCachedUser, AUTH_BASE } from "../auth/token";
+import { authExpiredEvent, getDebugHeaders } from "./mainClient";
 
 const BASE = "https://api.vocabili.top/collab";
 export const collabBase = () => BASE;
 
 const inFlight = new Map<string, Promise<unknown>>();
+
+let _refreshPromise: Promise<boolean> | null = null;
+
+function tryRefresh(): Promise<boolean> {
+  if (_refreshPromise) return _refreshPromise;
+  _refreshPromise = (async () => {
+    try {
+      const res = await fetch(`${AUTH_BASE}/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...getDebugHeaders(),
+        },
+      });
+      return res.ok;
+    } catch {
+      return false;
+    } finally {
+      _refreshPromise = null;
+    }
+  })();
+  return _refreshPromise;
+}
 
 async function request<T>(
   url: string,
@@ -15,28 +40,23 @@ async function request<T>(
     fetch(url, {
       method,
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...getDebugHeaders(),
+      },
       body: body ? JSON.stringify(body) : undefined,
     });
 
   let res = await doFetch();
 
   if (res.status === 401) {
-    try {
-      const refreshRes = await fetch(`${AUTH_BASE}/auth/refresh`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (refreshRes.ok) {
-        res = await doFetch();
-      } else {
-        clearCachedUser();
-        throw new Error("登录已过期");
-      }
-    } catch (e) {
+    const refreshed = await tryRefresh();
+    if (refreshed) {
+      res = await doFetch();
+    } else {
       clearCachedUser();
-      throw e instanceof Error ? e : new Error("登录已过期");
+      authExpiredEvent.dispatchEvent(new Event("expired"));
+      throw new Error("登录已过期");
     }
   }
 
@@ -67,13 +87,30 @@ export async function collabPost<T>(path: string, body?: unknown): Promise<T> {
 }
 
 export async function collabUpload<T>(path: string, file: File): Promise<T> {
-  const fd = new FormData();
-  fd.append("file", file);
-  const res = await fetch(`${BASE}${path}`, {
-    method: "POST",
-    credentials: "include",
-    body: fd,
-  });
+  const doUpload = () => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return fetch(`${BASE}${path}`, {
+      method: "POST",
+      credentials: "include",
+      headers: { ...getDebugHeaders() }, // ← FormData 不要手动设 Content-Type
+      body: fd,
+    });
+  };
+
+  let res = await doUpload();
+
+  if (res.status === 401) {
+    const refreshed = await tryRefresh();
+    if (refreshed) {
+      res = await doUpload();
+    } else {
+      clearCachedUser();
+      authExpiredEvent.dispatchEvent(new Event("expired"));
+      throw new Error("登录已过期");
+    }
+  }
+
   let json: Record<string, unknown>;
   const text = await res.text();
   try {
@@ -88,9 +125,25 @@ export async function collabUpload<T>(path: string, file: File): Promise<T> {
 export async function collabDownload(
   path: string,
 ): Promise<{ blob: Blob; filename: string }> {
-  const res = await fetch(`${BASE}${path}`, {
-    credentials: "include",
-  });
+  const doFetch = () =>
+    fetch(`${BASE}${path}`, {
+      credentials: "include",
+      headers: { ...getDebugHeaders() },
+    });
+
+  let res = await doFetch();
+
+  if (res.status === 401) {
+    const refreshed = await tryRefresh();
+    if (refreshed) {
+      res = await doFetch();
+    } else {
+      clearCachedUser();
+      authExpiredEvent.dispatchEvent(new Event("expired"));
+      throw new Error("登录已过期");
+    }
+  }
+
   if (!res.ok) {
     let msg = "下载失败";
     try {
@@ -101,6 +154,7 @@ export async function collabDownload(
     }
     throw new Error(msg);
   }
+
   let filename = `export_${new Date().toISOString().slice(0, 10)}.xlsx`;
   const disp = res.headers.get("Content-Disposition");
   if (disp) {

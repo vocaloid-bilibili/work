@@ -3,9 +3,13 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
 import { Loader2 } from "lucide-react";
 
+const PUBLIC_PATHS = ["/login"];
+
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const { role, loading } = useAuth();
   const location = useLocation();
+
+  if (PUBLIC_PATHS.includes(location.pathname)) return <>{children}</>;
 
   if (loading)
     return (
@@ -13,7 +17,9 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
+
   if (role === "guest")
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+
   return <>{children}</>;
 }

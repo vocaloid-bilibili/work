@@ -24,18 +24,29 @@ export function useMarking() {
   );
   const includes = isCollab ? collab.includes : state.includes;
   const blacklists = isCollab ? collab.blacklists : state.blacklists;
-  const attributions: Attribution[] = isCollab ? collab.attributions : state.attributions;
-  const isLoading = isCollab ? collab.loading || false : state.status === "loading";
+  const attributions: Attribution[] = isCollab
+    ? collab.attributions
+    : state.attributions;
+  const isLoading = isCollab
+    ? collab.loading || false
+    : state.status === "loading";
 
   // ── 各功能模块 ──
 
-  const paging = useMarkPaging({ records, includes, blacklists, pageSize: PAGE_SIZE });
+  const paging = useMarkPaging({
+    records,
+    includes,
+    blacklists,
+    pageSize: PAGE_SIZE,
+  });
 
   const actions = useMarkActions({
-    isCollab, collab, records,
+    isCollab,
+    collab,
+    records,
     setRecords: state.setRecords,
-    includes, setIncludes: state.setIncludes,
-    blacklists, setBlacklists: state.setBlacklists,
+    setIncludes: state.setIncludes,
+    setBlacklists: state.setBlacklists,
   });
 
   const upload = useMarkUpload({
@@ -46,7 +57,6 @@ export function useMarking() {
     setStatus: state.setStatus,
     setFileName: state.setFileName,
     setPage: paging.setPage,
-    fileRef: state.fileRef,
     collabUpload: collab.uploadFile,
   });
 
@@ -54,8 +64,12 @@ export function useMarking() {
 
   // ── 持久化 ──
 
-  useEffect(() => { localStorage.setItem("mark_mode", state.mode); }, [state.mode]);
-  useEffect(() => { localStorage.setItem("mark_layout", state.layout); }, [state.layout]);
+  useEffect(() => {
+    localStorage.setItem("mark_mode", state.mode);
+  }, [state.mode]);
+  useEffect(() => {
+    localStorage.setItem("mark_layout", state.layout);
+  }, [state.layout]);
 
   // ── 高亮跳转 ──
 
@@ -72,9 +86,14 @@ export function useMarking() {
       setHighlightIndex(null);
       paging.setPage(Math.floor(index / PAGE_SIZE) + 1);
       setTimeout(() => {
-        document.getElementById(`record-${index}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        document
+          .getElementById(`record-${index}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
         setHighlightIndex(index);
-        highlightTimer.current = setTimeout(() => setHighlightIndex(null), 2000);
+        highlightTimer.current = setTimeout(
+          () => setHighlightIndex(null),
+          2000,
+        );
       }, 100);
     },
     [paging],
@@ -90,14 +109,12 @@ export function useMarking() {
   // ── 对外接口 ──
 
   return {
-    // 数据
     records,
     includes,
     blacklists,
     attributions,
     isLoading,
 
-    // 模式 & 布局
     isCollab,
     collab,
     mode: state.mode,
@@ -106,23 +123,13 @@ export function useMarking() {
     setLayout: state.setLayout,
     fileRef: state.fileRef,
 
-    // 分页
     paging,
-
-    // 编辑操作
     actions,
-
-    // 上传
     loadFile: upload.loadFile,
-
-    // 校验
     check,
 
-    // 跳转
     jumpToRecord,
     highlightIndex,
-
-    // 重置
     reset,
   };
 }

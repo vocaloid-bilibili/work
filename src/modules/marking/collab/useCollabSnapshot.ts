@@ -53,6 +53,14 @@ export function useCollabSnapshot(setters: Setters) {
     [apply],
   );
 
+  const bumpVersion = useCallback((v: number) => {
+    versionRef.current = Math.max(versionRef.current, v);
+  }, []);
+
+  const setRecordsRef = useCallback((recs: Row[]) => {
+    recordsRef.current = recs;
+  }, []);
+
   return {
     apply,
     load,
@@ -61,5 +69,7 @@ export function useCollabSnapshot(setters: Setters) {
     recordsRef,
     includesRef,
     blacklistsRef,
+    bumpVersion,
+    setRecordsRef,
   };
 }

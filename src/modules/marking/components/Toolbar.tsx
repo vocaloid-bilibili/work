@@ -5,7 +5,7 @@ import { Switch } from "@/ui/switch";
 import { Label } from "@/ui/label";
 import { ListChecks, LayoutGrid, LayoutList, X, BarChart3 } from "lucide-react";
 import { cn } from "@/ui/cn";
-import type { LayoutMode } from "../hooks/useMarkCore";
+import type { LayoutMode } from "../hooks/useMarkState";
 
 interface CollabState {
   statusLabel: string;
@@ -21,7 +21,7 @@ interface ToolbarProps {
   hasData: boolean;
   onCheck: () => void;
   onReset?: () => void;
-  publishSlot?: React.ReactNode; 
+  publishSlot?: React.ReactNode;
 }
 
 export default function Toolbar({
@@ -40,20 +40,40 @@ export default function Toolbar({
   return (
     <div className="flex flex-col sm:flex-row items-center gap-3 w-full justify-center">
       <div className="flex items-center space-x-2">
-        <Switch id="collab" checked={isCollab} onCheckedChange={onModeChange} className="data-[state=checked]:bg-emerald-600" />
-        <Label htmlFor="collab" className="text-sm">协同模式</Label>
-        {isCollab && <span className="text-[11px] text-muted-foreground">{collab.statusLabel}</span>}
+        <Switch
+          id="collab"
+          checked={isCollab}
+          onCheckedChange={onModeChange}
+          className="data-[state=checked]:bg-emerald-600"
+        />
+        <Label htmlFor="collab" className="text-sm">
+          协同模式
+        </Label>
+        {isCollab && (
+          <span className="text-[11px] text-muted-foreground">
+            {collab.statusLabel}
+          </span>
+        )}
       </div>
 
       {hasData && (
         <div className="flex flex-wrap gap-2 items-center">
           <div className="flex items-center border rounded-lg overflow-hidden">
-            {([["list", LayoutList, "单列"], ["grid", LayoutGrid, "双列"]] as const).map(([m, Icon, t], i) => (
+            {(
+              [
+                ["list", LayoutList, "单列"],
+                ["grid", LayoutGrid, "双列"],
+              ] as const
+            ).map(([m, Icon, t], i) => (
               <Button
                 key={m}
                 variant="ghost"
                 size="icon"
-                className={cn("h-8 w-8 rounded-none", i === 1 && "border-x", layout === m && "bg-muted")}
+                className={cn(
+                  "h-8 w-8 rounded-none",
+                  i === 1 && "border-x",
+                  layout === m && "bg-muted",
+                )}
                 onClick={() => onLayoutChange(m)}
                 title={t}
               >
@@ -63,19 +83,31 @@ export default function Toolbar({
           </div>
 
           {isCollab && (
-            <Button variant="outline" className="gap-2" onClick={() => nav("/stats")}>
-              <BarChart3 className="h-4 w-4" />统计
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => nav("/stats")}
+            >
+              <BarChart3 className="h-4 w-4" />
+              统计
             </Button>
           )}
 
           <Button variant="outline" className="gap-2" onClick={onCheck}>
-            <ListChecks className="h-4 w-4" />检查
+            <ListChecks className="h-4 w-4" />
+            检查
           </Button>
 
           {publishSlot}
 
           {!isCollab && onReset && (
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={onReset} title="关闭">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              onClick={onReset}
+              title="关闭"
+            >
               <X className="h-4 w-4" />
             </Button>
           )}

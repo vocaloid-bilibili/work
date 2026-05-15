@@ -12,7 +12,6 @@ interface MarkUploadOpts {
   setStatus: (s: "idle" | "loading" | "ready") => void;
   setFileName: (name: string) => void;
   setPage: (p: number) => void;
-  fileRef: React.RefObject<HTMLInputElement | null>;
   collabUpload: (file: File) => Promise<void>;
 }
 
@@ -24,7 +23,6 @@ export function useMarkUpload({
   setStatus,
   setFileName,
   setPage,
-  fileRef,
   collabUpload,
 }: MarkUploadOpts) {
   const [uploading, setUploading] = useState(false);

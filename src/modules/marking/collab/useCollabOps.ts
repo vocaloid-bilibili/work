@@ -17,7 +17,7 @@ const uid = () =>
     ? crypto.randomUUID()
     : `op-${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
 
-export function applyOp(
+function applyOp(
   op: Pick<MarkOp, "action" | "recordIndex" | "field" | "value">,
   recs: Row[],
   inc: boolean[],
@@ -55,7 +55,7 @@ export function applyOp(
 }
 
 interface Refs {
-  taskIdRef: React.MutableRefObject<string | null>;
+  taskIdRef: React.RefObject<string | null>;
   versionRef: React.MutableRefObject<number>;
   recordsRef: React.MutableRefObject<Row[]>;
   includesRef: React.MutableRefObject<boolean[]>;
@@ -69,37 +69,17 @@ interface StateSetters {
   setBlacklists: React.Dispatch<React.SetStateAction<boolean[]>>;
 }
 
-function commit(
-  result: ReturnType<typeof applyOp>,
-  refs: Refs,
-  s: StateSetters,
-) {
-  if (result.recs !== refs.recordsRef.current) {
-    refs.recordsRef.current = result.recs;
-    s.setRecords(result.recs);
-  }
-  if (result.inc !== refs.includesRef.current) {
-    refs.includesRef.current = result.inc;
-    s.setIncludes(result.inc);
-  }
-  if (result.bl !== refs.blacklistsRef.current) {
-    refs.blacklistsRef.current = result.bl;
-    s.setBlacklists(result.bl);
-  }
-}
-
 export function useCollabOps(refs: Refs, setters: StateSetters) {
   const pendingRef = useRef<Set<string>>(new Set());
 
   const refsRef = useRef(refs);
   const settersRef = useRef(setters);
-
   useEffect(() => {
     refsRef.current = refs;
-  });
+  }, [refs]);
   useEffect(() => {
     settersRef.current = setters;
-  });
+  }, [setters]);
 
   const submit = useCallback(
     (input: {
@@ -134,7 +114,19 @@ export function useCollabOps(refs: Refs, setters: StateSetters) {
         r.includesRef.current,
         r.blacklistsRef.current,
       );
-      commit(result, r, s);
+      if (result.recs !== r.recordsRef.current) {
+        r.recordsRef.current = result.recs;
+        s.setRecords(result.recs);
+      }
+      if (result.inc !== r.includesRef.current) {
+        r.includesRef.current = result.inc;
+        s.setIncludes(result.inc);
+      }
+      if (result.bl !== r.blacklistsRef.current) {
+        r.blacklistsRef.current = result.bl;
+        s.setBlacklists(result.bl);
+      }
+
       pendingRef.current.add(op.opId);
       r.send({ type: "submit_operation", operation: op });
     },
@@ -146,6 +138,7 @@ export function useCollabOps(refs: Refs, setters: StateSetters) {
       submit({ recordIndex: i, field: f, action: "set", value: v }),
     [submit],
   );
+
   const toggleInclude = useCallback(
     (i: number, v: boolean) =>
       submit({
@@ -156,6 +149,7 @@ export function useCollabOps(refs: Refs, setters: StateSetters) {
       }),
     [submit],
   );
+
   const blacklistRecord = useCallback(
     (i: number) =>
       submit({
@@ -166,6 +160,7 @@ export function useCollabOps(refs: Refs, setters: StateSetters) {
       }),
     [submit],
   );
+
   const unblacklistRecord = useCallback(
     (i: number) =>
       submit({
@@ -186,7 +181,18 @@ export function useCollabOps(refs: Refs, setters: StateSetters) {
       r.includesRef.current,
       r.blacklistsRef.current,
     );
-    commit(result, r, s);
+    if (result.recs !== r.recordsRef.current) {
+      r.recordsRef.current = result.recs;
+      s.setRecords(result.recs);
+    }
+    if (result.inc !== r.includesRef.current) {
+      r.includesRef.current = result.inc;
+      s.setIncludes(result.inc);
+    }
+    if (result.bl !== r.blacklistsRef.current) {
+      r.blacklistsRef.current = result.bl;
+      s.setBlacklists(result.bl);
+    }
     r.versionRef.current = Math.max(r.versionRef.current, version);
     pendingRef.current.delete(op.opId);
   }, []);
@@ -200,21 +206,17 @@ export function useCollabOps(refs: Refs, setters: StateSetters) {
       currentValue?: unknown;
     }) => {
       pendingRef.current.delete(data.opId);
-
       const r = refsRef.current;
       const s = settersRef.current;
-
       if (typeof data.currentVersion === "number") {
         r.versionRef.current = data.currentVersion;
       }
-
       if (
         typeof data.recordIndex === "number" &&
         data.recordIndex >= 0 &&
         data.recordIndex < r.recordsRef.current.length
       ) {
         const idx = data.recordIndex;
-
         if (
           data.field === "include" &&
           typeof data.currentValue === "boolean"
@@ -256,3 +258,5 @@ export function useCollabOps(refs: Refs, setters: StateSetters) {
     pendingRef,
   };
 }
+
+export { applyOp };

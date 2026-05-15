@@ -1,6 +1,6 @@
 // src/modules/marking/components/RecordList.tsx
 import { lazy, Suspense } from "react";
-import type { LayoutMode } from "../hooks/useMarkCore";
+import type { LayoutMode } from "../hooks/useMarkState";
 import type { Filter } from "../hooks/useMarkPaging";
 import type { Attribution } from "@/core/types/stats";
 import type { Row } from "@/core/types/collab";
@@ -43,7 +43,9 @@ export default function RecordList({
 
   return (
     <Suspense fallback={null}>
-      <div className={`grid gap-4 ${layout === "grid" ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"}`}>
+      <div
+        className={`grid gap-4 ${layout === "grid" ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"}`}
+      >
         {pagedData.map((record, i) => {
           const ri = pagedIndices[i];
           return (

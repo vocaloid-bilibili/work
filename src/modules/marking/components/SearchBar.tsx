@@ -67,9 +67,11 @@ export default function SearchBar({
     return out;
   }, [debouncedQuery, records, includes, blacklists]);
 
-  useEffect(() => {
+  const [prevHits, setPrevHits] = useState(hits);
+  if (prevHits !== hits) {
+    setPrevHits(hits);
     setSelected(0);
-  }, [hits]);
+  }
 
   useEffect(() => {
     const el = listRef.current?.children[selected] as HTMLElement | undefined;

@@ -25,13 +25,17 @@ function parseOriginals(raw: unknown): LinkedSong[] {
   }
 }
 
-interface P {
+interface CardRelationsProps {
   value: unknown;
   onChange: (field: string, v: string) => void;
   blacklisted: boolean;
 }
 
-export default function CardRelations({ value, onChange, blacklisted }: P) {
+export default function CardRelations({
+  value,
+  onChange,
+  blacklisted,
+}: CardRelationsProps) {
   const links = parseOriginals(value);
   const existingIds = new Set(links.map((l) => l.id));
 
@@ -39,60 +43,56 @@ export default function CardRelations({ value, onChange, blacklisted }: P) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Song[]>([]);
   const [busy, setBusy] = useState(false);
-  const dq = useDebounce(query, 400);
-  const wrap = useRef<HTMLDivElement>(null);
-  useClickOutside(wrap, () => {
+  const debouncedQuery = useDebounce(query, 400);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useClickOutside(wrapRef, () => {
     setAdding(false);
     setQuery("");
     setResults([]);
   });
 
-  const searchKey = `${dq}|${adding}`;
-  const [prevKey, setPrevKey] = useState(searchKey);
-  if (prevKey !== searchKey) {
-    setPrevKey(searchKey);
-    const t = dq.trim();
-    if (t && t.length >= 1 && adding) setBusy(true);
-    else {
+  const shouldSearch = Boolean(debouncedQuery.trim().length >= 1 && adding);
+  const searchKey = `${debouncedQuery}|${shouldSearch}`;
+  const [prevSearchKey, setPrevSearchKey] = useState(searchKey);
+  if (prevSearchKey !== searchKey) {
+    setPrevSearchKey(searchKey);
+    if (shouldSearch) {
+      setBusy(true);
+    } else {
       setResults([]);
       setBusy(false);
     }
   }
 
   useEffect(() => {
-    const t = dq.trim();
-    if (!t || t.length < 1 || !adding) return;
+    if (!shouldSearch) return;
     let cancelled = false;
-    const isId = /^\d+$/.test(t);
-    if (isId) {
-      api
-        .selectSong(Number(t))
-        .then((r) => {
-          if (!cancelled) setResults([r.data]);
-        })
-        .catch(() => {
-          if (!cancelled) setResults([]);
-        })
-        .finally(() => {
-          if (!cancelled) setBusy(false);
-        });
-    } else {
-      api
-        .search("song", t)
-        .then((r: { data?: Song[] }) => {
-          if (!cancelled) setResults(Array.isArray(r.data) ? r.data : []);
-        })
-        .catch(() => {
-          if (!cancelled) setResults([]);
-        })
-        .finally(() => {
-          if (!cancelled) setBusy(false);
-        });
-    }
+    const trimmed = debouncedQuery.trim();
+    const isId = /^\d+$/.test(trimmed);
+
+    const doSearch = isId
+      ? api
+          .selectSong(Number(trimmed))
+          .then((r) => [r.data])
+          .catch(() => [] as Song[])
+      : api
+          .search("song", trimmed)
+          .then((r: { data?: Song[] }) => (Array.isArray(r.data) ? r.data : []))
+          .catch(() => [] as Song[]);
+
+    doSearch
+      .then((songs) => {
+        if (!cancelled) setResults(songs);
+      })
+      .finally(() => {
+        if (!cancelled) setBusy(false);
+      });
+
     return () => {
       cancelled = true;
     };
-  }, [dq, adding]);
+  }, [debouncedQuery, shouldSearch]);
 
   const filtered = results.filter((s) => !existingIds.has(s.id));
 
@@ -201,7 +201,7 @@ export default function CardRelations({ value, onChange, blacklisted }: P) {
       )}
 
       {adding && (
-        <div className="relative" ref={wrap}>
+        <div className="relative" ref={wrapRef}>
           <input
             className="w-full h-8 rounded-md border bg-background px-2.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
             placeholder="搜索原曲名称或输入歌曲 ID…"

@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { filled } from "@/core/helpers/sanitize";
 import type { Row } from "@/core/types/collab";
 
-
 interface ActionBackend {
   toggleInclude: (i: number, v: boolean) => void;
   blacklist: (i: number) => void;
@@ -25,9 +24,7 @@ interface MarkActionsOpts {
   collab: CollabActions;
   records: Row[];
   setRecords: React.Dispatch<React.SetStateAction<Row[]>>;
-  includes: boolean[];
   setIncludes: React.Dispatch<React.SetStateAction<boolean[]>>;
-  blacklists: boolean[];
   setBlacklists: React.Dispatch<React.SetStateAction<boolean[]>>;
 }
 
@@ -40,13 +37,13 @@ export function useMarkActions({
   collab,
   records,
   setRecords,
-  includes,
   setIncludes,
-  blacklists,
   setBlacklists,
 }: MarkActionsOpts) {
   const recordsRef = useRef(records);
-  useEffect(() => { recordsRef.current = records; }, [records]);
+  useEffect(() => {
+    recordsRef.current = records;
+  }, [records]);
 
   const backend = useMemo<ActionBackend>(() => {
     if (isCollab) {
@@ -60,15 +57,35 @@ export function useMarkActions({
     }
     return {
       toggleInclude: (i, v) =>
-        setIncludes((prev) => { const n = [...prev]; n[i] = v; return n; }),
+        setIncludes((prev) => {
+          const n = [...prev];
+          n[i] = v;
+          return n;
+        }),
       blacklist: (i) => {
-        setBlacklists((prev) => { const n = [...prev]; n[i] = true; return n; });
-        setIncludes((prev) => { const n = [...prev]; n[i] = false; return n; });
+        setBlacklists((prev) => {
+          const n = [...prev];
+          n[i] = true;
+          return n;
+        });
+        setIncludes((prev) => {
+          const n = [...prev];
+          n[i] = false;
+          return n;
+        });
       },
       unblacklist: (i) =>
-        setBlacklists((prev) => { const n = [...prev]; n[i] = false; return n; }),
+        setBlacklists((prev) => {
+          const n = [...prev];
+          n[i] = false;
+          return n;
+        }),
       updateField: (i, field, value) => {
-        setRecords((prev) => { const n = [...prev]; n[i] = { ...n[i], [field]: value }; return n; });
+        setRecords((prev) => {
+          const n = [...prev];
+          n[i] = { ...n[i], [field]: value };
+          return n;
+        });
         if (["vocal", "synthesizer", "type"].includes(field)) {
           setIncludes((prev) => {
             const n = [...prev];
@@ -78,7 +95,11 @@ export function useMarkActions({
         }
       },
       updateLocalRecord: (i, fn) =>
-        setRecords((prev) => { const n = [...prev]; n[i] = fn(prev[i]); return n; }),
+        setRecords((prev) => {
+          const n = [...prev];
+          n[i] = fn(prev[i]);
+          return n;
+        }),
     };
   }, [isCollab, collab, setRecords, setIncludes, setBlacklists]);
 
@@ -86,12 +107,7 @@ export function useMarkActions({
     (i: number, v: boolean) => backend.toggleInclude(i, v),
     [backend],
   );
-
-  const blacklist = useCallback(
-    (i: number) => backend.blacklist(i),
-    [backend],
-  );
-
+  const blacklist = useCallback((i: number) => backend.blacklist(i), [backend]);
   const unblacklist = useCallback(
     (i: number) => backend.unblacklist(i),
     [backend],
@@ -116,19 +132,27 @@ export function useMarkActions({
           return n;
         });
       }
-
       if (isCollab) {
         remote.forEach(([f, v]) => backend.updateField(index, f, v));
       } else if (remote.length) {
-        setRecords((prev) => { const n = [...prev]; n[index] = next; return n; });
-        setIncludes((prev) => { const n = [...prev]; n[index] = autoInclude(next); return n; });
+        setRecords((prev) => {
+          const n = [...prev];
+          n[index] = next;
+          return n;
+        });
+        setIncludes((prev) => {
+          const n = [...prev];
+          n[index] = autoInclude(next);
+          return n;
+        });
       }
     },
     [isCollab, backend, setRecords, setIncludes],
   );
 
   const setField = useCallback(
-    (i: number, field: string, value: unknown) => backend.updateField(i, field, value),
+    (i: number, field: string, value: unknown) =>
+      backend.updateField(i, field, value),
     [backend],
   );
 

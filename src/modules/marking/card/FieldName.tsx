@@ -16,7 +16,12 @@ interface FieldNameProps {
   hasError?: boolean;
 }
 
-export default function FieldName({ value, onChange, className, hasError }: FieldNameProps) {
+export default function FieldName({
+  value,
+  onChange,
+  className,
+  hasError,
+}: FieldNameProps) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState(value || "");
   const [hints, setHints] = useState<Song[]>([]);
@@ -32,35 +37,56 @@ export default function FieldName({ value, onChange, className, hasError }: Fiel
     }
   });
 
-  useEffect(() => {
+  const [prevValue, setPrevValue] = useState(value);
+  if (prevValue !== value) {
+    setPrevValue(value);
     setInput(value || "");
-  }, [value]);
+  }
 
-  useEffect(() => {
-    if (!debouncedInput || debouncedInput.length < 1 || !open) {
+  const shouldSearch = Boolean(
+    debouncedInput && debouncedInput.length >= 1 && open,
+  );
+  const searchKey = `${debouncedInput}|${shouldSearch}`;
+  const [prevSearchKey, setPrevSearchKey] = useState(searchKey);
+  if (prevSearchKey !== searchKey) {
+    setPrevSearchKey(searchKey);
+    if (shouldSearch) {
+      setBusy(true);
+    } else {
       setHints([]);
       setBusy(false);
-      return;
     }
-    setBusy(true);
+  }
+
+  useEffect(() => {
+    if (!shouldSearch) return;
     let cancelled = false;
     api
       .search("song", debouncedInput)
       .then((r: { data?: Song[] }) => {
         if (!cancelled) setHints(Array.isArray(r.data) ? r.data : []);
       })
-      .catch(() => { if (!cancelled) setHints([]); })
-      .finally(() => { if (!cancelled) setBusy(false); });
-    return () => { cancelled = true; };
-  }, [debouncedInput, open]);
+      .catch(() => {
+        if (!cancelled) setHints([]);
+      })
+      .finally(() => {
+        if (!cancelled) setBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedInput, shouldSearch]);
 
-  const pick = useCallback((s: Song) => {
-    pickingRef.current = false;
-    const v = s.display_name || s.name;
-    setInput(v);
-    onChange(v);
-    setOpen(false);
-  }, [onChange]);
+  const pick = useCallback(
+    (s: Song) => {
+      pickingRef.current = false;
+      const v = s.display_name || s.name;
+      setInput(v);
+      onChange(v);
+      setOpen(false);
+    },
+    [onChange],
+  );
 
   const exact = hints.find((s) => s.name === input || s.display_name === input);
 
@@ -69,7 +95,10 @@ export default function FieldName({ value, onChange, className, hasError }: Fiel
       <div className="relative w-full">
         <Input
           value={input}
-          onChange={(e) => { setInput(e.target.value); setOpen(true); }}
+          onChange={(e) => {
+            setInput(e.target.value);
+            setOpen(true);
+          }}
           onBlur={() => {
             if (pickingRef.current) return;
             setTimeout(() => {
@@ -77,10 +106,16 @@ export default function FieldName({ value, onChange, className, hasError }: Fiel
             }, 150);
           }}
           onKeyDown={(e) => {
-            if (e.key === "Enter") { onChange(input); setOpen(false); }
+            if (e.key === "Enter") {
+              onChange(input);
+              setOpen(false);
+            }
           }}
           onFocus={() => setOpen(true)}
-          className={cn("h-9 w-full", hasError && "border-destructive focus-visible:ring-destructive")}
+          className={cn(
+            "h-9 w-full",
+            hasError && "border-destructive focus-visible:ring-destructive",
+          )}
           placeholder="输入歌曲名称..."
         />
         {open && (hints.length > 0 || busy) && (
@@ -88,23 +123,36 @@ export default function FieldName({ value, onChange, className, hasError }: Fiel
             <div className="max-h-75 overflow-y-auto p-1 bg-background">
               {busy && (
                 <div className="flex items-center justify-center p-4 text-sm text-muted-foreground gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />搜索中...
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  搜索中...
                 </div>
               )}
               {!busy && hints.length > 0 && (
                 <div className="py-1">
-                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">搜索结果</div>
+                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                    搜索结果
+                  </div>
                   {hints.map((song) => (
                     <div
                       key={song.id}
-                      onMouseDown={(e) => { e.preventDefault(); pickingRef.current = true; pick(song); }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        pickingRef.current = true;
+                        pick(song);
+                      }}
                       className="cursor-pointer hover:bg-accent px-2 py-2 rounded-sm text-sm flex flex-col gap-0.5"
                     >
-                      <div className="font-medium">{song.display_name || song.name}</div>
+                      <div className="font-medium">
+                        {song.display_name || song.name}
+                      </div>
                       <div className="text-xs text-muted-foreground flex items-center gap-2">
-                        <span className="bg-muted px-1 rounded">{song.type}</span>
+                        <span className="bg-muted px-1 rounded">
+                          {song.type}
+                        </span>
                         {song.producers && song.producers.length > 0 && (
-                          <span>P主: {song.producers.map((p) => p.name).join(", ")}</span>
+                          <span>
+                            P主: {song.producers.map((p) => p.name).join(", ")}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -112,15 +160,26 @@ export default function FieldName({ value, onChange, className, hasError }: Fiel
                 </div>
               )}
               {!busy && hints.length === 0 && input && (
-                <div className="p-2 text-sm text-muted-foreground text-center">未找到</div>
+                <div className="p-2 text-sm text-muted-foreground text-center">
+                  未找到
+                </div>
               )}
             </div>
           </div>
         )}
       </div>
       {exact && (
-        <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" asChild>
-          <a href={`https://vocabili.top/song/${exact.id}`} target="_blank" rel="noopener noreferrer">
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-9 w-9 shrink-0"
+          asChild
+        >
+          <a
+            href={`https://vocabili.top/song/${exact.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <ExternalLink className="h-4 w-4" />
           </a>
         </Button>
