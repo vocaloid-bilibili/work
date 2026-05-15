@@ -1,37 +1,37 @@
-// src/modules/editor/views/Home.tsx
+// src/modules/editor/pages/HomePage.tsx
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { GitMerge, Users, Tv, Plus, Search, Loader2 } from "lucide-react";
 import { useDebounce } from "@/shared/hooks/useDebounce";
 import { useClickOutside } from "@/shared/hooks/useClickOutside";
 import * as api from "@/core/api/mainEndpoints";
-import { useEditor } from "../ctx";
 import { cn } from "@/ui/cn";
 import type { Song } from "@/core/types/catalog";
 
 const ACTIONS = [
   {
-    id: "add" as const,
+    path: "/add",
     icon: Plus,
     title: "添加收录",
     desc: "添加视频到歌曲或创建新歌曲",
     accent: "text-blue-500 bg-blue-500/10",
   },
   {
-    id: "merge-song" as const,
+    path: "/merge-song",
     icon: GitMerge,
     title: "合并歌曲",
     desc: "转移视频和艺人到目标歌曲",
     accent: "text-purple-500 bg-purple-500/10",
   },
   {
-    id: "merge-artist" as const,
+    path: "/merge-artist",
     icon: Users,
     title: "合并艺人",
     desc: "转移关联到目标艺人",
     accent: "text-indigo-500 bg-indigo-500/10",
   },
   {
-    id: "board" as const,
+    path: "/board",
     icon: Tv,
     title: "榜单视频",
     desc: "设置榜单期对应投稿视频",
@@ -39,8 +39,8 @@ const ACTIONS = [
   },
 ];
 
-export function HomeView() {
-  const { push, openSong, openVideo } = useEditor();
+export function HomePage() {
+  const navigate = useNavigate();
   const [input, setInput] = useState("");
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -64,18 +64,18 @@ export function HomeView() {
       .then((r: any) => setHints(r.data && Array.isArray(r.data) ? r.data : []))
       .catch(() => setHints([]))
       .finally(() => setBusy(false));
-  }, [dv]);
+  }, [dv, isBv, isId]);
 
   const go = (type: "song" | "video", id: string | number) => {
-    if (type === "video") openVideo(String(id));
-    else openSong(Number(id));
+    if (type === "video") navigate(`/edit/video/${id}`);
+    else navigate(`/edit/song/${id}`);
     setInput("");
     setOpen(false);
     setHints([]);
   };
 
   const pick = (s: Song) => {
-    openSong(s.id);
+    navigate(`/edit/song/${s.id}`);
     setInput("");
     setOpen(false);
     setHints([]);
@@ -175,8 +175,8 @@ export function HomeView() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {ACTIONS.map((a) => (
             <button
-              key={a.id}
-              onClick={() => push({ id: a.id })}
+              key={a.path}
+              onClick={() => navigate(a.path)}
               className="group flex items-start gap-3.5 rounded-2xl border border-border/40 p-5 text-left transition-all hover:border-border hover:shadow-sm active:scale-[0.99]"
             >
               <div

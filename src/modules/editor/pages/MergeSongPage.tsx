@@ -1,5 +1,6 @@
-// src/modules/editor/views/MergeSong.tsx
-import { useState } from "react";
+// src/modules/editor/pages/MergeSongPage.tsx
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -12,7 +13,6 @@ import {
 import * as api from "@/core/api/mainEndpoints";
 import { logEdit } from "@/core/api/collabEndpoints";
 import EntityPicker from "@/shared/ui/EntityPicker";
-import { useEditor } from "../ctx";
 import { Field } from "../components/Field";
 import { Input } from "../components/Input";
 import { Btn } from "../components/Btn";
@@ -38,10 +38,24 @@ function useSongLoader2() {
   return { song, load };
 }
 
-export function MergeSongView({ preset }: { preset?: Song }) {
-  const { back } = useEditor();
+export function MergeSongPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const presetSongId = searchParams.get("songId");
+  const [preset, setPreset] = useState<Song | null>(null);
+
   const loader = useSongLoader2();
   const [mode, setMode] = useState<"existing" | "new">("existing");
+
+  // 加载预设歌曲
+  useEffect(() => {
+    if (!presetSongId) return;
+    api.selectSong(Number(presetSongId)).then((r) => {
+      setPreset(r.data);
+    }).catch(() => {
+      toast.error("加载预设歌曲失败");
+    });
+  }, [presetSongId]);
   const [target, setTarget] = useState<{ id: number; name: string } | null>(
     null,
   );
@@ -77,7 +91,7 @@ export function MergeSongView({ preset }: { preset?: Song }) {
       });
       await toast.success("歌曲合并成功");
       setConfirmOpen(false);
-      back();
+      navigate(-1);
     } catch (e: any) {
       await toast.error(e?.response?.data?.detail || "合并失败");
     } finally {

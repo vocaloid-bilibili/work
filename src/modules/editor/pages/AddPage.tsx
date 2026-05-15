@@ -1,5 +1,6 @@
-// src/modules/editor/views/Add.tsx
+// src/modules/editor/pages/AddPage.tsx
 import { useState, useEffect, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Search, X, Loader2 } from "lucide-react";
 import {
@@ -15,16 +16,11 @@ import { logEdit } from "@/core/api/collabEndpoints";
 import { COPYRIGHT, SONG_TYPES } from "@/core/types/constants";
 import type { Song } from "@/core/types/catalog";
 import { cn } from "@/ui/cn";
-import { useEditor } from "../ctx";
 import { Section } from "../components/Section";
 import { Field } from "../components/Field";
 import { Input } from "../components/Input";
 import { Btn } from "../components/Btn";
 import CachedImg from "@/shared/ui/CachedImg";
-
-interface Props {
-  preset?: Song;
-}
 
 type TopMode = "collect" | "reference";
 type SubMode = "existing" | "new";
@@ -35,23 +31,23 @@ interface SongRef {
   display_name?: string | null;
 }
 
-export function AddView({ preset }: Props) {
-  const { openSong } = useEditor();
+export function AddPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const presetSongId = searchParams.get("songId");
+
+  const [presetSong, setPresetSong] = useState<Song | null>(null);
 
   const [topMode, setTopMode] = useState<TopMode>("collect");
 
-  const [subMode, setSubMode] = useState<SubMode>(preset ? "existing" : "new");
+  const [subMode, setSubMode] = useState<SubMode>("new");
 
   const [bvid, setBvid] = useState("");
   const [preview, setPreview] = useState<api.BilibiliVideoInfo | null>(null);
   const [fetching, setFetching] = useState(false);
 
   // 目标歌曲（existing 模式）
-  const [sel, setSel] = useState<SongRef | null>(
-    preset
-      ? { id: preset.id, name: preset.name, display_name: preset.display_name }
-      : null,
-  );
+  const [sel, setSel] = useState<SongRef | null>(null);
   const [sq, setSq] = useState("");
   const [sr, setSr] = useState<SongRef[]>([]);
   const [searching, setSearching] = useState(false);
@@ -66,6 +62,19 @@ export function AddView({ preset }: Props) {
   const [synInput, setSynInput] = useState("");
   const [copyright, setCopyright] = useState(1);
   const [submitting, setSubmitting] = useState(false);
+
+  // 加载预设歌曲
+  useEffect(() => {
+    if (!presetSongId) return;
+    api.selectSong(Number(presetSongId)).then((r) => {
+      const song = r.data;
+      setPresetSong(song);
+      setSel({ id: song.id, name: song.name, display_name: song.display_name });
+      setSubMode("existing");
+    }).catch(() => {
+      toast.error("加载预设歌曲失败");
+    });
+  }, [presetSongId]);
 
   const split = (s: string) =>
     s
@@ -166,7 +175,7 @@ export function AddView({ preset }: Props) {
           },
         });
         toast.success(`视频 ${res.bvid} 已添加到「${sLabel(sel)}」`);
-        openSong(sel.id);
+        navigate(`/edit/song/${sel.id}`);
       } catch (err: any) {
         const d = err?.response?.data?.detail;
         toast.error(
@@ -233,7 +242,7 @@ export function AddView({ preset }: Props) {
           detail,
         });
         toast.success(`歌曲已创建（ID: ${res.song_id}）`);
-        openSong(res.song_id);
+        navigate(`/edit/song/${res.song_id}`);
       } catch (err: any) {
         const d = err?.response?.data?.detail;
         toast.error(
@@ -294,7 +303,7 @@ export function AddView({ preset }: Props) {
       });
 
       toast.success(`参考歌曲已创建（ID: ${res.song_id}）`);
-      openSong(res.song_id);
+      navigate(`/edit/song/${res.song_id}`);
     } catch (err: any) {
       const d = err?.response?.data?.detail;
       toast.error(
@@ -329,7 +338,7 @@ export function AddView({ preset }: Props) {
 
   return (
     <div className="space-y-5">
-      {!preset && (
+      {!presetSongId && (
         <div className="flex gap-3">
           {(
             [
@@ -584,7 +593,7 @@ export function AddView({ preset }: Props) {
                               ` · ${sel.name}`}
                           </p>
                         </div>
-                        {!preset && (
+                        {!presetSongId && (
                           <button
                             onClick={() => setSel(null)}
                             className="ml-2 shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted transition-colors"

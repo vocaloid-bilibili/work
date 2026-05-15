@@ -1,5 +1,6 @@
 // src/modules/editor/layout/Kbar.tsx
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Search,
   Loader2,
@@ -13,16 +14,15 @@ import {
 } from "lucide-react";
 import { useDebounce } from "@/shared/hooks/useDebounce";
 import * as api from "@/core/api/mainEndpoints";
-import { useEditor } from "../ctx";
 import type { Song } from "@/core/types/catalog";
 import { cn } from "@/ui/cn";
 
 const COMMANDS = [
-  { id: "add", icon: Plus, label: "添加收录" },
-  { id: "merge-song", icon: GitMerge, label: "合并歌曲" },
-  { id: "merge-artist", icon: Users, label: "合并艺人" },
-  { id: "board", icon: Tv, label: "榜单视频" },
-  { id: "sync", icon: RefreshCcw, label: "同步状态" },
+  { path: "/edit/add", icon: Plus, label: "添加收录" },
+  { path: "/edit/merge-song", icon: GitMerge, label: "合并歌曲" },
+  { path: "/edit/merge-artist", icon: Users, label: "合并艺人" },
+  { path: "/edit/board", icon: Tv, label: "榜单视频" },
+  { path: "/edit/sync", icon: RefreshCcw, label: "同步状态" },
 ];
 
 interface Props {
@@ -31,7 +31,7 @@ interface Props {
 }
 
 export function Kbar({ open, onClose }: Props) {
-  const { openSong, openVideo, push } = useEditor();
+  const navigate = useNavigate();
   const [input, setInput] = useState("");
   const [songs, setSongs] = useState<Song[]>([]);
   const [busy, setBusy] = useState(false);
@@ -93,29 +93,29 @@ export function Kbar({ open, onClose }: Props) {
     (item: Item) => {
       onClose();
       if (item.type === "bv") {
-        openVideo(trimmed);
+        navigate(`/edit/video/${trimmed}`);
         return;
       }
       if (item.type === "id") {
-        openSong(Number(trimmed));
+        navigate(`/edit/song/${trimmed}`);
         return;
       }
       if (item.type === "song") {
-        openSong(item.song.id);
+        navigate(`/edit/song/${item.song.id}`);
         return;
       }
       if (item.type === "cmd") {
         const map: Record<string, () => void> = {
-          add: () => push({ id: "add" }),
-          "merge-song": () => push({ id: "merge-song" }),
-          "merge-artist": () => push({ id: "merge-artist" }),
-          board: () => push({ id: "board" }),
-          sync: () => push({ id: "sync" }),
+          add: () => navigate("/edit/add"),
+          "merge-song": () => navigate("/edit/merge-song"),
+          "merge-artist": () => navigate("/edit/merge-artist"),
+          board: () => navigate("/edit/board"),
+          sync: () => navigate("/edit/sync"),
         };
         map[item.id]?.();
       }
     },
-    [trimmed, onClose, openSong, openVideo, push],
+    [trimmed, onClose, navigate],
   );
 
   const handleKey = (e: React.KeyboardEvent) => {

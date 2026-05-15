@@ -7,7 +7,7 @@ import {
   AlertTriangle,
   Loader2,
 } from "lucide-react";
-import { useEditor } from "../ctx";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useSync } from "../hooks/useSync";
 import { VIEW_LABEL } from "../types";
 
@@ -30,21 +30,34 @@ function SyncDot() {
 }
 
 export function TopBar({ onOpenSearch }: { onOpenSearch: () => void }) {
-  const { view, canBack, back, push } = useEditor();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const isHome = location.pathname === "/edit" || location.pathname === "/";
+
+  const getTitle = () => {
+    const path = location.pathname;
+    if (path === "/edit" || path === "/") return VIEW_LABEL.home;
+    const match = path.match(/^\/edit\/(song|video|add|merge-song|merge-artist|reassign|board|sync)/);
+    if (match) {
+      return VIEW_LABEL[match[1]] ?? "编辑工作台";
+    }
+    return "编辑工作台";
+  };
 
   return (
     <header className="w-full flex items-center justify-between gap-3 py-4">
       <div className="flex items-center gap-2 min-w-0">
-        {canBack && (
+        {!isHome && (
           <button
-            onClick={back}
+            onClick={() => navigate(-1)}
             className="shrink-0 rounded-lg p-1.5 hover:bg-muted transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
         )}
         <h1 className="text-lg font-bold tracking-tight truncate">
-          {VIEW_LABEL[view.id] ?? "编辑工作台"}
+          {getTitle()}
         </h1>
       </div>
 
@@ -57,7 +70,7 @@ export function TopBar({ onOpenSearch }: { onOpenSearch: () => void }) {
           <Search className="h-4 w-4" />
         </button>
         <button
-          onClick={() => push({ id: "sync" })}
+          onClick={() => navigate("/edit/sync")}
           className="rounded-lg px-2 py-1.5 hover:bg-muted transition-colors"
           title="同步状态"
         >

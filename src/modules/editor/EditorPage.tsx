@@ -1,21 +1,20 @@
 // src/modules/editor/EditorPage.tsx
 import { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
-import { EditorProvider, useEditor } from "./ctx";
+import { EditorProvider } from "./ctx";
 import { TopBar } from "./layout/TopBar";
 import { Kbar } from "./layout/Kbar";
-import { HomeView } from "./views/Home";
-import { SongView } from "./views/Song";
-import { VideoView } from "./views/Video";
-import { AddView } from "./views/Add";
-import { MergeSongView } from "./views/MergeSong";
-import { MergeArtistView } from "./views/MergeArtist";
-import { ReassignView } from "./views/Reassign";
-import { BoardView } from "./views/Board";
-import { SyncView } from "./views/Sync";
+import { HomePage } from "./pages/HomePage";
+import { SongPage } from "./pages/SongPage";
+import { VideoPage } from "./pages/VideoPage";
+import { AddPage } from "./pages/AddPage";
+import { MergeSongPage } from "./pages/MergeSongPage";
+import { MergeArtistPage } from "./pages/MergeArtistPage";
+import { ReassignPage } from "./pages/ReassignPage";
+import { BoardPage } from "./pages/BoardPage";
+import { SyncPage } from "./pages/SyncPage";
+import { Routes, Route } from "react-router-dom";
 
-function Router() {
-  const { view, loading } = useEditor();
+function EditorLayout() {
   const [kbarOpen, setKbarOpen] = useState(false);
 
   useEffect(() => {
@@ -35,30 +34,7 @@ function Router() {
         <TopBar onOpenSearch={() => setKbarOpen(true)} />
       </div>
 
-      {loading && (
-        <div className="flex items-center gap-2.5 text-muted-foreground py-16">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          <span className="text-sm">加载中…</span>
-        </div>
-      )}
-
-      <main className="w-full max-w-3xl pb-16">
-        {view.id === "home" && !loading && <HomeView />}
-        {view.id === "song" && <SongView song={view.song} />}
-        {view.id === "video" && <VideoView video={view.video} />}
-        {view.id === "add" && <AddView preset={view.preset} />}
-        {view.id === "merge-song" && <MergeSongView preset={view.preset} />}
-        {view.id === "merge-artist" && <MergeArtistView />}
-        {view.id === "reassign" && (
-          <ReassignView
-            bvid={view.bvid}
-            title={view.title}
-            parent={view.parent}
-          />
-        )}
-        {view.id === "board" && <BoardView />}
-        {view.id === "sync" && <SyncView />}
-      </main>
+      <EditorRouter />
 
       <Kbar open={kbarOpen} onClose={() => setKbarOpen(false)} />
     </div>
@@ -68,7 +44,23 @@ function Router() {
 export default function EditorPage() {
   return (
     <EditorProvider>
-      <Router />
+      <EditorLayout />
     </EditorProvider>
+  );
+}
+
+export function EditorRouter() {
+  return (
+    <Routes basename="/edit">
+      <Route index element={<HomePage />} />
+      <Route path="song/:songId" element={<SongPage />} />
+      <Route path="video/:videoId" element={<VideoPage />} />
+      <Route path="add" element={<AddPage />} />
+      <Route path="merge-song" element={<MergeSongPage />} />
+      <Route path="merge-artist" element={<MergeArtistPage />} />
+      <Route path="reassign/:bvid" element={<ReassignPage />} />
+      <Route path="board" element={<BoardPage />} />
+      <Route path="sync" element={<SyncPage />} />
+    </Routes>
   );
 }

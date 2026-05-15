@@ -1,5 +1,6 @@
-// src/modules/editor/views/Song.tsx
-import { useState, useCallback } from "react";
+// src/modules/editor/pages/SongPage.tsx
+import { useState, useCallback, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   ExternalLink,
   GitMerge,
@@ -16,7 +17,6 @@ import * as api from "@/core/api/mainEndpoints";
 import { logEdit } from "@/core/api/collabEndpoints";
 import { SONG_TYPES } from "@/core/types/constants";
 import { cn } from "@/ui/cn";
-import { useEditor } from "../ctx";
 import { useSongForm } from "../hooks/useSongForm";
 import { useRelations } from "../hooks/useRelations";
 import { Section } from "../components/Section";
@@ -276,7 +276,7 @@ function VideoListSection({
   song: Song;
   onChanged: () => void;
 }) {
-  const { openVideo, push } = useEditor();
+  const navigate = useNavigate();
   const [rmBvid, setRmBvid] = useState<string | null>(null);
   const [rmTitle, setRmTitle] = useState("");
   const [rmLoading, setRmLoading] = useState(false);
@@ -348,14 +348,9 @@ function VideoListSection({
             <VideoRow
               key={v.bvid}
               video={v}
-              onEdit={() => openVideo(v.bvid)}
+              onEdit={() => navigate(`/edit/video/${v.bvid}`)}
               onReassign={() =>
-                push({
-                  id: "reassign",
-                  bvid: v.bvid,
-                  title: v.title,
-                  parent: song,
-                })
+                navigate(`/edit/reassign/${v.bvid}`)
               }
               onRemove={() => {
                 setRmBvid(v.bvid);
@@ -383,7 +378,7 @@ function VideoListSection({
                     <StoppedVideoItem
                       key={v.bvid}
                       video={v}
-                      onEdit={() => openVideo(v.bvid)}
+                      onEdit={() => navigate(`/edit/video/${v.bvid}`)}
                       onRestore={() => doRestore(v)}
                       restoring={restoringBvid === v.bvid}
                     />
@@ -488,8 +483,30 @@ function ActionBar({
 
 /* ── 主视图 ── */
 
-export function SongView({ song }: { song: Song }) {
-  const { home, push, replace } = useEditor();
+export function SongPage() {
+  const { songId } = useParams<{ songId: string }>();
+  const navigate = useNavigate();
+
+  const [song, setSong] = useState<Song | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadSong() {
+      if (!songId) return;
+      setLoading(true);
+      try {
+        const r = await api.selectSong(Number(songId), true);
+        setSong(r.data)
+      } catch (e: any) {
+        toast.error(e?.response?.data?.detail || "加载歌曲失败");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadSong()
+  }, [songId])
+
   const form = useSongForm(song);
   const rels = useRelations(song);
 
@@ -503,15 +520,17 @@ export function SongView({ song }: { song: Song }) {
   const hasActiveVideos = activeVideos.length > 0;
 
   const refresh = useCallback(async () => {
+    if (!song) return;
     try {
       const r = await api.selectSong(song.id, true);
-      replace({ id: "song", song: r.data });
+      setSong(r.data);
     } catch {
       /* silent */
     }
-  }, [song.id, replace]);
+  }, [song]);
 
   const doDisableSong = async () => {
+    if (!song) return;
     setDisableLoading(true);
     try {
       for (const v of activeVideos) {
@@ -541,6 +560,7 @@ export function SongView({ song }: { song: Song }) {
   };
 
   const doHardDeleteSong = async () => {
+    if (!song) return;
     setHardDeleteLoading(true);
     try {
       const bvids = (song.videos ?? []).map((v) => v.bvid);
@@ -553,13 +573,21 @@ export function SongView({ song }: { song: Song }) {
       });
       toast.success(`已彻底删除：${song.name}`);
       setHardDeleteOpen(false);
-      home();
+      navigate("/edit");
     } catch (e: any) {
       toast.error(e?.response?.data?.detail || "操作失败");
     } finally {
       setHardDeleteLoading(false);
     }
   };
+
+  if (loading) {
+    return <div>加载中...</div>;
+  }
+
+  if (!song) {
+    return <div>歌曲不存在</div>;
+  }
 
   return (
     <div className="space-y-5">
@@ -575,8 +603,8 @@ export function SongView({ song }: { song: Song }) {
 
       <ActionBar
         hasActiveVideos={hasActiveVideos}
-        onAddVideo={() => push({ id: "add", preset: song })}
-        onMerge={() => push({ id: "merge-song", preset: song })}
+        onAddVideo={() => navigate(`/edit/add?songId=${song.id}`)}
+        onMerge={() => navigate(`/edit/merge-song?songId=${song.id}`)}
         onDisable={() => setDisableOpen(true)}
         onHardDelete={() => setHardDeleteOpen(true)}
       />

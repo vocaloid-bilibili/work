@@ -1,5 +1,6 @@
-// src/modules/editor/views/Video.tsx
+// src/modules/editor/pages/VideoPage.tsx
 import { useState, useEffect, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { ExternalLink, ArrowRightLeft, Trash2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -12,7 +13,6 @@ import {
 import * as api from "@/core/api/mainEndpoints";
 import { logEdit } from "@/core/api/collabEndpoints";
 import { COPYRIGHT, COPYRIGHT_MAP } from "@/core/types/constants";
-import { useEditor } from "../ctx";
 import { useVideoForm } from "../hooks/useVideoForm";
 import { Section } from "../components/Section";
 import { Field } from "../components/Field";
@@ -143,15 +143,36 @@ function VideoFormSection({
   );
 }
 
-export function VideoView({ video }: { video: Video }) {
-  const { push, openSong, replace } = useEditor();
+export function VideoPage() {
+  const { videoId } = useParams<{ videoId: string }>();
+  const navigate = useNavigate();
+  const [video, setVideo] = useState<Video | null>(null);
+  const [loading, setLoading] = useState(true);
   const [parent, setParent] = useState<Song | null>(null);
   const [rmOpen, setRmOpen] = useState(false);
   const [rmLoading, setRmLoading] = useState(false);
   const [restoreLoading, setRestoreLoading] = useState(false);
 
+  // 加载视频数据
   useEffect(() => {
-    if (!video.song_id) {
+    if (!videoId) return;
+    setLoading(true);
+    api
+      .selectVideo(videoId)
+      .then((r) => {
+        setVideo(r.data);
+      })
+      .catch((e: any) => {
+        toast.error(e?.response?.data?.detail || "加载视频失败");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [videoId]);
+
+  // 加载父歌曲
+  useEffect(() => {
+    if (!video?.song_id) {
       setParent(null);
       return;
     }
@@ -167,18 +188,20 @@ export function VideoView({ video }: { video: Video }) {
     return () => {
       c = true;
     };
-  }, [video.song_id]);
+  }, [video?.song_id]);
 
   const refresh = useCallback(async () => {
+    if (!videoId) return;
     try {
-      const r = await api.selectVideo(video.bvid);
-      replace({ id: "video", video: r.data });
+      const r = await api.selectVideo(videoId);
+      setVideo(r.data);
     } catch {
       /* silent */
     }
-  }, [video.bvid, replace]);
+  }, [videoId]);
 
   const doRemove = async () => {
+    if (!video) return;
     setRmLoading(true);
     try {
       await api.deleteVideo(video.bvid);
@@ -202,7 +225,9 @@ export function VideoView({ video }: { video: Video }) {
       setRmLoading(false);
     }
   };
+
   const doRestore = async () => {
+    if (!video) return;
     setRestoreLoading(true);
     try {
       const res = await api.restoreVideo(video.bvid);
@@ -228,6 +253,14 @@ export function VideoView({ video }: { video: Video }) {
     }
   };
 
+  if (loading) {
+    return <div>加载中...</div>;
+  }
+
+  if (!video) {
+    return <div>视频不存在</div>;
+  }
+
   return (
     <div className="space-y-5">
       <VideoHeader video={video} />
@@ -238,21 +271,19 @@ export function VideoView({ video }: { video: Video }) {
         </div>
       )}
 
-      {parent && <SongCard song={parent} onClick={() => openSong(parent.id)} />}
+      {parent && (
+        <SongCard
+          song={parent}
+          onClick={() => navigate(`/edit/song/${parent.id}`)}
+        />
+      )}
 
       <VideoFormSection video={video} parent={parent} onSaved={refresh} />
 
       <div className="flex flex-wrap gap-2 pt-1">
         <Btn
           icon={<ArrowRightLeft className="h-3.5 w-3.5" />}
-          onClick={() =>
-            push({
-              id: "reassign",
-              bvid: video.bvid,
-              title: video.title,
-              parent,
-            })
-          }
+          onClick={() => navigate(`/edit/reassign/${video.bvid}`)}
         >
           拆分/移动
         </Btn>

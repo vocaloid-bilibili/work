@@ -1,5 +1,6 @@
-// src/modules/editor/views/Reassign.tsx
+// src/modules/editor/pages/ReassignPage.tsx
 import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Select,
@@ -13,7 +14,6 @@ import { logEdit } from "@/core/api/collabEndpoints";
 import { SONG_TYPES } from "@/core/types/constants";
 import EntityPicker from "@/shared/ui/EntityPicker";
 import TagEditor from "@/shared/ui/TagEditor";
-import { useEditor } from "../ctx";
 import { Section } from "../components/Section";
 import { SongCard } from "../components/SongCard";
 import { Field } from "../components/Field";
@@ -29,14 +29,13 @@ function tags(s: string) {
     .filter(Boolean);
 }
 
-interface Props {
-  bvid: string;
-  title: string;
-  parent: Song | null;
-}
+export function ReassignPage() {
+  const { bvid } = useParams<{ bvid: string }>();
+  const navigate = useNavigate();
 
-export function ReassignView({ bvid, title, parent }: Props) {
-  const { back } = useEditor();
+  const [title, setTitle] = useState("");
+  const [parent, setParent] = useState<Song | null>(null);
+  const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<"existing" | "new">("existing");
   const [target, setTarget] = useState<{ id: number; name: string } | null>(
     null,
@@ -49,6 +48,30 @@ export function ReassignView({ bvid, title, parent }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  // 加载视频信息
+  useEffect(() => {
+    if (!bvid) return;
+    setLoading(true);
+    api.selectVideo(bvid).then(async (r) => {
+      const video = r.data;
+      setTitle(video.title);
+      if (video.song_id) {
+        try {
+          const songRes = await api.selectSong(video.song_id, true);
+          setParent(songRes.data);
+        } catch {
+          setParent(null);
+        }
+      } else {
+        setParent(null);
+      }
+    }).catch((e: any) => {
+      toast.error(e?.response?.data?.detail || "加载视频失败");
+    }).finally(() => {
+      setLoading(false);
+    });
+  }, [bvid]);
+
   useEffect(() => {
     if (!parent) return;
     setType(parent.type as SongType);
@@ -57,11 +80,20 @@ export function ReassignView({ bvid, title, parent }: Props) {
     setSyn((parent.synthesizers ?? []).map((a) => a.name).join("、"));
   }, [parent]);
 
+  if (loading) {
+    return <div>加载中...</div>;
+  }
+
+  if (!bvid) {
+    return <div>视频不存在</div>;
+  }
+
   const canSubmit =
     (mode === "existing" && target && target.id !== parent?.id) ||
     (mode === "new" && name.trim());
 
   const confirm = async () => {
+    if (!bvid) return;
     setSubmitting(true);
     try {
       const r = await api.reassignVideo(
@@ -112,7 +144,7 @@ export function ReassignView({ bvid, title, parent }: Props) {
       });
       toast.success("视频移动成功");
       setConfirmOpen(false);
-      back();
+      navigate(-1);
     } catch (e: any) {
       toast.error(e?.response?.data?.detail || "移动失败");
     } finally {

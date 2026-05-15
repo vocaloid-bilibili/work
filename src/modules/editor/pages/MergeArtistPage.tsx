@@ -1,5 +1,6 @@
-// src/modules/editor/views/MergeArtist.tsx
+// src/modules/editor/pages/MergeArtistPage.tsx
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -13,7 +14,6 @@ import * as api from "@/core/api/mainEndpoints";
 import { logEdit } from "@/core/api/collabEndpoints";
 import EntityPicker, { type EntityKind } from "@/shared/ui/EntityPicker";
 import { ARTIST_TYPES, type ArtistType } from "@/core/types/constants";
-import { useEditor } from "../ctx";
 import { Field } from "../components/Field";
 import { Input } from "../components/Input";
 import { Btn } from "../components/Btn";
@@ -24,8 +24,8 @@ interface Entity {
   name: string;
 }
 
-export function MergeArtistView() {
-  const { back } = useEditor();
+export function MergeArtistPage() {
+  const navigate = useNavigate();
   const [at, setAt] = useState<ArtistType>("vocalist");
   const [source, setSource] = useState<Entity | null>(null);
   const [mode, setMode] = useState<"existing" | "new">("existing");
@@ -71,7 +71,7 @@ export function MergeArtistView() {
       });
       toast.success(`合并成功，影响 ${r.songs_affected} 首歌曲`);
       setConfirmOpen(false);
-      back();
+      navigate(-1);
     } catch (e: any) {
       toast.error(e?.response?.data?.detail || "合并失败");
     } finally {

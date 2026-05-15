@@ -85,7 +85,7 @@ export default function Router() {
         }
       />
       <Route
-        path="/edit"
+        path="/edit/*"
         element={
           <AuthGate>
             <EditorPage />

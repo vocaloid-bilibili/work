@@ -20,7 +20,7 @@ function boardLabel(v: string) {
   return BOARDS.find((b) => b.value === v)?.label || v;
 }
 
-export function BoardView() {
+export function BoardPage() {
   const [board, setBoard] = useState("vocaloid-daily");
   const [issue, setIssue] = useState("");
   const [cur, setCur] = useState<string | null>(null);

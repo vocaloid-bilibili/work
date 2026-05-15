@@ -10,11 +10,11 @@ import {
   Mic,
   ExternalLink,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/ui/cn";
 import { Btn } from "./Btn";
 import { Input } from "./Input";
 import CachedImg from "@/shared/ui/CachedImg";
-import { useEditor } from "../ctx";
 import type { useRelations, RelatedSong } from "../hooks/useRelations";
 import type { Song } from "@/core/types/catalog";
 
@@ -356,7 +356,7 @@ function SectionHead({
 }
 
 export function RelationsEditor({ r }: { r: R }) {
-  const { openSong } = useEditor();
+  const navigate = useNavigate();
 
   if (r.loading) {
     return (
@@ -407,7 +407,7 @@ export function RelationsEditor({ r }: { r: R }) {
             key={s.id}
             song={s}
             onRemove={() => r.remove("original", s.id)}
-            onOpen={() => openSong(s.id)}
+            onOpen={() => navigate(`/edit/song/${s.id}`)}
           />
         ))}
       </section>
@@ -454,7 +454,7 @@ export function RelationsEditor({ r }: { r: R }) {
             key={s.id}
             song={s}
             onRemove={() => r.remove("derivative", s.id)}
-            onOpen={() => openSong(s.id)}
+            onOpen={() => navigate(`/edit/song/${s.id}`)}
           />
         ))}
       </section>

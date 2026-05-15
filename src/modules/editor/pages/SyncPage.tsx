@@ -155,7 +155,7 @@ function LogRow({ log, isPending }: { log: EditLogEntry; isPending: boolean }) {
 
 /* ── 主页面 ── */
 
-export function SyncView() {
+export function SyncPage() {
   const { st, err, busy, checking, load, verify, doSync } = useSync();
   const {
     pending,
