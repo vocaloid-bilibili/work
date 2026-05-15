@@ -51,7 +51,7 @@ export default function EditorPage() {
 
 export function EditorRouter() {
   return (
-    <Routes basename="/edit">
+    <Routes>
       <Route index element={<HomePage />} />
       <Route path="song/:songId" element={<SongPage />} />
       <Route path="video/:videoId" element={<VideoPage />} />

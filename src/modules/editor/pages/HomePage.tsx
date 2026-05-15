@@ -10,28 +10,28 @@ import type { Song } from "@/core/types/catalog";
 
 const ACTIONS = [
   {
-    path: "/add",
+    path: "/edit/add",
     icon: Plus,
     title: "添加收录",
     desc: "添加视频到歌曲或创建新歌曲",
     accent: "text-blue-500 bg-blue-500/10",
   },
   {
-    path: "/merge-song",
+    path: "/edit/merge-song",
     icon: GitMerge,
     title: "合并歌曲",
     desc: "转移视频和艺人到目标歌曲",
     accent: "text-purple-500 bg-purple-500/10",
   },
   {
-    path: "/merge-artist",
+    path: "/edit/merge-artist",
     icon: Users,
     title: "合并艺人",
     desc: "转移关联到目标艺人",
     accent: "text-indigo-500 bg-indigo-500/10",
   },
   {
-    path: "/board",
+    path: "/edit/board",
     icon: Tv,
     title: "榜单视频",
     desc: "设置榜单期对应投稿视频",

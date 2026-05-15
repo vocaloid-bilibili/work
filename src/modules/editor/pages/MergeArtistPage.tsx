@@ -18,6 +18,7 @@ import { Field } from "../components/Field";
 import { Input } from "../components/Input";
 import { Btn } from "../components/Btn";
 import { Confirm } from "../components/Confirm";
+import { AxiosError } from "axios";
 
 interface Entity {
   id: number;
@@ -72,8 +73,12 @@ export function MergeArtistPage() {
       toast.success(`合并成功，影响 ${r.songs_affected} 首歌曲`);
       setConfirmOpen(false);
       navigate(-1);
-    } catch (e: any) {
-      toast.error(e?.response?.data?.detail || "合并失败");
+    } catch (e: unknown) {
+      if (e instanceof AxiosError) {
+        toast.error(e.response.data.detail)
+      } else {
+        toast.error("合并失败");
+      }
     } finally {
       setLoading(false);
     }
@@ -161,7 +166,7 @@ export function MergeArtistPage() {
         </div>
 
         <div className="flex gap-3 pt-2">
-          <Btn className="flex-1" onClick={back}>
+          <Btn className="flex-1" onClick={() => navigate(-1)}>
             取消
           </Btn>
           <Btn

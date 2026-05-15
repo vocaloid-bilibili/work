@@ -1,5 +1,5 @@
 // src/modules/editor/pages/SongPage.tsx
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ExternalLink,
@@ -483,30 +483,10 @@ function ActionBar({
 
 /* ── 主视图 ── */
 
-export function SongPage() {
-  const { songId } = useParams<{ songId: string }>();
+/* ── 内层：负责显示（song 必定存在） ── */
+
+function SongContent({ song }: { song: Song }) {
   const navigate = useNavigate();
-
-  const [song, setSong] = useState<Song | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function loadSong() {
-      if (!songId) return;
-      setLoading(true);
-      try {
-        const r = await api.selectSong(Number(songId), true);
-        setSong(r.data)
-      } catch (e: any) {
-        toast.error(e?.response?.data?.detail || "加载歌曲失败");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadSong()
-  }, [songId])
-
   const form = useSongForm(song);
   const rels = useRelations(song);
 
@@ -519,18 +499,7 @@ export function SongPage() {
   const activeVideos = (song.videos ?? []).filter((v) => !v.disabled);
   const hasActiveVideos = activeVideos.length > 0;
 
-  const refresh = useCallback(async () => {
-    if (!song) return;
-    try {
-      const r = await api.selectSong(song.id, true);
-      setSong(r.data);
-    } catch {
-      /* silent */
-    }
-  }, [song]);
-
   const doDisableSong = async () => {
-    if (!song) return;
     setDisableLoading(true);
     try {
       for (const v of activeVideos) {
@@ -551,7 +520,7 @@ export function SongPage() {
         `已停止收录「${song.display_name || song.name}」的 ${activeVideos.length} 个视频`,
       );
       setDisableOpen(false);
-      refresh();
+      window.location.reload();
     } catch (e: any) {
       toast.error(e?.response?.data?.detail || "操作失败");
     } finally {
@@ -560,7 +529,6 @@ export function SongPage() {
   };
 
   const doHardDeleteSong = async () => {
-    if (!song) return;
     setHardDeleteLoading(true);
     try {
       const bvids = (song.videos ?? []).map((v) => v.bvid);
@@ -581,14 +549,6 @@ export function SongPage() {
     }
   };
 
-  if (loading) {
-    return <div>加载中...</div>;
-  }
-
-  if (!song) {
-    return <div>歌曲不存在</div>;
-  }
-
   return (
     <div className="space-y-5">
       <SongHeader song={song} form={form} />
@@ -599,7 +559,7 @@ export function SongPage() {
         <RelationsEditor r={rels} />
       </Section>
 
-      <VideoListSection song={song} onChanged={refresh} />
+      <VideoListSection song={song} onChanged={() => window.location.reload()} />
 
       <ActionBar
         hasActiveVideos={hasActiveVideos}
@@ -652,4 +612,40 @@ export function SongPage() {
       </Confirm>
     </div>
   );
+}
+
+/* ── 外层：负责加载 ── */
+
+export function SongPage() {
+  const { songId } = useParams<{ songId: string }>();
+
+  const [song, setSong] = useState<Song | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadSong() {
+      if (!songId) return;
+      setLoading(true);
+      try {
+        const r = await api.selectSong(Number(songId), true);
+        setSong(r.data);
+      } catch (e: any) {
+        toast.error(e?.response?.data?.detail || "加载歌曲失败");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadSong();
+  }, [songId]);
+
+  if (loading) {
+    return <div>加载中...</div>;
+  }
+
+  if (!song) {
+    return <div>歌曲不存在</div>;
+  }
+
+  return <SongContent song={song} />;
 }
