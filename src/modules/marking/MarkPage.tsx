@@ -26,7 +26,11 @@ export default function MarkPage() {
         onReset={mk.reset}
         publishSlot={
           mk.isCollab && mk.collab.taskId ? (
-            <PublishButton taskId={mk.collab.taskId} records={mk.records} includes={mk.includes} />
+            <PublishButton
+              taskId={mk.collab.taskId}
+              records={mk.records}
+              includes={mk.includes}
+            />
           ) : undefined
         }
       />
@@ -49,7 +53,9 @@ export default function MarkPage() {
         <UploadZone fileRef={mk.fileRef} onFileChange={mk.loadFile} />
       )}
       {!hasData && !mk.isLoading && mk.isCollab && (
-        <div className="text-center text-muted-foreground py-16 text-sm">暂无活跃的协同任务</div>
+        <div className="text-center text-muted-foreground py-16 text-sm">
+          暂无活跃的协同任务
+        </div>
       )}
 
       {hasData && (
@@ -82,7 +88,11 @@ export default function MarkPage() {
             highlightIndex={mk.highlightIndex}
           />
           {mk.paging.totalPages > 1 && (
-            <Pagination current={mk.paging.page} total={mk.paging.totalPages} onChange={mk.paging.changePage} />
+            <Pagination
+              current={mk.paging.page}
+              total={mk.paging.totalPages}
+              onChange={mk.paging.changePage}
+            />
           )}
         </div>
       )}

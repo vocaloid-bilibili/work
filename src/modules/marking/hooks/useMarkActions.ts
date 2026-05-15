@@ -116,6 +116,7 @@ export function useMarkActions({
   const updateRecord = useCallback(
     (index: number, updater: Row | ((prev: Row) => Row)) => {
       const current = recordsRef.current[index];
+      if (!current) return;
       const next = typeof updater === "function" ? updater(current) : updater;
       if (!next || typeof next !== "object" || next === current) return;
 
@@ -150,11 +151,11 @@ export function useMarkActions({
     [isCollab, backend, setRecords, setIncludes],
   );
 
-  const setField = useCallback(
+  const updateField = useCallback(
     (i: number, field: string, value: unknown) =>
       backend.updateField(i, field, value),
     [backend],
   );
 
-  return { toggleInclude, blacklist, unblacklist, updateRecord, setField };
+  return { toggleInclude, blacklist, unblacklist, updateRecord, updateField };
 }
