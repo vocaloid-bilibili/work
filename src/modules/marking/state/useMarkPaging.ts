@@ -3,19 +3,19 @@ import { useState, useMemo, useCallback } from "react";
 
 export type Filter = "included" | "blacklisted" | "pending" | null;
 
-interface Opts {
-  records: unknown[];
+interface Opts<T> {
+  records: T[];
   includes: boolean[];
   blacklists: boolean[];
   pageSize: number;
 }
 
-export function useMarkPaging({
+export function useMarkPaging<T>({
   records,
   includes,
   blacklists,
   pageSize,
-}: Opts) {
+}: Opts<T>) {
   const [filter, setFilter] = useState<Filter>(null);
   const [page, setPage] = useState(1);
 

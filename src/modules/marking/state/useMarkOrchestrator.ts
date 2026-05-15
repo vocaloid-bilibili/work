@@ -15,7 +15,6 @@ export function useMarkOrchestrator() {
   const collab = useCollab(core.mode === "collab");
   const isCollab = core.mode === "collab";
 
-  // 当前生效的数据
   const activeRecords = useMemo(
     () => (isCollab ? (collab.records as Row[]) : core.records),
     [isCollab, collab.records, core.records],
@@ -64,7 +63,6 @@ export function useMarkOrchestrator() {
     collabExport: collab.exportFile,
   });
 
-  // 持久化模式
   useEffect(() => {
     localStorage.setItem("mark_mode", core.mode);
   }, [core.mode]);
