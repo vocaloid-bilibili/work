@@ -14,7 +14,27 @@ interface P {
   op: LogEntry;
   onClickUser?: (userId: string) => void;
 }
-
+function fmtMarkFieldValue(field: string, value: unknown): string {
+  if (field === "_original") {
+    let arr = value;
+    if (typeof arr === "string") {
+      try {
+        arr = JSON.parse(arr);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (!Array.isArray(arr) || arr.length === 0) return "无关联";
+    return arr
+      .map((s: { name?: string; id?: number }) =>
+        s.name ? `「${s.name}」` : `#${s.id ?? "?"}`,
+      )
+      .join("、");
+  }
+  if (field === "copyright")
+    return COPYRIGHT_MAP[String(value)] ?? String(value);
+  return String(value ?? "");
+}
 export default function FeedItem({ op, onClickUser }: P) {
   const a = getAction(op.action);
   const Icon = a.Icon;
@@ -26,7 +46,7 @@ export default function FeedItem({ op, onClickUser }: P) {
       : null;
   const fieldValue =
     op.action === "mark_field_edit" && d?.value != null
-      ? String(d.value)
+      ? fmtMarkFieldValue(d.field as string, d.value)
       : null;
 
   const markBvid =

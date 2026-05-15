@@ -63,4 +63,5 @@ export const FIELD_LABELS: Record<string, string> = {
   title: "标题",
   copyright: "视频类型",
   disabled: "禁用",
+  _original: "关联原曲",
 };
