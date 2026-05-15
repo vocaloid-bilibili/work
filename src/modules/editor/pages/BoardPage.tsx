@@ -67,8 +67,9 @@ export function BoardPage() {
       });
       toast.success("榜单视频设置成功");
       setCur(bvid.trim());
-    } catch (e: any) {
-      toast.error(e?.response?.data?.detail || "设置失败");
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } };
+      toast.error(err?.response?.data?.detail || "设置失败");
     } finally {
       setSaving(false);
     }

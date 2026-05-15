@@ -9,11 +9,12 @@ export function sanitizeCell(val: unknown): unknown {
     if ("richText" in o) {
       const rt = o.richText;
       return Array.isArray(rt)
-        ? rt.map((s: any) => String(s?.text ?? "")).join("")
+        ? (rt as { text?: string }[]).map((s) => String(s?.text ?? "")).join("")
         : "";
     }
     if ("result" in o) return sanitizeCell(o.result);
-    if ("hyperlink" in o) return (o as any).text || (o as any).hyperlink || "";
+    if ("hyperlink" in o)
+      return (o.text as string) || (o.hyperlink as string) || "";
     if (val instanceof Date) return val.toISOString().slice(0, 10);
     try {
       return JSON.stringify(val);

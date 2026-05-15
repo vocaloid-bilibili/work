@@ -14,7 +14,8 @@ interface P {
 }
 
 function activeCat(f: Filter): "all" | "mark" | "edit" {
-  if (f === "all" || f === "mark" || f === "edit") return f as any;
+  if (f === "all" || f === "mark" || f === "edit")
+    return f as "all" | "mark" | "edit";
   return ACTIONS[f]?.category ?? "all";
 }
 

@@ -7,9 +7,10 @@ import CardActions from "./CardActions";
 import CardFields from "./CardFields";
 import Avatar from "@/shared/ui/Avatar";
 import type { Attribution } from "@/core/types/stats";
+import type { Row } from "@/core/types/collab";
 
 interface P {
-  record: any;
+  record: Row;
   include: boolean;
   blacklisted: boolean;
   index: number;
@@ -17,7 +18,7 @@ interface P {
   onIncludeChange: (v: boolean) => void;
   onBlacklist: () => void;
   onUnblacklist: () => void;
-  onUpdate: (record: any) => void;
+  onUpdate: (record: Row | ((prev: Row) => Row)) => void;
   highlight?: boolean;
 }
 
@@ -33,11 +34,11 @@ function MarkCardInner({
   onUpdate,
   highlight = false,
 }: P) {
-  const handleChange = (field: string, value: any) =>
-    onUpdate((prev: any) => ({ ...prev, [field]: value }));
+  const handleChange = (field: string, value: unknown) =>
+    onUpdate((prev: Row) => ({ ...prev, [field]: value }));
   const handleInputChange = (field: string, value: string) => {
     const key = `_unconfirmed_${field}`;
-    onUpdate((prev: any) =>
+    onUpdate((prev: Row) =>
       prev[key] === value ? prev : { ...prev, [key]: value },
     );
   };
@@ -112,9 +113,9 @@ function MarkCardInner({
           >
             <div
               className="font-bold text-lg leading-tight line-clamp-1 pr-12 select-text"
-              title={record.title}
+              title={record.title as string}
             >
-              {record.title}
+              {record.title as string}
             </div>
             <CardFields
               record={record}
@@ -124,14 +125,16 @@ function MarkCardInner({
               onInputChange={handleInputChange}
             />
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground mt-auto pt-2 border-t border-dashed select-text">
-              <span>时长: {record.duration}</span>
-              <span>分P: {record.page}</span>
-              {record.tid && <span>分区: {record.tid}</span>}
-              {record.bvid && <span className="font-mono">{record.bvid}</span>}
+              <span>时长: {record.duration as string}</span>
+              <span>分P: {record.page as string}</span>
+              {record.tid && <span>分区: {record.tid as string}</span>}
+              {record.bvid && (
+                <span className="font-mono">{record.bvid as string}</span>
+              )}
             </div>
             {record.intro && (
               <div className="bg-muted/40 p-2.5 rounded-lg text-xs text-muted-foreground max-h-14 overflow-y-auto leading-relaxed select-text">
-                {record.intro}
+                {record.intro as string}
               </div>
             )}
           </div>

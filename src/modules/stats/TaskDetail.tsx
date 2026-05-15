@@ -36,8 +36,8 @@ export default function TaskDetail() {
       const [s, ts] = await Promise.all([api.taskStats(taskId), api.tasks()]);
       setStats(s);
       setMeta(ts.find((t) => t.taskId === taskId) || null);
-    } catch (e: any) {
-      toast.error(e.message || "加载失败");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "加载失败");
     } finally {
       setLoading(false);
     }
@@ -122,7 +122,6 @@ export default function TaskDetail() {
           <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
         </Button>
       </div>
-
       {stats ? (
         <div className="grid lg:grid-cols-[1fr_320px] gap-6 items-start">
           <div className="space-y-4 min-w-0">

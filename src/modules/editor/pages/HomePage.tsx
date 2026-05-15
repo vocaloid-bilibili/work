@@ -53,15 +53,24 @@ export function HomePage() {
   const isBv = /^BV[a-zA-Z0-9]{10}$/i.test(trimmed);
   const isId = /^\d+$/.test(trimmed) && trimmed.length > 0;
 
-  useEffect(() => {
+  const [prevDv, setPrevDv] = useState(dv);
+  if (prevDv !== dv) {
+    setPrevDv(dv);
     if (!dv || dv.trim().length < 1 || isBv || isId) {
       setHints([]);
-      return;
+      setBusy(false);
+    } else {
+      setBusy(true);
     }
-    setBusy(true);
+  }
+
+  useEffect(() => {
+    if (!dv || dv.trim().length < 1 || isBv || isId) return;
     api
       .search("song", dv)
-      .then((r: any) => setHints(r.data && Array.isArray(r.data) ? r.data : []))
+      .then((r: { data?: Song[] }) =>
+        setHints(r.data && Array.isArray(r.data) ? r.data : []),
+      )
       .catch(() => setHints([]))
       .finally(() => setBusy(false));
   }, [dv, isBv, isId]);
@@ -73,26 +82,22 @@ export function HomePage() {
     setOpen(false);
     setHints([]);
   };
-
   const pick = (s: Song) => {
     navigate(`/edit/song/${s.id}`);
     setInput("");
     setOpen(false);
     setHints([]);
   };
-
   const handleKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== "Enter") return;
     if (isBv) go("video", trimmed);
     else if (isId) go("song", trimmed);
     else if (hints.length === 1) pick(hints[0]);
   };
-
   const showDrop = open && (isBv || isId || hints.length > 0 || busy);
 
   return (
     <div className="space-y-8">
-      {/* 搜索栏 */}
       <div className="relative" ref={wrap}>
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
@@ -100,7 +105,7 @@ export function HomePage() {
             className="w-full h-12 rounded-2xl border border-border/60 bg-card pl-11 pr-4 text-sm shadow-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary/40 transition-all"
             placeholder="搜索歌曲名、输入歌曲 ID 或 BV 号…"
             value={input}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+            onChange={(e) => {
               setInput(e.target.value);
               setOpen(true);
             }}
@@ -111,7 +116,6 @@ export function HomePage() {
             <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground/40" />
           )}
         </div>
-
         {showDrop && (
           <div className="absolute top-full left-0 z-50 w-full mt-2 rounded-2xl border bg-popover shadow-xl overflow-hidden">
             <div className="max-h-72 overflow-y-auto p-1.5">
@@ -166,8 +170,6 @@ export function HomePage() {
           </div>
         )}
       </div>
-
-      {/* 快捷操作 */}
       <div className="space-y-3">
         <p className="text-xs font-semibold text-muted-foreground/50 uppercase tracking-wider">
           快捷操作

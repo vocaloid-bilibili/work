@@ -109,9 +109,9 @@ function RelationItem({
   const display = song.display_name?.trim();
   const title = display || song.name;
   const subtitle = display && display !== song.name ? song.name : null;
-  const vocs = (song as any).vocalists as
-    | { id: number; name: string }[]
-    | undefined;
+  const vocs = (
+    song as RelatedSong & { vocalists?: { id: number; name: string }[] }
+  ).vocalists;
   const artists = artistLine(song.producers, vocs);
 
   return (

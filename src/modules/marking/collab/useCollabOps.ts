@@ -1,8 +1,7 @@
 // src/modules/marking/collab/useCollabOps.ts
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { MarkOp, MarkAction, Row } from "@/core/types/collab";
 
-/** 和后端 constants.ts 保持一致 */
 const EDITABLE_FIELDS = new Set([
   "name",
   "vocal",
@@ -92,9 +91,14 @@ export function useCollabOps(refs: Refs, setters: StateSetters) {
   const pendingRef = useRef<Set<string>>(new Set());
 
   const refsRef = useRef(refs);
-  refsRef.current = refs;
   const settersRef = useRef(setters);
-  settersRef.current = setters;
+
+  useEffect(() => {
+    refsRef.current = refs;
+  });
+  useEffect(() => {
+    settersRef.current = setters;
+  });
 
   const submit = useCallback(
     (input: {

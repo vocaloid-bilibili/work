@@ -1,5 +1,5 @@
 // src/modules/marking/state/useMarkMutations.ts
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { filled } from "@/core/helpers/sanitize";
 import type { Row } from "@/core/types/collab";
 
@@ -35,7 +35,9 @@ export function useMarkMutations({
   setBlacklists,
 }: Opts) {
   const recordsRef = useRef(records);
-  recordsRef.current = records;
+  useEffect(() => {
+    recordsRef.current = records;
+  });
 
   const toggleInclude = useCallback(
     (i: number, v: boolean) => {
@@ -106,7 +108,7 @@ export function useMarkMutations({
   );
 
   const updateRecord = useCallback(
-    (index: number, updater: any) => {
+    (index: number, updater: Row | ((prev: Row) => Row)) => {
       if (isCollab) {
         const current = recordsRef.current[index];
         const next = typeof updater === "function" ? updater(current) : updater;

@@ -20,20 +20,22 @@ export function useCollabSocket(
 
   const initRef = useRef<() => void>(undefined);
 
-  initRef.current = () => {
-    const ws = new RealtimeSocket({
-      urlProvider: async () => {
-        const u = new URL(collabBase());
-        u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
-        u.pathname = u.pathname.replace(/\/$/, "") + "/ws";
-        return u.toString();
-      },
-      onMessage: (e) => onMsgRef.current(e),
-      onStatus: setConnState,
-    });
-    socketRef.current = ws;
-    ws.connect();
-  };
+  useEffect(() => {
+    initRef.current = () => {
+      const ws = new RealtimeSocket({
+        urlProvider: async () => {
+          const u = new URL(collabBase());
+          u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
+          u.pathname = u.pathname.replace(/\/$/, "") + "/ws";
+          return u.toString();
+        },
+        onMessage: (e) => onMsgRef.current(e),
+        onStatus: setConnState,
+      });
+      socketRef.current = ws;
+      ws.connect();
+    };
+  });
 
   useEffect(() => {
     if (!enabled) return;

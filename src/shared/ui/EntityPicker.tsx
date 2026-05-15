@@ -42,7 +42,7 @@ export default function EntityPicker({
       setBusy(true);
       try {
         const r = await api.search(kind, q, 1, 8);
-        setHits(r.data || []);
+        setHits((r.data as { id: number; name: string }[]) || []);
       } catch {
         setHits([]);
       } finally {
@@ -66,7 +66,9 @@ export default function EntityPicker({
         kind === "song"
           ? await api.selectSong(id)
           : await api.selectArtist(kind, id);
-      const d = (r as any).data || r;
+      const d =
+        (r as { data?: { id: number; name: string } }).data ||
+        (r as { id: number; name: string });
       pick({ id: d.id, name: d.name });
     } catch {
       /**/

@@ -75,7 +75,9 @@ export function useRelations(song: Song) {
     } else {
       api
         .search("song", dq)
-        .then((r: any) => setResults(Array.isArray(r.data) ? r.data : []))
+        .then((r: { data?: Song[] }) =>
+          setResults(Array.isArray(r.data) ? r.data : []),
+        )
         .catch(() => setResults([]))
         .finally(() => setSearching(false));
     }
@@ -91,7 +93,8 @@ export function useRelations(song: Song) {
   const toggle = useCallback((s: Song) => {
     setSelected((prev) => {
       const n = new Map(prev);
-      n.has(s.id) ? n.delete(s.id) : n.set(s.id, s);
+      if (n.has(s.id)) n.delete(s.id);
+      else n.set(s.id, s);
       return n;
     });
   }, []);
@@ -117,8 +120,9 @@ export function useRelations(song: Song) {
         toast.success("关联已添加");
         closeMode();
         await load();
-      } catch (e: any) {
-        toast.error(e?.response?.data?.detail || "添加失败");
+      } catch (e: unknown) {
+        const err = e as { response?: { data?: { detail?: string } } };
+        toast.error(err?.response?.data?.detail || "添加失败");
       } finally {
         setBusy(false);
       }
@@ -157,8 +161,9 @@ export function useRelations(song: Song) {
       );
       closeMode();
       await load();
-    } catch (e: any) {
-      toast.error(e?.response?.data?.detail || "批量添加失败");
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } };
+      toast.error(err?.response?.data?.detail || "批量添加失败");
     } finally {
       setBusy(false);
     }
@@ -185,8 +190,9 @@ export function useRelations(song: Song) {
         });
         toast.success("关联已移除");
         await load();
-      } catch (e: any) {
-        toast.error(e?.response?.data?.detail || "移除失败");
+      } catch (e: unknown) {
+        const err = e as { response?: { data?: { detail?: string } } };
+        toast.error(err?.response?.data?.detail || "移除失败");
       }
     },
     [song, originals, derivatives, load],
@@ -203,7 +209,7 @@ export function useRelations(song: Song) {
       let all: Song[] = [];
       let page = 1;
       while (page <= 5) {
-        const r: any = await api.search("song", kw, page, 50);
+        const r = (await api.search("song", kw, page, 50)) as { data?: Song[] };
         const d: Song[] = Array.isArray(r.data) ? r.data : [];
         all = all.concat(d);
         if (d.length < 50) break;

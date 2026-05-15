@@ -1,6 +1,6 @@
 // src/modules/ingest/useIngest.ts
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
   uploadFile,
   uploadRankingFile,
@@ -13,22 +13,18 @@ import type { StepStatus, Phase, ParseResult } from "./types";
 import { tryParse } from "./types";
 
 export function useIngest() {
-  /* file */
   const [file, setFile] = useState<File | null>(null);
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [inputKey, setInputKey] = useState(0);
 
-  /* manual params */
   const [board, setBoard] = useState("");
   const [part, setPartRaw] = useState("main");
   const [issue, setIssue] = useState<number | "">("");
 
-  /* upload */
   const [phase, setPhase] = useState<Phase>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState("");
 
-  /* process — board */
   const [resolvedBoard, setResolvedBoard] = useState<BoardId | null>(null);
   const [checkSt, setCheckSt] = useState<StepStatus>("idle");
   const [checkErr, setCheckErr] = useState("");
@@ -36,13 +32,11 @@ export function useIngest() {
   const [updErr, setUpdErr] = useState("");
   const [updProg, setUpdProg] = useState("");
 
-  /* process — data */
   const [resolvedData, setResolvedData] = useState<DataId | null>(null);
   const [dataSt, setDataSt] = useState<StepStatus>("idle");
   const [dataErr, setDataErr] = useState("");
   const [dataProg, setDataProg] = useState("");
 
-  /* ─── reset ─── */
   const fullReset = useCallback(() => {
     setFile(null);
     setParseResult(null);
@@ -62,10 +56,9 @@ export function useIngest() {
     setDataProg("");
     setResolvedBoard(null);
     setResolvedData(null);
-    if (inputRef.current) inputRef.current.value = "";
+    setInputKey((k) => k + 1);
   }, []);
 
-  /* ─── board setter (auto-fix part) ─── */
   const setBoardSafe = useCallback(
     (v: string) => {
       setBoard(v);
@@ -74,7 +67,6 @@ export function useIngest() {
     [part],
   );
 
-  /* ─── file selected ─── */
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const f = e.target.files?.[0];
@@ -111,7 +103,6 @@ export function useIngest() {
     [],
   );
 
-  /* ─── data processing (inner) ─── */
   const runDataInner = (id: DataId) => {
     setDataSt("loading");
     setDataErr("");
@@ -119,14 +110,13 @@ export function useIngest() {
     streamSnapshot(id.date.toFormat("yyyy-MM-dd"), {
       onProgress: (m: string) => setDataProg(m),
       onComplete: () => setDataSt("success"),
-      onError: (e: any) => {
+      onError: (e: unknown) => {
         setDataSt("failed");
-        setDataErr(e?.message || "处理失败");
+        setDataErr(e instanceof Error ? e.message : "处理失败");
       },
     });
   };
 
-  /* ─── upload ─── */
   const doUpload = useCallback(async () => {
     if (!file) return;
     setPhase("uploading");
@@ -156,13 +146,16 @@ export function useIngest() {
         setResolvedBoard(id);
         setPhase("process");
       }
-    } catch (err: any) {
-      setUploadError(err?.response?.data?.detail ?? err?.message ?? "上传失败");
+    } catch (err: unknown) {
+      const e = err as {
+        response?: { data?: { detail?: string } };
+        message?: string;
+      };
+      setUploadError(e?.response?.data?.detail ?? e?.message ?? "上传失败");
       setPhase("configure");
     }
   }, [file, parseResult, board, part, issue]);
 
-  /* ─── check ranking ─── */
   const runCheck = useCallback(async () => {
     if (!resolvedBoard) return;
     setCheckSt("loading");
@@ -178,13 +171,16 @@ export function useIngest() {
         setCheckSt("failed");
         setCheckErr(r.detail);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const err = e as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
       setCheckSt("failed");
-      setCheckErr(e?.response?.data?.message || e.message || "检查失败");
+      setCheckErr(err?.response?.data?.message ?? err?.message ?? "检查失败");
     }
   }, [resolvedBoard]);
 
-  /* ─── update ranking ─── */
   const runUpdate = useCallback(async () => {
     if (!resolvedBoard) return;
     setUpdSt("loading");
@@ -201,9 +197,9 @@ export function useIngest() {
             setUpdSt("success");
             ok();
           },
-          onError: (e: any) => {
+          onError: (e: unknown) => {
             setUpdSt("failed");
-            setUpdErr(e?.message || "更新失败");
+            setUpdErr(e instanceof Error ? e.message : "更新失败");
             ok();
           },
         },
@@ -211,13 +207,11 @@ export function useIngest() {
     });
   }, [resolvedBoard]);
 
-  /* ─── data processing (public) ─── */
   const runData = useCallback(async () => {
     if (!resolvedData) return;
     runDataInner(resolvedData);
   }, [resolvedData]);
 
-  /* ─── canUpload ─── */
   const canUpload = (() => {
     if (!file) return false;
     if (parseResult?.type === "data" || parseResult?.type === "board")
@@ -245,7 +239,7 @@ export function useIngest() {
     dataErr,
     dataProg,
     canUpload,
-    inputRef,
+    inputKey,
     handleFileChange,
     setBoard: setBoardSafe,
     setPart: setPartRaw,

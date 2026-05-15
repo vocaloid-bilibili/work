@@ -140,10 +140,7 @@ export function useSongForm(song: Song) {
           .map((v) => v.bvid),
         changes: rawDiff,
       };
-
-      if (res.collected_rows) {
-        detail.collectedRows = res.collected_rows;
-      }
+      if (res.collected_rows) detail.collectedRows = res.collected_rows;
 
       await logEdit({
         targetType: "song",
@@ -161,8 +158,12 @@ export function useSongForm(song: Song) {
       };
       toast.success("歌曲信息已更新");
       return true;
-    } catch (e: any) {
-      toast.error(e?.response?.data?.detail || "更新失败");
+    } catch (e: unknown) {
+      const err = e as {
+        response?: { data?: { detail?: string } };
+        message?: string;
+      };
+      toast.error(err?.response?.data?.detail || "更新失败");
       return false;
     } finally {
       setSaving(false);

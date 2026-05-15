@@ -1,3 +1,4 @@
+// src/modules/stats/hooks.ts
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { api } from "./api";
@@ -9,8 +10,6 @@ import type {
   UserProfile,
 } from "@/core/types/stats";
 
-// ── Dashboard data ──
-
 export function useDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -20,7 +19,8 @@ export function useDashboard() {
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
 
   const load = useCallback(async (silent = false) => {
-    silent ? setRefreshing(true) : setLoading(true);
+    if (silent) setRefreshing(true);
+    else setLoading(true);
     try {
       const [a, g, ts] = await Promise.all([
         api.active(),
@@ -31,8 +31,8 @@ export function useDashboard() {
       setTasks(ts);
       setActiveTaskId(a.taskId || null);
       setTaskStats(a.taskId ? await api.taskStats(a.taskId) : null);
-    } catch (e: any) {
-      toast.error(e.message || "加载失败");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "加载失败");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -42,9 +42,7 @@ export function useDashboard() {
   return { loading, refreshing, taskStats, global, tasks, activeTaskId, load };
 }
 
-// ── Activity feed ──
-
-export type Filter = string; // "all" | "mark" | "edit" | specific action key
+export type Filter = string;
 
 function filterToApi(f: Filter): { category?: string; action?: string } {
   if (f === "all") return {};
@@ -71,7 +69,7 @@ export function useFeed(
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const fetch = useCallback(
+  const doFetch = useCallback(
     async (offset: number, append: boolean) => {
       setLoading(true);
       try {
@@ -83,8 +81,8 @@ export function useFeed(
         setOps((prev) => (append ? [...prev, ...r.ops] : r.ops));
         setTotal(r.total);
         setHasMore(r.hasMore);
-      } catch (e: any) {
-        toast.error(e.message || "加载失败");
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : "加载失败");
       } finally {
         setLoading(false);
       }
@@ -96,8 +94,8 @@ export function useFeed(
     setOps([]);
     setTotal(0);
     setHasMore(false);
-    void fetch(0, false);
-  }, [fetch]);
+    void doFetch(0, false);
+  }, [doFetch]);
 
   return {
     ops,
@@ -105,16 +103,14 @@ export function useFeed(
     hasMore,
     loading,
     loadMore: useCallback(() => {
-      if (!loading && hasMore) void fetch(ops.length, true);
-    }, [fetch, loading, hasMore, ops.length]),
+      if (!loading && hasMore) void doFetch(ops.length, true);
+    }, [doFetch, loading, hasMore, ops.length]),
     reload: useCallback(() => {
       setOps([]);
-      void fetch(0, false);
-    }, [fetch]),
+      void doFetch(0, false);
+    }, [doFetch]),
   };
 }
-
-// ── Resolve user profile from contributors ──
 
 export function useUserProfile(
   userId: string | null,

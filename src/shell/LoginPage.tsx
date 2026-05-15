@@ -38,6 +38,7 @@ export default function LoginPage() {
         setForm((f) => ({ ...f, captcha: "" }));
       }
     } catch {
+      // captcha load failed silently
     } finally {
       lock.current = false;
     }

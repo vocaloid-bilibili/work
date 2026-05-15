@@ -30,16 +30,16 @@ export default function Dashboard() {
   );
   const userProfile = useUserProfile(filterUserId, contributors);
 
+  const dbLoad = db.load;
   useEffect(() => {
-    void db.load();
-  }, [db.load]);
+    void dbLoad();
+  }, [dbLoad]);
 
   const selectUser = useCallback((id: string) => {
     setFilterUserId((prev) => (prev === id ? null : id));
   }, []);
   const clearUser = useCallback(() => setFilterUserId(null), []);
 
-  const dbLoad = db.load;
   const feedReload = feed.reload;
   const refresh = useCallback(async () => {
     await dbLoad(true);

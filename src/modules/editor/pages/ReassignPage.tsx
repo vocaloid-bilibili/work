@@ -32,7 +32,6 @@ function tags(s: string) {
 export function ReassignPage() {
   const { bvid } = useParams<{ bvid: string }>();
   const navigate = useNavigate();
-
   const [title, setTitle] = useState("");
   const [parent, setParent] = useState<Song | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,28 +47,32 @@ export function ReassignPage() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  // 加载视频信息
   useEffect(() => {
     if (!bvid) return;
     setLoading(true);
-    api.selectVideo(bvid).then(async (r) => {
-      const video = r.data;
-      setTitle(video.title);
-      if (video.song_id) {
-        try {
-          const songRes = await api.selectSong(video.song_id, true);
-          setParent(songRes.data);
-        } catch {
+    api
+      .selectVideo(bvid)
+      .then(async (r) => {
+        const video = r.data;
+        setTitle(video.title);
+        if (video.song_id) {
+          try {
+            const songRes = await api.selectSong(video.song_id, true);
+            setParent(songRes.data);
+          } catch {
+            setParent(null);
+          }
+        } else {
           setParent(null);
         }
-      } else {
-        setParent(null);
-      }
-    }).catch((e: any) => {
-      toast.error(e?.response?.data?.detail || "加载视频失败");
-    }).finally(() => {
-      setLoading(false);
-    });
+      })
+      .catch((e: unknown) => {
+        const axErr = e as { response?: { data?: { detail?: string } } };
+        toast.error(axErr?.response?.data?.detail || "加载视频失败");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [bvid]);
 
   useEffect(() => {
@@ -80,13 +83,8 @@ export function ReassignPage() {
     setSyn((parent.synthesizers ?? []).map((a) => a.name).join("、"));
   }, [parent]);
 
-  if (loading) {
-    return <div>加载中...</div>;
-  }
-
-  if (!bvid) {
-    return <div>视频不存在</div>;
-  }
+  if (loading) return <div>加载中...</div>;
+  if (!bvid) return <div>视频不存在</div>;
 
   const canSubmit =
     (mode === "existing" && target && target.id !== parent?.id) ||
@@ -145,8 +143,9 @@ export function ReassignPage() {
       toast.success("视频移动成功");
       setConfirmOpen(false);
       navigate(-1);
-    } catch (e: any) {
-      toast.error(e?.response?.data?.detail || "移动失败");
+    } catch (e: unknown) {
+      const axErr = e as { response?: { data?: { detail?: string } } };
+      toast.error(axErr?.response?.data?.detail || "移动失败");
     } finally {
       setSubmitting(false);
     }
@@ -167,10 +166,8 @@ export function ReassignPage() {
           )}
         </div>
       </Section>
-
       <div className="space-y-4">
         <h3 className="text-sm font-bold px-1">移动到</h3>
-
         <Field label="目标">
           <Select
             value={mode}
@@ -188,7 +185,6 @@ export function ReassignPage() {
             </SelectContent>
           </Select>
         </Field>
-
         {mode === "existing" && (
           <EntityPicker
             kind="song"
@@ -197,7 +193,6 @@ export function ReassignPage() {
             placeholder="搜索目标歌曲"
           />
         )}
-
         {mode === "new" && (
           <div className="space-y-3 rounded-xl border p-4">
             <p className="text-sm font-medium">新歌曲信息</p>
@@ -257,7 +252,6 @@ export function ReassignPage() {
             </div>
           </div>
         )}
-
         <div className="flex gap-3 pt-2">
           <Btn className="flex-1" onClick={() => navigate(-1)}>
             取消
@@ -272,7 +266,6 @@ export function ReassignPage() {
           </Btn>
         </div>
       </div>
-
       <Confirm
         open={confirmOpen}
         onOpenChange={setConfirmOpen}

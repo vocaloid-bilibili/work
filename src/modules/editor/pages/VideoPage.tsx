@@ -162,8 +162,9 @@ export function VideoPage() {
       .then((r) => {
         setVideo(r.data);
       })
-      .catch((e: any) => {
-        toast.error(e?.response?.data?.detail || "加载视频失败");
+      .catch((e: unknown) => {
+        const axErr = e as { response?: { data?: { detail?: string } } };
+        toast.error(axErr?.response?.data?.detail || "加载视频失败");
       })
       .finally(() => {
         setLoading(false);

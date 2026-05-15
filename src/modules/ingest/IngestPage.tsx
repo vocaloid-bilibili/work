@@ -24,13 +24,12 @@ export default function IngestPage() {
     <div className="flex flex-col items-center p-8 w-full max-w-xl mx-auto">
       <Card className="w-full">
         <CardContent className="space-y-4 pt-6">
-          {/* ═══ idle: 选文件 ═══ */}
           {s.phase === "idle" && (
             <div className="space-y-3 text-center">
               <Upload className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
               <p className="mb-3 text-sm text-muted-foreground">选择文件</p>
               <Input
-                ref={s.inputRef}
+                key={s.inputKey}
                 type="file"
                 onChange={s.handleFileChange}
                 className="mx-auto max-w-xs cursor-pointer"
@@ -38,7 +37,6 @@ export default function IngestPage() {
             </div>
           )}
 
-          {/* ═══ configure: 确认参数 ═══ */}
           {s.phase === "configure" && s.file && (
             <div className="space-y-4">
               <div className="flex items-center justify-between rounded-lg bg-muted p-3">
@@ -56,7 +54,6 @@ export default function IngestPage() {
                 </Button>
               </div>
 
-              {/* 识别出排名 */}
               {s.parseResult?.type === "board" && (
                 <div className="flex items-center gap-2 rounded-lg bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
                   <CheckCircle className="h-4 w-4 shrink-0" />
@@ -68,7 +65,6 @@ export default function IngestPage() {
                 </div>
               )}
 
-              {/* 识别出数据快照 */}
               {s.parseResult?.type === "data" && (
                 <div className="flex items-center gap-2 rounded-lg bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
                   <CheckCircle className="h-4 w-4 shrink-0" />
@@ -129,7 +125,6 @@ export default function IngestPage() {
             </div>
           )}
 
-          {/* ═══ uploading ═══ */}
           {s.phase === "uploading" && s.file && (
             <div className="space-y-4">
               <div className="flex items-center gap-2 truncate rounded-lg bg-muted p-3 text-sm">
@@ -146,7 +141,6 @@ export default function IngestPage() {
             </div>
           )}
 
-          {/* ═══ process: 排名 ═══ */}
           {s.phase === "process" && s.resolvedBoard && (
             <div className="space-y-4">
               <div className="flex items-center gap-2 rounded-lg bg-green-50 p-3 text-sm text-green-700 dark:bg-green-900/20 dark:text-green-300">
@@ -190,7 +184,6 @@ export default function IngestPage() {
             </div>
           )}
 
-          {/* ═══ process: 数据 ═══ */}
           {s.phase === "process" && s.resolvedData && (
             <div className="space-y-4">
               <div className="flex items-center gap-2 rounded-lg bg-green-50 p-3 text-sm text-green-700 dark:bg-green-900/20 dark:text-green-300">

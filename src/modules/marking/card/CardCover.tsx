@@ -14,9 +14,10 @@ import { PlayCircle, Loader2, Ban } from "lucide-react";
 import { cn } from "@/ui/cn";
 import { toast } from "sonner";
 import CachedImg from "@/shared/ui/CachedImg";
+import type { Row } from "@/core/types/collab";
 
 interface P {
-  record: any;
+  record: Row;
   blacklisted: boolean;
 }
 
@@ -26,7 +27,8 @@ export default function CardCover({ record, blacklisted }: P) {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
   const loadPreview = async () => {
-    const bvid = record.bvid || (record.aid ? `av${record.aid}` : "");
+    const bvid =
+      (record.bvid as string) || (record.aid ? `av${record.aid}` : "");
     if (!bvid) {
       toast.error("无法获取视频ID");
       return;
@@ -45,12 +47,16 @@ export default function CardCover({ record, blacklisted }: P) {
         toast.error("请求视频解析接口失败");
         return;
       }
-      const data = await res.json();
+      const data = (await res.json()) as {
+        code?: number;
+        msg?: string;
+        data?: { video?: { url?: string } };
+      };
       if (data?.code === 0 && data.data?.video?.url)
         setVideoUrl(data.data.video.url);
       else toast.error("解析视频失败: " + (data?.msg || "未知错误"));
-    } catch (e: any) {
-      if (e.name === "AbortError") {
+    } catch (e: unknown) {
+      if (e instanceof DOMException && e.name === "AbortError") {
         toast.error("视频解析超时");
       } else {
         toast.error("请求视频解析接口失败");
@@ -69,8 +75,8 @@ export default function CardCover({ record, blacklisted }: P) {
         className="block"
       >
         <CachedImg
-          src={record.image_url}
-          alt={record.title}
+          src={record.image_url as string}
+          alt={record.title as string}
           className={cn(
             "w-full object-cover aspect-video transition-all",
             blacklisted && "opacity-40 grayscale",
@@ -106,7 +112,9 @@ export default function CardCover({ record, blacklisted }: P) {
         </DialogTrigger>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle className="line-clamp-1">{record.title}</DialogTitle>
+            <DialogTitle className="line-clamp-1">
+              {record.title as string}
+            </DialogTitle>
             <DialogDescription className="sr-only">视频预览</DialogDescription>
           </DialogHeader>
           <div className="aspect-video w-full bg-black flex items-center justify-center rounded-md overflow-hidden">

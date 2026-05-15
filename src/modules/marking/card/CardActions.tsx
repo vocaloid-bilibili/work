@@ -9,9 +9,10 @@ import {
 } from "@/ui/tooltip";
 import { CheckCircle2, Ban, Undo2 } from "lucide-react";
 import { cn } from "@/ui/cn";
+import type { Row } from "@/core/types/collab";
 
 interface P {
-  record: any;
+  record: Row;
   include: boolean;
   blacklisted: boolean;
   onIncludeChange: (v: boolean) => void;

@@ -5,9 +5,10 @@ import { cn } from "@/ui/cn";
 import { useDebounce } from "@/shared/hooks/useDebounce";
 import { useClickOutside } from "@/shared/hooks/useClickOutside";
 import StatusDot from "@/shared/ui/StatusDot";
+import type { Row } from "@/core/types/collab";
 
 interface P {
-  records: any[];
+  records: Row[];
   includes: boolean[];
   blacklists: boolean[];
   onJump: (i: number) => void;
@@ -63,9 +64,12 @@ export default function SearchBar({
     return out;
   }, [dq, records, includes, blacklists]);
 
-  useEffect(() => {
+  const [prevHits, setPrevHits] = useState(hits);
+  if (prevHits !== hits) {
+    setPrevHits(hits);
     setSel(0);
-  }, [hits]);
+  }
+
   useEffect(() => {
     const el = listRef.current?.children[sel] as HTMLElement;
     el?.scrollIntoView({ block: "nearest" });

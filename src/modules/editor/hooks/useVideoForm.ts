@@ -21,10 +21,7 @@ export function useVideoForm(
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const s: Snap = {
-      title: video.title,
-      copyright: video.copyright ?? 3,
-    };
+    const s: Snap = { title: video.title, copyright: video.copyright ?? 3 };
     snap.current = s;
     setTitle(s.title);
     setCopyright(s.copyright);
@@ -53,7 +50,6 @@ export function useVideoForm(
     setSaving(true);
     try {
       await api.editVideo({ bvid: video.bvid, title, copyright });
-
       const rawDiff: Record<string, { old: unknown; new: unknown }> = {};
       const s = snap.current;
       if (s) {
@@ -61,7 +57,6 @@ export function useVideoForm(
         if (copyright !== s.copyright)
           rawDiff.copyright = { old: s.copyright, new: copyright };
       }
-
       await logEdit({
         targetType: "video",
         targetId: video.bvid,
@@ -77,8 +72,9 @@ export function useVideoForm(
       snap.current = { title, copyright };
       toast.success("视频信息已更新");
       return true;
-    } catch (e: any) {
-      toast.error(e?.response?.data?.detail || "更新失败");
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } };
+      toast.error(err?.response?.data?.detail || "更新失败");
       return false;
     } finally {
       setSaving(false);

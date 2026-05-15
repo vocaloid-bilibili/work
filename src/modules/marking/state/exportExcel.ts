@@ -1,14 +1,18 @@
 // src/modules/marking/state/exportExcel.ts
 import ExcelJS from "exceljs";
+import type { Row } from "@/core/types/collab";
 
 export async function exportExcel(
-  records: any[],
+  records: Row[],
   includes: boolean[],
   keepExcluded: boolean,
   name?: string,
 ) {
   const mapped = records.map((item, i) => {
-    const o = { ...item, include: includes[i] ? "收录" : "排除" };
+    const o: Record<string, unknown> = {
+      ...item,
+      include: includes[i] ? "收录" : "排除",
+    };
     for (const k of Object.keys(o)) {
       if (k.startsWith("_unconfirmed_")) delete o[k];
     }

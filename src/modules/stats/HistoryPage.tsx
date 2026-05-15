@@ -20,8 +20,8 @@ export default function HistoryPage() {
       const [a, ts] = await Promise.all([api.active(), api.tasks()]);
       setActiveId(a.taskId || null);
       setTasks(ts);
-    } catch (e: any) {
-      toast.error(e.message || "加载失败");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "加载失败");
     } finally {
       setLoading(false);
     }
@@ -31,13 +31,12 @@ export default function HistoryPage() {
     void load();
   }, [load]);
 
-  if (loading) {
+  if (loading)
     return (
       <div className="flex items-center justify-center py-32">
         <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
       </div>
     );
-  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 sm:px-6 lg:px-8 pb-24 space-y-6">
@@ -53,7 +52,6 @@ export default function HistoryPage() {
         <h1 className="text-lg font-bold">全部任务</h1>
         <span className="text-sm text-muted-foreground">({tasks.length})</span>
       </div>
-
       {!tasks.length ? (
         <p className="text-center text-muted-foreground py-20">暂无任务</p>
       ) : (

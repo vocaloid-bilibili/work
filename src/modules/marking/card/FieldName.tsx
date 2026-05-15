@@ -31,31 +31,40 @@ export default function FieldName({ value, onChange, className, hasError }: P) {
     }
   });
 
-  useEffect(() => {
+  const [prevValue, setPrevValue] = useState(value);
+  if (prevValue !== value) {
+    setPrevValue(value);
     setInput(value || "");
-  }, [value]);
-  useEffect(() => {
-    if (dv && dv.length >= 1 && open) {
-      let cancelled = false;
-      setBusy(true);
-      api
-        .search("song", dv)
-        .then((r: any) => {
-          if (!cancelled)
-            setHints(r.data && Array.isArray(r.data) ? r.data : []);
-        })
-        .catch(() => {
-          if (!cancelled) setHints([]);
-        })
-        .finally(() => {
-          if (!cancelled) setBusy(false);
-        });
-      return () => {
-        cancelled = true;
-      };
-    } else {
+  }
+
+  const searchKey = `${dv}|${open}`;
+  const [prevSearchKey, setPrevSearchKey] = useState(searchKey);
+  if (prevSearchKey !== searchKey) {
+    setPrevSearchKey(searchKey);
+    if (dv && dv.length >= 1 && open) setBusy(true);
+    else {
       setHints([]);
+      setBusy(false);
     }
+  }
+
+  useEffect(() => {
+    if (!(dv && dv.length >= 1 && open)) return;
+    let cancelled = false;
+    api
+      .search("song", dv)
+      .then((r: { data?: Song[] }) => {
+        if (!cancelled) setHints(r.data && Array.isArray(r.data) ? r.data : []);
+      })
+      .catch(() => {
+        if (!cancelled) setHints([]);
+      })
+      .finally(() => {
+        if (!cancelled) setBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [dv, open]);
 
   const pick = (s: Song) => {
@@ -79,9 +88,7 @@ export default function FieldName({ value, onChange, className, hasError }: P) {
           onBlur={() => {
             if (pickingRef.current) return;
             setTimeout(() => {
-              if (!pickingRef.current && input !== value) {
-                onChange(input);
-              }
+              if (!pickingRef.current && input !== value) onChange(input);
             }, 150);
           }}
           onKeyDown={(e) => {

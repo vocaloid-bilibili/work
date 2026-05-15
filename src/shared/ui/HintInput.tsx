@@ -18,6 +18,11 @@ interface P {
   placeholder?: string;
 }
 
+interface SearchHit {
+  display_name?: string;
+  name: string;
+}
+
 export default function HintInput({
   value,
   onChange,
@@ -40,28 +45,37 @@ export default function HintInput({
   useEffect(() => {
     if (autoFocus) ref.current?.focus();
   }, [autoFocus]);
+
+  const [prevDv, setPrevDv] = useState(dv);
+  if (prevDv !== dv) {
+    setPrevDv(dv);
+    if (!searchType || !dv) setHints([]);
+  }
+
+  const [prevHints, setPrevHints] = useState(hints);
+  if (prevHints !== hints) {
+    setPrevHints(hints);
+    setIdx(-1);
+  }
+
   useEffect(() => {
-    if (!searchType || !dv) {
-      setHints([]);
-      return;
-    }
+    if (!searchType || !dv) return;
     api
       .search(searchType, dv)
-      .then((r: any) => {
+      .then((r: { data?: SearchHit[] }) => {
         setHints(
-          r.data?.map?.((i: any) => i.display_name || i.name).filter(Boolean) ||
-            [],
+          r.data?.map?.((i) => i.display_name || i.name).filter(Boolean) || [],
         );
       })
       .catch(() => setHints([]));
   }, [dv, searchType]);
-  useEffect(() => setIdx(-1), [hints]);
 
   const kd = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Tab") {
       e.preventDefault();
       if (idx >= 0 && hints[idx]) onChange(hints[idx]);
-      e.shiftKey ? onShiftTab() : onTab();
+      if (e.shiftKey) onShiftTab();
+      else onTab();
       return;
     }
     if (e.key === "Enter") {

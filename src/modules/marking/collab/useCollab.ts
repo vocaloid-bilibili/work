@@ -12,6 +12,21 @@ import type { Snapshot, MarkOp, Row } from "@/core/types/collab";
 import type { Attribution } from "@/core/types/stats";
 import type { WsEvent } from "@/core/ws/RealtimeSocket";
 
+interface TaskStatsResult {
+  contributors: { user: { id: string } }[];
+  [key: string]: unknown;
+}
+
+interface TaskOpsResult {
+  ops: Record<string, unknown>[];
+  total: number;
+  hasMore: boolean;
+}
+
+interface TaskListResult {
+  tasks: Record<string, unknown>[];
+}
+
 export function useCollab(enabled: boolean) {
   const [loading, setLoading] = useState(true);
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -37,93 +52,101 @@ export function useCollab(enabled: boolean) {
     null!,
   );
 
-  const handleEvent = useCallback((event: WsEvent) => {
-    const ops = opsRef.current;
-    const ws = wsRef.current;
+  const handleEvent = useCallback(
+    (event: WsEvent) => {
+      const ops = opsRef.current;
+      const ws = wsRef.current;
 
-    if (event.type === "connected") return;
+      if (event.type === "connected") return;
 
-    if (event.type === "task_joined") {
-      const v =
-        typeof event.version === "number"
-          ? event.version
-          : snap.versionRef.current;
-      snap.versionRef.current = Math.max(snap.versionRef.current, v);
-      setVersion((p) => Math.max(p, v));
-      return;
-    }
+      if (event.type === "task_joined") {
+        const v =
+          typeof event.version === "number"
+            ? event.version
+            : snap.versionRef.current;
+        snap.versionRef.current = Math.max(snap.versionRef.current, v);
+        setVersion((p) => Math.max(p, v));
+        return;
+      }
 
-    if (event.type === "operation_committed") {
-      const op = event.operation as MarkOp | undefined;
-      if (!op) return;
-      ops.handleCommitted(
-        op,
-        typeof event.version === "number"
-          ? event.version
-          : snap.versionRef.current,
-      );
-      if (
-        op.action === "toggle_include" ||
-        op.action === "blacklist" ||
-        op.action === "unblacklist"
-      ) {
-        const profile = (event as any).userProfile;
-        setAttributions((prev) => {
-          const next = [...prev];
-          if (
-            op.action === "unblacklist" ||
-            (op.action === "toggle_include" && !Boolean(op.value))
-          ) {
-            next[op.recordIndex] = {};
-          } else if (op.action === "toggle_include" && Boolean(op.value)) {
-            next[op.recordIndex] = {
-              actionByProfile: profile,
-              action: "include",
-              actionAt: new Date().toISOString(),
-            };
-          } else if (op.action === "blacklist") {
-            next[op.recordIndex] = {
-              actionByProfile: profile,
-              action: "blacklist",
-              actionAt: new Date().toISOString(),
-            };
-          }
-          return next;
+      if (event.type === "operation_committed") {
+        const op = event.operation as MarkOp | undefined;
+        if (!op) return;
+        ops.handleCommitted(
+          op,
+          typeof event.version === "number"
+            ? event.version
+            : snap.versionRef.current,
+        );
+        if (
+          op.action === "toggle_include" ||
+          op.action === "blacklist" ||
+          op.action === "unblacklist"
+        ) {
+          const profile = (
+            event as WsEvent & {
+              userProfile?: Attribution["actionByProfile"];
+            }
+          ).userProfile;
+          setAttributions((prev) => {
+            const next = [...prev];
+            if (
+              op.action === "unblacklist" ||
+              (op.action === "toggle_include" && !op.value)
+            ) {
+              next[op.recordIndex] = {};
+            } else if (op.action === "toggle_include" && op.value) {
+              next[op.recordIndex] = {
+                actionByProfile: profile,
+                action: "include",
+                actionAt: new Date().toISOString(),
+              };
+            } else if (op.action === "blacklist") {
+              next[op.recordIndex] = {
+                actionByProfile: profile,
+                action: "blacklist",
+                actionAt: new Date().toISOString(),
+              };
+            }
+            return next;
+          });
+        }
+        return;
+      }
+
+      if (event.type === "operation_conflicted") {
+        ops.handleConflict({
+          opId: typeof event.opId === "string" ? event.opId : "",
+          currentVersion: event.currentVersion as number | undefined,
+          recordIndex: event.recordIndex as number | undefined,
+          field: event.field as string | undefined,
+          currentValue: event.currentValue,
         });
+        setConflict(typeof event.message === "string" ? event.message : "冲突");
+        void refreshRef.current();
+        return;
       }
-      return;
-    }
 
-    if (event.type === "operation_conflicted") {
-      ops.handleConflict({
-        opId: typeof event.opId === "string" ? event.opId : "",
-        currentVersion: event.currentVersion as number | undefined,
-        recordIndex: event.recordIndex as number | undefined,
-        field: event.field as string | undefined,
-        currentValue: event.currentValue,
-      });
-      setConflict(typeof event.message === "string" ? event.message : "冲突");
-      void refreshRef.current();
-      return;
-    }
-
-    if (event.type === "snapshot_reloaded") {
-      const s = event.snapshot as Snapshot | undefined;
-      if (s) {
-        snap.apply(s);
-        ops.clearPending();
-        setConflict(null);
+      if (event.type === "snapshot_reloaded") {
+        const s = event.snapshot as Snapshot | undefined;
+        if (s) {
+          snap.apply(s);
+          ops.clearPending();
+          setConflict(null);
+        }
+        return;
       }
-      return;
-    }
 
-    if (event.type === "error") {
-      const msg = typeof event.message === "string" ? event.message : "";
-      if (msg.includes("join_task") && snap.taskIdRef.current)
-        ws.send({ type: "join_task", taskId: snap.taskIdRef.current });
-      return;
-    }
-  }, []);
+      if (event.type === "error") {
+        const msg = typeof event.message === "string" ? event.message : "";
+        if (msg.includes("join_task") && snap.taskIdRef.current)
+          ws.send({ type: "join_task", taskId: snap.taskIdRef.current });
+        return;
+      }
+    },
+    // snap is stable
+    [snap],
+  );
 
   const ws = useCollabSocket(handleEvent, enabled);
   wsRef.current = ws;
@@ -150,7 +173,6 @@ export function useCollab(enabled: boolean) {
   }, [snap]);
   refreshRef.current = refreshSnapshot;
 
-  // 初始化
   useEffect(() => {
     if (!enabled) return;
     if (initRef.current) return;
@@ -171,7 +193,6 @@ export function useCollab(enabled: boolean) {
     })();
   }, [enabled, snap]);
 
-  // join task
   useEffect(() => {
     if (!enabled) return;
     if (ws.connState === "connected" && taskId)
@@ -225,25 +246,25 @@ export function useCollab(enabled: boolean) {
     async (tid?: string) => {
       const id = tid || snap.taskIdRef.current;
       if (!id) return null;
-      return collabGet<any>(`/mark/tasks/${id}/stats`);
+      return collabGet<TaskStatsResult>(`/mark/tasks/${id}/stats`);
     },
     [snap],
   );
 
   const fetchTaskOps = useCallback(
     async (tid: string, limit: number, offset: number) =>
-      collabGet<{ ops: any[]; total: number; hasMore: boolean }>(
+      collabGet<TaskOpsResult>(
         `/mark/tasks/${tid}/ops?limit=${limit}&offset=${offset}`,
       ),
     [],
   );
 
   const fetchTaskList = useCallback(
-    () => collabGet<{ tasks: any[] }>("/mark/tasks"),
+    () => collabGet<TaskListResult>("/mark/tasks"),
     [],
   );
   const fetchGlobalStats = useCallback(
-    () => collabGet<any>("/mark/tasks/stats/global"),
+    () => collabGet<Record<string, unknown>>("/mark/tasks/stats/global"),
     [],
   );
 

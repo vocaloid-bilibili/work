@@ -30,8 +30,9 @@ function useSongLoader2() {
     try {
       const r = await api.selectSong(item.id);
       setSong(r.data);
-    } catch (e: any) {
-      toast.error(e?.response?.data?.detail || "加载失败");
+    } catch (e: unknown) {
+      const axErr = e as { response?: { data?: { detail?: string } } };
+      toast.error(axErr?.response?.data?.detail || "加载失败");
       setSong(null);
     }
   };
@@ -43,19 +44,21 @@ export function MergeSongPage() {
   const [searchParams] = useSearchParams();
   const presetSongId = searchParams.get("songId");
   const [preset, setPreset] = useState<Song | null>(null);
-
   const loader = useSongLoader2();
   const [mode, setMode] = useState<"existing" | "new">("existing");
 
-  // 加载预设歌曲
   useEffect(() => {
     if (!presetSongId) return;
-    api.selectSong(Number(presetSongId)).then((r) => {
-      setPreset(r.data);
-    }).catch(() => {
-      toast.error("加载预设歌曲失败");
-    });
+    api
+      .selectSong(Number(presetSongId))
+      .then((r) => {
+        setPreset(r.data);
+      })
+      .catch(() => {
+        toast.error("加载预设歌曲失败");
+      });
   }, [presetSongId]);
+
   const [target, setTarget] = useState<{ id: number; name: string } | null>(
     null,
   );
@@ -92,8 +95,9 @@ export function MergeSongPage() {
       await toast.success("歌曲合并成功");
       setConfirmOpen(false);
       navigate(-1);
-    } catch (e: any) {
-      await toast.error(e?.response?.data?.detail || "合并失败");
+    } catch (e: unknown) {
+      const axErr = e as { response?: { data?: { detail?: string } } };
+      await toast.error(axErr?.response?.data?.detail || "合并失败");
     } finally {
       setLoading(false);
     }
@@ -104,7 +108,6 @@ export function MergeSongPage() {
       <p className="text-sm text-muted-foreground text-center">
         将源歌曲的视频和艺人转移到目标，然后删除源歌曲
       </p>
-
       <div className="space-y-1.5">
         <label className="text-[11px] font-semibold uppercase tracking-wider text-destructive/80">
           源歌曲（将被删除）
@@ -122,11 +125,9 @@ export function MergeSongPage() {
           </>
         )}
       </div>
-
       <div className="flex justify-center">
         <ArrowDown className="h-5 w-5 text-muted-foreground/30" />
       </div>
-
       <div className="space-y-3">
         <Field label="合并到">
           <Select
@@ -164,7 +165,6 @@ export function MergeSongPage() {
           />
         )}
       </div>
-
       <div className="flex gap-3 pt-2">
         <Btn className="flex-1" onClick={() => navigate(-1)}>
           取消
@@ -178,7 +178,6 @@ export function MergeSongPage() {
           合并歌曲
         </Btn>
       </div>
-
       <Confirm
         open={confirmOpen}
         onOpenChange={setConfirmOpen}

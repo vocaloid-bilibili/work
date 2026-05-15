@@ -36,21 +36,18 @@ export function AddPage() {
   const presetSongId = searchParams.get("songId");
 
   const [topMode, setTopMode] = useState<TopMode>("collect");
-
   const [subMode, setSubMode] = useState<SubMode>("new");
 
   const [bvid, setBvid] = useState("");
   const [preview, setPreview] = useState<api.BilibiliVideoInfo | null>(null);
   const [fetching, setFetching] = useState(false);
 
-  // 目标歌曲（existing 模式）
   const [sel, setSel] = useState<SongRef | null>(null);
   const [sq, setSq] = useState("");
   const [sr, setSr] = useState<SongRef[]>([]);
   const [searching, setSearching] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  // 歌曲信息
   const [name, setName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [songType, setSongType] = useState("原创");
@@ -60,16 +57,22 @@ export function AddPage() {
   const [copyright, setCopyright] = useState(1);
   const [submitting, setSubmitting] = useState(false);
 
-  // 加载预设歌曲
   useEffect(() => {
     if (!presetSongId) return;
-    api.selectSong(Number(presetSongId)).then((r) => {
-      const song = r.data;
-      setSel({ id: song.id, name: song.name, display_name: song.display_name });
-      setSubMode("existing");
-    }).catch(() => {
-      toast.error("加载预设歌曲失败");
-    });
+    api
+      .selectSong(Number(presetSongId))
+      .then((r) => {
+        const song = r.data;
+        setSel({
+          id: song.id,
+          name: song.name,
+          display_name: song.display_name,
+        });
+        setSubMode("existing");
+      })
+      .catch(() => {
+        toast.error("加载预设歌曲失败");
+      });
   }, [presetSongId]);
 
   const split = (s: string) =>
@@ -90,17 +93,20 @@ export function AddPage() {
       setCopyright(info.copyright);
       if ((topMode === "collect" ? subMode === "new" : true) && !name)
         setName(info.title);
-    } catch (err: any) {
-      const d = err?.response?.data?.detail;
+    } catch (err: unknown) {
+      const axErr = err as {
+        response?: { data?: { detail?: string } };
+        message?: string;
+      };
+      const d = axErr?.response?.data?.detail;
       toast.error(
-        typeof d === "string" ? d : err?.message || "获取视频信息失败",
+        typeof d === "string" ? d : axErr?.message || "获取视频信息失败",
       );
     } finally {
       setFetching(false);
     }
   };
 
-  // 搜索已有歌曲
   useEffect(() => {
     if (subMode !== "existing" || topMode !== "collect" || !sq.trim()) {
       setSr([]);
@@ -111,8 +117,9 @@ export function AddPage() {
       setSearching(true);
       try {
         const res = await api.search("song", sq.trim(), 1, 10);
+        const data = (res.data ?? res ?? []) as SongRef[];
         setSr(
-          (res.data ?? res ?? []).map((s: any) => ({
+          data.map((s) => ({
             id: s.id,
             name: s.name,
             display_name: s.display_name,
@@ -172,14 +179,20 @@ export function AddPage() {
         });
         toast.success(`视频 ${res.bvid} 已添加到「${sLabel(sel)}」`);
         navigate(`/edit/song/${sel.id}`);
-      } catch (err: any) {
-        const d = err?.response?.data?.detail;
+      } catch (err: unknown) {
+        const axErr = err as {
+          response?: {
+            data?: { detail?: string | { msg?: string }[] };
+          };
+          message?: string;
+        };
+        const d = axErr?.response?.data?.detail;
         toast.error(
           typeof d === "string"
             ? d
             : Array.isArray(d)
-              ? d.map((x: any) => x.msg ?? String(x)).join("；")
-              : err?.message || "添加失败",
+              ? d.map((x) => x.msg ?? String(x)).join("；")
+              : axErr?.message || "添加失败",
         );
       } finally {
         setSubmitting(false);
@@ -239,14 +252,20 @@ export function AddPage() {
         });
         toast.success(`歌曲已创建（ID: ${res.song_id}）`);
         navigate(`/edit/song/${res.song_id}`);
-      } catch (err: any) {
-        const d = err?.response?.data?.detail;
+      } catch (err: unknown) {
+        const axErr = err as {
+          response?: {
+            data?: { detail?: string | { msg?: string }[] };
+          };
+          message?: string;
+        };
+        const d = axErr?.response?.data?.detail;
         toast.error(
           typeof d === "string"
             ? d
             : Array.isArray(d)
-              ? d.map((x: any) => x.msg ?? String(x)).join("；")
-              : err?.message || "创建失败",
+              ? d.map((x) => x.msg ?? String(x)).join("；")
+              : axErr?.message || "创建失败",
         );
       } finally {
         setSubmitting(false);
@@ -261,7 +280,7 @@ export function AddPage() {
     }
     setSubmitting(true);
     try {
-      const params: Record<string, unknown> = {
+      const params: Parameters<typeof api.addReferenceSong>[0] = {
         name: name.trim(),
         display_name: displayName.trim() || undefined,
         type: songType,
@@ -281,7 +300,7 @@ export function AddPage() {
         params.duration = preview.duration;
       }
 
-      const res = await api.addReferenceSong(params as any);
+      const res = await api.addReferenceSong(params);
 
       await logEdit({
         targetType: "song",
@@ -300,14 +319,20 @@ export function AddPage() {
 
       toast.success(`参考歌曲已创建（ID: ${res.song_id}）`);
       navigate(`/edit/song/${res.song_id}`);
-    } catch (err: any) {
-      const d = err?.response?.data?.detail;
+    } catch (err: unknown) {
+      const axErr = err as {
+        response?: {
+          data?: { detail?: string | { msg?: string }[] };
+        };
+        message?: string;
+      };
+      const d = axErr?.response?.data?.detail;
       toast.error(
         typeof d === "string"
           ? d
           : Array.isArray(d)
-            ? d.map((x: any) => x.msg ?? String(x)).join("；")
-            : err?.message || "创建失败",
+            ? d.map((x) => x.msg ?? String(x)).join("；")
+            : axErr?.message || "创建失败",
       );
     } finally {
       setSubmitting(false);
@@ -451,7 +476,6 @@ export function AddPage() {
                   </Btn>
                 </div>
               </Field>
-
               {preview && (
                 <div className="flex flex-col sm:flex-row gap-3 rounded-xl bg-muted/30 border border-border/30 p-3">
                   {preview.pic && (
@@ -527,7 +551,6 @@ export function AddPage() {
                   </Btn>
                 </div>
               </Field>
-
               {preview && (
                 <div className="flex flex-col sm:flex-row gap-3 rounded-xl bg-muted/30 border border-border/30 p-3">
                   {preview.pic && (
@@ -599,7 +622,6 @@ export function AddPage() {
                         )}
                       </div>
                     )}
-
                     {!sel && (
                       <div className="space-y-2">
                         <div className="relative">

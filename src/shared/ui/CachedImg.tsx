@@ -2,17 +2,27 @@
 import { useState, useEffect } from "react";
 import { getCached, cacheImg } from "../imageCache";
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useCachedSrc(src?: string) {
   const [url, setUrl] = useState(() =>
     src ? (getCached(src) ?? src) : undefined,
   );
+
+  const [prevSrc, setPrevSrc] = useState(src);
+  if (prevSrc !== src) {
+    setPrevSrc(src);
+    if (src) {
+      const h = getCached(src);
+      setUrl(h ?? src);
+    } else {
+      setUrl(undefined);
+    }
+  }
+
   useEffect(() => {
     if (!src) return;
     const h = getCached(src);
-    if (h) {
-      setUrl(h);
-      return;
-    }
+    if (h) return;
     let ok = true;
     cacheImg(src).then((u) => ok && setUrl(u));
     return () => {

@@ -4,13 +4,15 @@ import ExcelJS from "exceljs";
 function clean(v: unknown): unknown {
   if (v == null) return "";
   if (typeof v === "object") {
-    const o = v as any;
+    const o = v as Record<string, unknown>;
     if ("richText" in o)
       return Array.isArray(o.richText)
-        ? o.richText.map((s: any) => String(s?.text ?? "")).join("")
+        ? (o.richText as { text?: string }[])
+            .map((s) => String(s?.text ?? ""))
+            .join("")
         : "";
     if ("result" in o) return clean(o.result);
-    if ("hyperlink" in o) return o.text || "";
+    if ("hyperlink" in o) return (o.text as string) || "";
     if (v instanceof Date) return v.toISOString().slice(0, 10);
     return String(v);
   }
@@ -49,7 +51,8 @@ self.onmessage = async (e: MessageEvent) => {
     });
 
     self.postMessage(rows);
-  } catch (err: any) {
-    self.postMessage({ error: err.message || "解析失败" });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "解析失败";
+    self.postMessage({ error: msg });
   }
 };

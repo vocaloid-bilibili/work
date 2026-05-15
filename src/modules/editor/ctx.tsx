@@ -11,6 +11,7 @@ interface EditorCtxValue {
 
 const Ctx = createContext<EditorCtxValue | null>(null);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useEditor(): EditorCtxValue {
   const ctx = useContext(Ctx);
   if (!ctx) throw new Error("useEditor must be used within EditorProvider");
@@ -24,8 +25,9 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       await api.selectSong(id, true);
-    } catch (e: any) {
-      toast.error(e?.response?.data?.detail || "加载歌曲失败");
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } };
+      toast.error(err?.response?.data?.detail || "加载歌曲失败");
     } finally {
       setLoading(false);
     }
@@ -35,18 +37,15 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       await api.selectVideo(bvid);
-    } catch (e: any) {
-      toast.error(e?.response?.data?.detail || "加载视频失败");
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } };
+      toast.error(err?.response?.data?.detail || "加载视频失败");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const value: EditorCtxValue = {
-    loading,
-    openSong,
-    openVideo,
-  };
+  const value: EditorCtxValue = { loading, openSong, openVideo };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

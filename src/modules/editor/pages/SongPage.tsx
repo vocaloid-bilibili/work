@@ -52,7 +52,6 @@ function SongHeader({
   const videos = song.videos ?? [];
   const activeCount = videos.filter((v) => !v.disabled).length;
   const disabledCount = videos.filter((v) => v.disabled).length;
-
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
@@ -90,8 +89,6 @@ function SongHeader({
           </a>
         </div>
       </div>
-
-      {/* 内联编辑：显示名称 + 类型 + 收录状态 */}
       <div className="flex items-end gap-3">
         <div className="flex-1 min-w-0">
           <label className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">
@@ -154,8 +151,6 @@ function SongHeader({
   );
 }
 
-/* ── 艺人区块 ── */
-
 function ArtistSection({
   song,
   form,
@@ -164,14 +159,10 @@ function ArtistSection({
   form: ReturnType<typeof useSongForm>;
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
-
   const doSave = async () => {
     const ok = await form.save();
-    if (ok) {
-      setConfirmOpen(false);
-    }
+    if (ok) setConfirmOpen(false);
   };
-
   return (
     <>
       <Section title="艺人">
@@ -196,7 +187,6 @@ function ArtistSection({
           )}
         </div>
       </Section>
-
       <Confirm
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
@@ -207,8 +197,7 @@ function ArtistSection({
       >
         <div className="text-sm space-y-2">
           <p>
-            歌曲：
-            <strong className="wrap-break-word">{song.name}</strong>
+            歌曲：<strong className="wrap-break-word">{song.name}</strong>
           </p>
           <div className="text-xs text-muted-foreground space-y-0.5">
             {Object.entries(form.diff()).map(([k, d]) => (
@@ -222,8 +211,6 @@ function ArtistSection({
     </>
   );
 }
-
-/* ── 已停止视频（内联恢复） ── */
 
 function StoppedVideoItem({
   video,
@@ -267,8 +254,6 @@ function StoppedVideoItem({
   );
 }
 
-/* ── 视频列表 ── */
-
 function VideoListSection({
   song,
   onChanged,
@@ -282,7 +267,6 @@ function VideoListSection({
   const [rmLoading, setRmLoading] = useState(false);
   const [showStopped, setShowStopped] = useState(false);
   const [restoringBvid, setRestoringBvid] = useState<string | null>(null);
-
   const videos = song.videos ?? [];
   const activeVideos = videos.filter((v) => !v.disabled);
   const disabledVideos = videos.filter((v) => v.disabled);
@@ -316,7 +300,6 @@ function VideoListSection({
     setRestoringBvid(video.bvid);
     try {
       const res = await api.restoreVideo(video.bvid);
-
       await logEdit({
         targetType: "video",
         targetId: video.bvid,
@@ -339,7 +322,6 @@ function VideoListSection({
   };
 
   if (videos.length === 0) return null;
-
   return (
     <>
       <Section title={`视频 (${activeVideos.length})`} noPad>
@@ -349,16 +331,13 @@ function VideoListSection({
               key={v.bvid}
               video={v}
               onEdit={() => navigate(`/edit/video/${v.bvid}`)}
-              onReassign={() =>
-                navigate(`/edit/reassign/${v.bvid}`)
-              }
+              onReassign={() => navigate(`/edit/reassign/${v.bvid}`)}
               onRemove={() => {
                 setRmBvid(v.bvid);
                 setRmTitle(v.title);
               }}
             />
           ))}
-
           {disabledVideos.length > 0 && (
             <div className="pt-2">
               <button
@@ -369,7 +348,7 @@ function VideoListSection({
                   <ChevronDown className="h-3 w-3" />
                 ) : (
                   <ChevronRight className="h-3 w-3" />
-                )}
+                )}{" "}
                 已停止 ({disabledVideos.length})
               </button>
               {showStopped && (
@@ -389,7 +368,6 @@ function VideoListSection({
           )}
         </div>
       </Section>
-
       <Confirm
         open={!!rmBvid}
         onOpenChange={(v) => {
@@ -422,8 +400,6 @@ function VideoListSection({
   );
 }
 
-/* ── 底部操作 ── */
-
 function ActionBar({
   hasActiveVideos,
   onAddVideo,
@@ -447,7 +423,6 @@ function ActionBar({
           合并到其他歌曲
         </Btn>
       </div>
-
       <div className="border-t border-dashed pt-3 flex items-center gap-2">
         {hasActiveVideos && (
           <Btn
@@ -481,21 +456,14 @@ function ActionBar({
   );
 }
 
-/* ── 主视图 ── */
-
-/* ── 内层：负责显示（song 必定存在） ── */
-
 function SongContent({ song }: { song: Song }) {
   const navigate = useNavigate();
   const form = useSongForm(song);
   const rels = useRelations(song);
-
   const [disableOpen, setDisableOpen] = useState(false);
   const [disableLoading, setDisableLoading] = useState(false);
-
   const [hardDeleteOpen, setHardDeleteOpen] = useState(false);
   const [hardDeleteLoading, setHardDeleteLoading] = useState(false);
-
   const activeVideos = (song.videos ?? []).filter((v) => !v.disabled);
   const hasActiveVideos = activeVideos.length > 0;
 
@@ -521,8 +489,9 @@ function SongContent({ song }: { song: Song }) {
       );
       setDisableOpen(false);
       window.location.reload();
-    } catch (e: any) {
-      toast.error(e?.response?.data?.detail || "操作失败");
+    } catch (e: unknown) {
+      const axErr = e as { response?: { data?: { detail?: string } } };
+      toast.error(axErr?.response?.data?.detail || "操作失败");
     } finally {
       setDisableLoading(false);
     }
@@ -542,8 +511,9 @@ function SongContent({ song }: { song: Song }) {
       toast.success(`已彻底删除：${song.name}`);
       setHardDeleteOpen(false);
       navigate("/edit");
-    } catch (e: any) {
-      toast.error(e?.response?.data?.detail || "操作失败");
+    } catch (e: unknown) {
+      const axErr = e as { response?: { data?: { detail?: string } } };
+      toast.error(axErr?.response?.data?.detail || "操作失败");
     } finally {
       setHardDeleteLoading(false);
     }
@@ -552,15 +522,14 @@ function SongContent({ song }: { song: Song }) {
   return (
     <div className="space-y-5">
       <SongHeader song={song} form={form} />
-
       <ArtistSection song={song} form={form} />
-
       <Section title="关联作品">
         <RelationsEditor r={rels} />
       </Section>
-
-      <VideoListSection song={song} onChanged={() => window.location.reload()} />
-
+      <VideoListSection
+        song={song}
+        onChanged={() => window.location.reload()}
+      />
       <ActionBar
         hasActiveVideos={hasActiveVideos}
         onAddVideo={() => navigate(`/edit/add?songId=${song.id}`)}
@@ -568,7 +537,6 @@ function SongContent({ song }: { song: Song }) {
         onDisable={() => setDisableOpen(true)}
         onHardDelete={() => setHardDeleteOpen(true)}
       />
-
       <Confirm
         open={disableOpen}
         onOpenChange={setDisableOpen}
@@ -588,7 +556,6 @@ function SongContent({ song }: { song: Song }) {
           </p>
         </div>
       </Confirm>
-
       <Confirm
         open={hardDeleteOpen}
         onOpenChange={setHardDeleteOpen}
@@ -614,11 +581,8 @@ function SongContent({ song }: { song: Song }) {
   );
 }
 
-/* ── 外层：负责加载 ── */
-
 export function SongPage() {
   const { songId } = useParams<{ songId: string }>();
-
   const [song, setSong] = useState<Song | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -629,23 +593,17 @@ export function SongPage() {
       try {
         const r = await api.selectSong(Number(songId), true);
         setSong(r.data);
-      } catch (e: any) {
-        toast.error(e?.response?.data?.detail || "加载歌曲失败");
+      } catch (e: unknown) {
+        const axErr = e as { response?: { data?: { detail?: string } } };
+        toast.error(axErr?.response?.data?.detail || "加载歌曲失败");
       } finally {
         setLoading(false);
       }
     }
-
     loadSong();
   }, [songId]);
 
-  if (loading) {
-    return <div>加载中...</div>;
-  }
-
-  if (!song) {
-    return <div>歌曲不存在</div>;
-  }
-
+  if (loading) return <div>加载中...</div>;
+  if (!song) return <div>歌曲不存在</div>;
   return <SongContent song={song} />;
 }

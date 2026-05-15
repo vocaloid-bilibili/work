@@ -3,21 +3,19 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/ui/button";
 import { Switch } from "@/ui/switch";
 import { Label } from "@/ui/label";
-import {
-  FileDown,
-  LayoutGrid,
-  LayoutList,
-  Table2,
-  X,
-  BarChart3,
-} from "lucide-react";
+import { FileDown, LayoutGrid, LayoutList, X, BarChart3 } from "lucide-react";
 import { cn } from "@/ui/cn";
 import { PublishButton } from "./publish/PublishButton";
 import type { LayoutMode } from "./state/useMarkCore";
 
+interface CollabState {
+  statusLabel: string;
+  taskId: string | null;
+}
+
 interface P {
   isCollab: boolean;
-  collab: any;
+  collab: CollabState;
   onModeChange: (v: boolean) => void;
   layout: LayoutMode;
   onLayoutChange: (m: LayoutMode) => void;
@@ -63,7 +61,6 @@ export default function Toolbar({
               [
                 ["list", LayoutList, "单列"],
                 ["grid", LayoutGrid, "双列"],
-                ["table", Table2, "表格"],
               ] as const
             ).map(([m, Icon, t], i) => (
               <Button
@@ -96,7 +93,9 @@ export default function Toolbar({
             <FileDown className="h-4 w-4" />
             导出
           </Button>
-          {isCollab && <PublishButton taskId={collab.taskId} />}
+          {isCollab && collab.taskId && (
+            <PublishButton taskId={collab.taskId} />
+          )}
           {!isCollab && onReset && (
             <Button
               variant="ghost"

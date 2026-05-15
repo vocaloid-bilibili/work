@@ -10,6 +10,7 @@ import TagEditor from "@/shared/ui/TagEditor";
 import FieldName from "./FieldName";
 import { cn } from "@/ui/cn";
 import { COPYRIGHT, SONG_TYPES } from "@/core/types/constants";
+import type { Row } from "@/core/types/collab";
 
 const FIELDS = [
   { type: "string-hint", label: "歌名", prop: "name" },
@@ -32,10 +33,10 @@ const FIELDS = [
 const REQ = ["name", "vocal", "author", "synthesizer", "copyright", "type"];
 
 interface P {
-  record: any;
+  record: Row;
   include: boolean;
   blacklisted: boolean;
-  onChange: (f: string, v: any) => void;
+  onChange: (f: string, v: unknown) => void;
   onInputChange: (f: string, v: string) => void;
 }
 
@@ -67,7 +68,7 @@ export default function CardFields({
             </span>
             {f.type === "string-hint" && (
               <FieldName
-                value={record[f.prop]}
+                value={record[f.prop] as string}
                 onChange={(v) => onChange(f.prop, v)}
                 hasError={err(f.prop)}
               />

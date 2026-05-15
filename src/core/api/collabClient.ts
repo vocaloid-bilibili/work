@@ -14,14 +14,13 @@ async function request<T>(
   const doFetch = () =>
     fetch(url, {
       method,
-      credentials: "include", // ← Cookie 自动带
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: body ? JSON.stringify(body) : undefined,
     });
 
   let res = await doFetch();
 
-  // 401 → 尝试刷新一次
   if (res.status === 401) {
     try {
       const refreshRes = await fetch(`${AUTH_BASE}/auth/refresh`, {
@@ -41,15 +40,16 @@ async function request<T>(
     }
   }
 
-  let json: any;
+  let json: Record<string, unknown>;
   const text = await res.text();
   try {
-    json = text ? JSON.parse(text) : {};
+    json = text ? (JSON.parse(text) as Record<string, unknown>) : {};
   } catch {
     json = {};
   }
 
-  if (!res.ok) throw new Error(json.message || `请求失败 (${res.status})`);
+  if (!res.ok)
+    throw new Error((json.message as string) || `请求失败 (${res.status})`);
   return json as T;
 }
 
@@ -71,17 +71,17 @@ export async function collabUpload<T>(path: string, file: File): Promise<T> {
   fd.append("file", file);
   const res = await fetch(`${BASE}${path}`, {
     method: "POST",
-    credentials: "include", // ← Cookie 自动带，不需要手动 Authorization
+    credentials: "include",
     body: fd,
   });
-  let json: any;
+  let json: Record<string, unknown>;
   const text = await res.text();
   try {
-    json = text ? JSON.parse(text) : {};
+    json = text ? (JSON.parse(text) as Record<string, unknown>) : {};
   } catch {
     json = {};
   }
-  if (!res.ok) throw new Error(json.message || "上传失败");
+  if (!res.ok) throw new Error((json.message as string) || "上传失败");
   return json as T;
 }
 
@@ -89,14 +89,16 @@ export async function collabDownload(
   path: string,
 ): Promise<{ blob: Blob; filename: string }> {
   const res = await fetch(`${BASE}${path}`, {
-    credentials: "include", // ← Cookie 自动带
+    credentials: "include",
   });
   if (!res.ok) {
     let msg = "下载失败";
     try {
-      const j = await res.json();
+      const j = (await res.json()) as { message?: string };
       if (j.message) msg = j.message;
-    } catch {}
+    } catch {
+      // ignore
+    }
     throw new Error(msg);
   }
   let filename = `export_${new Date().toISOString().slice(0, 10)}.xlsx`;

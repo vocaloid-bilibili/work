@@ -30,7 +30,11 @@ export default function TagEditor({
   const dv = useDebounce(input, 400);
   const wrap = useRef<HTMLDivElement>(null);
   const onInputRef = useRef(onInputChange);
-  onInputRef.current = onInputChange;
+
+  useEffect(() => {
+    onInputRef.current = onInputChange;
+  });
+
   useEffect(() => {
     onInputRef.current?.(dv);
   }, [dv]);
@@ -38,14 +42,19 @@ export default function TagEditor({
 
   const tags = value ? String(value).split("、").filter(Boolean) : [];
 
+  const [prevDv, setPrevDv] = useState(dv);
+  if (prevDv !== dv) {
+    setPrevDv(dv);
+    if (!dv) setHints([]);
+  }
+
   useEffect(() => {
-    if (!dv) {
-      setHints([]);
-      return;
-    }
+    if (!dv) return;
     api
       .search(searchType, dv)
-      .then((r) => setHints(r.data?.map?.((i: any) => i.name) || []))
+      .then((r: { data?: { name: string }[] }) =>
+        setHints(r.data?.map?.((i) => i.name) || []),
+      )
       .catch(() => setHints([]));
   }, [dv, searchType]);
 

@@ -19,8 +19,18 @@ import { cn } from "@/ui/cn";
 
 const COMMANDS = [
   { id: "add", path: "/edit/add", icon: Plus, label: "添加收录" },
-  { id: "merge-song", path: "/edit/merge-song", icon: GitMerge, label: "合并歌曲" },
-  { id: "merge-artist", path: "/edit/merge-artist", icon: Users, label: "合并艺人" },
+  {
+    id: "merge-song",
+    path: "/edit/merge-song",
+    icon: GitMerge,
+    label: "合并歌曲",
+  },
+  {
+    id: "merge-artist",
+    path: "/edit/merge-artist",
+    icon: Users,
+    label: "合并艺人",
+  },
   { id: "board", path: "/edit/board", icon: Tv, label: "榜单视频" },
   { id: "sync", path: "/edit/sync", icon: RefreshCcw, label: "同步状态" },
 ];
@@ -39,28 +49,48 @@ export function Kbar({ open, onClose }: Props) {
   const dv = useDebounce(input, 300);
   const ref = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
     if (open) {
       setInput("");
       setSongs([]);
       setIdx(0);
-      setTimeout(() => ref.current?.focus(), 50);
     }
+  }
+  useEffect(() => {
+    if (open) setTimeout(() => ref.current?.focus(), 50);
   }, [open]);
 
+  const [prevDv, setPrevDv] = useState(dv);
+  if (prevDv !== dv) {
+    setPrevDv(dv);
+    const skip =
+      !dv ||
+      dv.trim().length < 1 ||
+      /^BV/i.test(dv.trim()) ||
+      /^\d+$/.test(dv.trim());
+    if (skip) {
+      setSongs([]);
+      setBusy(false);
+    } else {
+      setBusy(true);
+    }
+  }
+
   useEffect(() => {
-    if (!dv || dv.trim().length < 1) {
-      setSongs([]);
+    if (
+      !dv ||
+      dv.trim().length < 1 ||
+      /^BV/i.test(dv.trim()) ||
+      /^\d+$/.test(dv.trim())
+    )
       return;
-    }
-    if (/^BV/i.test(dv.trim()) || /^\d+$/.test(dv.trim())) {
-      setSongs([]);
-      return;
-    }
-    setBusy(true);
     api
       .search("song", dv)
-      .then((r: any) => setSongs(Array.isArray(r.data) ? r.data : []))
+      .then((r: { data?: Song[] }) =>
+        setSongs(Array.isArray(r.data) ? r.data : []),
+      )
       .catch(() => setSongs([]))
       .finally(() => setBusy(false));
   }, [dv]);
@@ -82,11 +112,9 @@ export function Kbar({ open, onClose }: Props) {
   if (isId) items.push({ type: "id" });
   if (!isBv && !isId) {
     for (const s of songs.slice(0, 8)) items.push({ type: "song", song: s });
-    if (!trimmed || songs.length === 0) {
+    if (!trimmed || songs.length === 0)
       for (const c of filteredCmds) items.push({ type: "cmd", id: c.id });
-    }
   }
-
   const safeIdx = items.length > 0 ? Math.min(idx, items.length - 1) : 0;
 
   const exec = useCallback(
@@ -166,12 +194,11 @@ export function Kbar({ open, onClose }: Props) {
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/40 shrink-0" />
           )}
         </div>
-
         {items.length > 0 && (
           <div className="max-h-[50vh] sm:max-h-72 overflow-y-auto p-1.5">
             {items.map((item, i) => {
               const active = i === safeIdx;
-              if (item.type === "bv") {
+              if (item.type === "bv")
                 return (
                   <button
                     key="bv"
@@ -188,8 +215,7 @@ export function Kbar({ open, onClose }: Props) {
                     </span>
                   </button>
                 );
-              }
-              if (item.type === "id") {
+              if (item.type === "id")
                 return (
                   <button
                     key="id"
@@ -208,7 +234,6 @@ export function Kbar({ open, onClose }: Props) {
                     </span>
                   </button>
                 );
-              }
               if (item.type === "song") {
                 const s = item.song;
                 return (
@@ -252,7 +277,6 @@ export function Kbar({ open, onClose }: Props) {
             })}
           </div>
         )}
-
         {!busy && items.length === 0 && trimmed && (
           <p className="text-sm text-muted-foreground/50 text-center py-6">
             无结果

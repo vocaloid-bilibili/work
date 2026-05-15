@@ -70,40 +70,54 @@ function getMeta(action: string) {
 }
 
 /* ── 日志描述 ── */
-
 function describe(log: EditLogEntry): string {
-  const d = (log.detail ?? {}) as Record<string, any>;
-  const name = d.songName || d.title || d.newSongName || d.newArtistName || "";
+  const d = (log.detail ?? {}) as Record<string, unknown>;
+  const name =
+    (d.songName as string) ||
+    (d.title as string) ||
+    (d.newSongName as string) ||
+    (d.newArtistName as string) ||
+    "";
 
   switch (log.action) {
     case "edit_song":
       return name ? `编辑「${name}」` : "编辑歌曲";
     case "edit_video":
-      return `编辑视频 ${d.bvid || ""}`;
+      return `编辑视频 ${(d.bvid as string) || ""}`;
     case "delete_song":
       return name ? `彻底删除「${name}」` : "彻底删除歌曲";
     case "delete_video":
-      return `停止收录 ${d.bvid || ""}`;
+      return `停止收录 ${(d.bvid as string) || ""}`;
     case "restore_video":
-      return `恢复收录 ${d.bvid || ""}`;
+      return `恢复收录 ${(d.bvid as string) || ""}`;
     case "add_song":
       return name ? `创建「${name}」` : "创建歌曲";
     case "add_video":
-      return `添加视频到「${d.songName || ""}」`;
+      return `添加视频到「${(d.songName as string) || ""}」`;
     case "merge_song": {
-      const src = (d.source as any)?.name;
-      const tgt = (d.target as any)?.name || d.newSongName;
+      const src = (d.source as Record<string, unknown> | undefined)?.name as
+        | string
+        | undefined;
+      const tgt =
+        ((d.target as Record<string, unknown> | undefined)?.name as
+          | string
+          | undefined) || (d.newSongName as string);
       return `合并「${src || "?"}」→「${tgt || "?"}」`;
     }
     case "merge_artist": {
-      const src = (d.source as any)?.name;
-      const tgt = (d.target as any)?.name || d.newArtistName;
+      const src = (d.source as Record<string, unknown> | undefined)?.name as
+        | string
+        | undefined;
+      const tgt =
+        ((d.target as Record<string, unknown> | undefined)?.name as
+          | string
+          | undefined) || (d.newArtistName as string);
       return `合并艺人「${src || "?"}」→「${tgt || "?"}」`;
     }
     case "reassign_video":
-      return `移动视频 ${d.bvid || ""}`;
+      return `移动视频 ${(d.bvid as string) || ""}`;
     case "set_board_video":
-      return `设置${d.boardName || ""}第${d.issue || ""}期`;
+      return `设置${(d.boardName as string) || ""}第${(d.issue as number) || ""}期`;
     case "add_relation":
       return `添加「${name}」的关联`;
     case "remove_relation":

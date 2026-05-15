@@ -4,7 +4,7 @@ import { CheckCircle2, Ban, CircleDot, FilterX } from "lucide-react";
 import { cn } from "@/ui/cn";
 import SearchBar from "./SearchBar";
 import type { Filter } from "./state/useMarkPaging";
-
+import type { Row } from "@/core/types/collab";
 interface P {
   total: number;
   included: number;
@@ -13,12 +13,11 @@ interface P {
   filter: Filter;
   filteredCount: number;
   onFilterChange: (f: Filter) => void;
-  records: any[];
+  records: Row[];
   includeEntries: boolean[];
   blacklistedEntries: boolean[];
   onJump: (i: number) => void;
 }
-
 const FILTER_CFG = {
   included: {
     Icon: CheckCircle2,

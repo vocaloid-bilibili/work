@@ -1,26 +1,25 @@
 // src/modules/marking/RecordList.tsx
-import { useMemo } from "react";
 import type { LayoutMode } from "./state/useMarkCore";
 import type { Filter } from "./state/useMarkPaging";
 import type { Attribution } from "@/core/types/stats";
+import type { Row } from "@/core/types/collab";
 import EmptyState from "@/shared/ui/EmptyState";
 
 import { lazy, Suspense } from "react";
 const MarkCard = lazy(() => import("./card/MarkCard"));
-const MarkTable = lazy(() => import("./table/MarkTable"));
 
 interface P {
   layout: LayoutMode;
-  pagedData: any[];
+  pagedData: Row[];
   pagedIndices: number[];
-  allData: any[];
+  allData: Row[];
   includes: boolean[];
   blacklists: boolean[];
   attributions: Attribution[];
   onInclude: (i: number, v: boolean) => void;
   onBlacklist: (i: number) => void;
   onUnblacklist: (i: number) => void;
-  onRecordUpdate: (i: number, u: any) => void;
+  onRecordUpdate: (i: number, u: Row | ((prev: Row) => Row)) => void;
   onFieldChange: (i: number, f: string, v: unknown) => void;
   filter: Filter;
   highlightIndex: number | null;
@@ -31,7 +30,6 @@ export default function RecordList({
   layout,
   pagedData,
   pagedIndices,
-  allData,
   includes,
   blacklists,
   attributions,
@@ -39,44 +37,9 @@ export default function RecordList({
   onBlacklist,
   onUnblacklist,
   onRecordUpdate,
-  onFieldChange,
   filter,
   highlightIndex,
-  filteredIndices,
 }: P) {
-  const tableRealIndices = useMemo(
-    () => filteredIndices ?? allData.map((_, i) => i),
-    [filteredIndices, allData],
-  );
-  const tableData = useMemo(
-    () => tableRealIndices.map((i) => allData[i]),
-    [tableRealIndices, allData],
-  );
-
-  if (layout === "table") {
-    return (
-      <Suspense
-        fallback={
-          <div className="text-center py-16 text-muted-foreground text-sm">
-            加载表格...
-          </div>
-        }
-      >
-        <MarkTable
-          data={tableData}
-          realIndices={tableRealIndices}
-          includes={includes}
-          blacklists={blacklists}
-          onInclude={onInclude}
-          onBlacklist={onBlacklist}
-          onUnblacklist={onUnblacklist}
-          onFieldChange={onFieldChange}
-          highlightIndex={highlightIndex}
-        />
-      </Suspense>
-    );
-  }
-
   if (pagedData.length === 0 && filter)
     return <EmptyState text="当前筛选条件下没有记录" />;
 

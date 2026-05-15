@@ -71,95 +71,107 @@ export function usePublish({ taskId }: { taskId: string }) {
     }
   };
 
-  const runPhase1 = async (
-    mode: PublishMode,
-    signal: AbortSignal,
-  ): Promise<PubFile[]> => {
-    const res = await fetch(`${collabBase()}/mark/tasks/${taskId}/publish`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode }),
-      signal,
-    });
-    if (!res.ok) {
-      const b = await res.json().catch(() => ({ message: "请求失败" }));
-      throw new Error(b.message || `HTTP ${res.status}`);
-    }
-    const reader = res.body!.getReader();
-    const dec = new TextDecoder();
-    let buf = "";
-    let fl: PubFile[] = [];
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      const lines = buf.split("\n");
-      buf = lines.pop() || "";
-      for (const l of lines) {
-        if (!l.trim()) continue;
-        try {
-          const ev = JSON.parse(l);
-          log(ev.message);
-          if (ev.step === "done" && ev.files) fl = ev.files;
-          if (ev.error) throw new Error(ev.message);
-        } catch (e) {
-          if (e instanceof SyntaxError) continue;
-          throw e;
+  const runPhase1 = useCallback(
+    async (mode: PublishMode, signal: AbortSignal): Promise<PubFile[]> => {
+      const res = await fetch(`${collabBase()}/mark/tasks/${taskId}/publish`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode }),
+        signal,
+      });
+      if (!res.ok) {
+        const b = (await res.json().catch(() => ({ message: "请求失败" }))) as {
+          message?: string;
+        };
+        throw new Error(b.message || `HTTP ${res.status}`);
+      }
+      const reader = res.body!.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      let fl: PubFile[] = [];
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() || "";
+        for (const l of lines) {
+          if (!l.trim()) continue;
+          try {
+            const ev = JSON.parse(l) as {
+              message: string;
+              step?: string;
+              files?: PubFile[];
+              error?: boolean;
+            };
+            log(ev.message);
+            if (ev.step === "done" && ev.files) fl = ev.files;
+            if (ev.error) throw new Error(ev.message);
+          } catch (e) {
+            if (e instanceof SyntaxError) continue;
+            throw e;
+          }
         }
       }
-    }
-    if (fl.length === 0) throw new Error("服务器未返回文件列表");
-    return fl;
-  };
+      if (fl.length === 0) throw new Error("服务器未返回文件列表");
+      return fl;
+    },
+    [taskId, log],
+  );
 
-  const processFile = async (file: PubFile) => {
-    setFStatus((p) => ({ ...p, [file.fileKey]: "downloading" }));
-    const dl = await fetch(
-      `${collabBase()}/mark/tasks/publish/files/${file.fileKey}`,
-      { credentials: "include" },
-    );
-    if (!dl.ok) throw new Error(`下载 ${file.filename} 失败`);
-    const blob = await dl.blob();
-    const fo = new File([blob], file.filename, { type: blob.type });
-    setFStatus((p) => ({ ...p, [file.fileKey]: "uploading" }));
-    log(`上传 ${file.filename}`);
-    await api.uploadFile(fo);
-    setFStatus((p) => ({ ...p, [file.fileKey]: "importing" }));
-    if (file.type === "board") {
-      const label =
-        PARTS.find((p) => p.value === file.part)?.label ?? file.part;
-      log(`导入${label}第${file.issue}期`);
-      await new Promise<void>((ok, fail) => {
-        streamRanking(file.board, file.part, file.issue, {
-          onProgress: (m) => log(`  ${m}`),
-          onComplete: () => {
-            log(`${label}第${file.issue}期导入完成`);
-            ok();
-          },
-          onError: (e) => fail(e instanceof Error ? e : new Error("导入失败")),
+  const processFile = useCallback(
+    async (file: PubFile) => {
+      setFStatus((p) => ({ ...p, [file.fileKey]: "downloading" }));
+      const dl = await fetch(
+        `${collabBase()}/mark/tasks/publish/files/${file.fileKey}`,
+        { credentials: "include" },
+      );
+      if (!dl.ok) throw new Error(`下载 ${file.filename} 失败`);
+      const blob = await dl.blob();
+      const fo = new File([blob], file.filename, { type: blob.type });
+      setFStatus((p) => ({ ...p, [file.fileKey]: "uploading" }));
+      log(`上传 ${file.filename}`);
+      await api.uploadFile(fo);
+      setFStatus((p) => ({ ...p, [file.fileKey]: "importing" }));
+      if (file.type === "board") {
+        const label =
+          PARTS.find((p) => p.value === file.part)?.label ?? file.part;
+        log(`导入${label}第${file.issue}期`);
+        await new Promise<void>((ok, fail) => {
+          streamRanking(file.board, file.part, file.issue, {
+            onProgress: (m) => log(`  ${m}`),
+            onComplete: () => {
+              log(`${label}第${file.issue}期导入完成`);
+              ok();
+            },
+            onError: (e) =>
+              fail(e instanceof Error ? e : new Error("导入失败")),
+          });
         });
-      });
-    } else {
-      log(`导入快照 ${file.date}`);
-      await new Promise<void>((ok, fail) => {
-        streamSnapshot(file.date, {
-          onProgress: (m) => log(`  ${m}`),
-          onComplete: () => {
-            log(`快照 ${file.date} 导入完成`);
-            ok();
-          },
-          onError: (e) => fail(e instanceof Error ? e : new Error("导入失败")),
+      } else {
+        log(`导入快照 ${file.date}`);
+        await new Promise<void>((ok, fail) => {
+          streamSnapshot(file.date, {
+            onProgress: (m) => log(`  ${m}`),
+            onComplete: () => {
+              log(`快照 ${file.date} 导入完成`);
+              ok();
+            },
+            onError: (e) =>
+              fail(e instanceof Error ? e : new Error("导入失败")),
+          });
         });
-      });
-    }
-    setFStatus((p) => ({ ...p, [file.fileKey]: "done" }));
+      }
+      setFStatus((p) => ({ ...p, [file.fileKey]: "done" }));
 
-    fetch(`${collabBase()}/mark/tasks/publish/files/${file.fileKey}`, {
-      method: "DELETE",
-      credentials: "include",
-    }).catch(() => {});
-  };
+      fetch(`${collabBase()}/mark/tasks/publish/files/${file.fileKey}`, {
+        method: "DELETE",
+        credentials: "include",
+      }).catch(() => {});
+    },
+    [log],
+  );
 
   const startPublish = useCallback(
     async (mode: PublishMode) => {
@@ -194,11 +206,12 @@ export function usePublish({ taskId }: { taskId: string }) {
           if (ctrl.signal.aborted) break;
           try {
             await processFile(f);
-          } catch (err: any) {
+          } catch (err: unknown) {
             ok = false;
+            const msg = err instanceof Error ? err.message : "失败";
             setFStatus((p) => ({ ...p, [f.fileKey]: "error" }));
-            setFErrors((p) => ({ ...p, [f.fileKey]: err.message || "失败" }));
-            log(`${f.filename} 失败: ${err.message}`);
+            setFErrors((p) => ({ ...p, [f.fileKey]: msg }));
+            log(`${f.filename} 失败: ${msg}`);
           }
         }
         if (ctrl.signal.aborted) return;
@@ -209,16 +222,17 @@ export function usePublish({ taskId }: { taskId: string }) {
           setPhase("error");
           setGlobalError("部分文件失败，可勾选后重新处理");
         }
-      } catch (err: any) {
-        if (err.name === "AbortError") return;
+      } catch (err: unknown) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        const msg = err instanceof Error ? err.message : "发布失败";
         setPhase("error");
-        setGlobalError(err.message || "发布失败");
-        log(err.message || "发布失败");
+        setGlobalError(msg);
+        log(msg);
       } finally {
         running.current = false;
       }
     },
-    [taskId, log],
+    [log, runPhase1, processFile],
   );
 
   const retryFile = useCallback(
@@ -239,13 +253,14 @@ export function usePublish({ taskId }: { taskId: string }) {
           }
           return n;
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "失败";
         setFStatus((p) => ({ ...p, [file.fileKey]: "error" }));
-        setFErrors((p) => ({ ...p, [file.fileKey]: err.message || "失败" }));
-        log(`${file.filename} 失败: ${err.message}`);
+        setFErrors((p) => ({ ...p, [file.fileKey]: msg }));
+        log(`${file.filename} 失败: ${msg}`);
       }
     },
-    [log],
+    [log, processFile],
   );
 
   const retrySelected = useCallback(async () => {
@@ -260,11 +275,12 @@ export function usePublish({ taskId }: { taskId: string }) {
     for (const f of toProcess) {
       try {
         await processFile(f);
-      } catch (err: any) {
+      } catch (err: unknown) {
         allOk = false;
+        const msg = err instanceof Error ? err.message : "失败";
         setFStatus((p) => ({ ...p, [f.fileKey]: "error" }));
-        setFErrors((p) => ({ ...p, [f.fileKey]: err.message || "失败" }));
-        log(`${f.filename} 失败: ${err.message}`);
+        setFErrors((p) => ({ ...p, [f.fileKey]: msg }));
+        log(`${f.filename} 失败: ${msg}`);
       }
     }
     running.current = false;
@@ -280,7 +296,7 @@ export function usePublish({ taskId }: { taskId: string }) {
       }
       return prev;
     });
-  }, [files, fileSelection, fStatus, log]);
+  }, [files, fileSelection, fStatus, log, processFile]);
 
   const selectedCount = Object.values(fileSelection).filter(Boolean).length;
 

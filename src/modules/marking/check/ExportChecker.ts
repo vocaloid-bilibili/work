@@ -1,6 +1,7 @@
 // src/modules/marking/check/ExportChecker.ts
 import { FIELD_LABELS } from "./checkTypes";
 import type { CheckResult } from "./checkTypes";
+import type { Row } from "@/core/types/collab";
 
 const REQ = ["name", "vocal", "author", "synthesizer", "copyright", "type"];
 const CONS = ["vocal", "author", "synthesizer", "type"];
@@ -9,7 +10,7 @@ const ok = (v: unknown) => v != null && String(v).trim() !== "";
 const str = (v: unknown) => String(v ?? "").trim();
 
 export function runChecks(
-  records: any[],
+  records: Row[],
   inc: boolean[],
   bl: boolean[],
 ): CheckResult {
@@ -56,7 +57,7 @@ export function runChecks(
   const sameAuthorDiffName: CheckResult["sameAuthorDiffName"] = [];
   const byAuth = new Map<
     string,
-    { index: number; name: string; title: string; record: any }[]
+    { index: number; name: string; title: string; record: Row }[]
   >();
   for (const i of incIdx) {
     const r = records[i];
