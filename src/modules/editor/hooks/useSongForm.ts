@@ -105,7 +105,7 @@ export function useSongForm(song: Song) {
       ]);
       const res = await api.editSong({
         id: song.id,
-        display_name: displayName || undefined,
+        display_name: displayName,
         type,
         collected,
         vocalist_ids: v.data.map((a) => a.id),
