@@ -59,7 +59,7 @@ function getDebugUser(): CachedUser {
     username: DEBUG_USERNAME,
     nickname: DEBUG_USERNAME,
     role: DEBUG_ROLE,
-    avatar_url: null,
+    avatar: null,
   };
 }
 // eslint-disable-next-line react-refresh/only-export-components
@@ -75,7 +75,7 @@ function applyUser(user: CachedUser | null): State {
   }
   return {
     role: user.role,
-    avatarUrl: user.avatar_url,
+    avatarUrl: user.avatar,
     nickname: user.nickname,
     username: user.username,
     loading: false,

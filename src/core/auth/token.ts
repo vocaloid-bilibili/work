@@ -7,7 +7,7 @@ export interface CachedUser {
   username: string;
   nickname: string;
   role: string;
-  avatar_url: string | null;
+  avatar: string | null;
 }
 
 export function getCachedUser(): CachedUser | null {
