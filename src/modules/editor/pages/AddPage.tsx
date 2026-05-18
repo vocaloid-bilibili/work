@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Search, X, Loader2, Mic, Headphones } from "lucide-react";
+import { Search, X, Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -392,7 +392,7 @@ export function AddPage() {
   const isRef = topMode === "reference";
 
   const vocalSupportPills = vocalNames.length >= 2 && (
-    <div className="flex flex-wrap gap-1.5 mt-1">
+    <div className="flex flex-wrap gap-1 mt-0.5">
       {vocalNames.map((vn) => {
         const isSupport = vocalSupport.has(vn);
         return (
@@ -401,19 +401,14 @@ export function AddPage() {
             type="button"
             onClick={() => toggleVocalSupport(vn)}
             className={cn(
-              "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-all border cursor-pointer select-none",
+              "rounded-md px-1.5 py-0.5 text-[11px] transition-colors border cursor-pointer select-none",
               isSupport
-                ? "bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-700"
-                : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800",
+                ? "border-amber-500 text-amber-700 dark:border-amber-400 dark:text-amber-300"
+                : "border-transparent text-muted-foreground hover:text-foreground/70",
             )}
           >
-            {isSupport ? (
-              <Headphones className="h-3 w-3" />
-            ) : (
-              <Mic className="h-3 w-3" />
-            )}
             {vn}
-            <span className="opacity-60">{isSupport ? "和声" : "主唱"}</span>
+            {isSupport && <span className="ml-0.5 text-[10px]">和声</span>}
           </button>
         );
       })}
