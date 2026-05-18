@@ -3,6 +3,7 @@ import { useState, useCallback, useRef } from "react";
 import { collabBase } from "@/core/api/collabClient";
 import { usePublishFiles } from "./usePublishFiles";
 import { usePublishRelations } from "./usePublishRelations";
+import { usePublishVocalSupport } from "./usePublishVocalSupport";
 import type { PubFile, FileStatus, Phase, PublishMode } from "./types";
 import type { Row } from "@/core/types/collab";
 
@@ -43,6 +44,7 @@ export function usePublish({
     log,
   });
   const { linkOriginals } = usePublishRelations(records, includes, log);
+  const { applyVocalSupport } = usePublishVocalSupport(records, includes, log);
 
   const reset = useCallback(() => {
     setPhase("idle");
@@ -196,7 +198,13 @@ export function usePublish({
         if (ctrl.signal.aborted) return;
 
         if (allOk) {
+          // 导入完成后：先设置和声标记，再建关联
+          await applyVocalSupport(ctrl.signal);
+          if (ctrl.signal.aborted) return;
+
           await linkOriginals(ctrl.signal);
+          if (ctrl.signal.aborted) return;
+
           setPhase("done");
           log("全部发布完成");
         } else {
@@ -213,7 +221,7 @@ export function usePublish({
         running.current = false;
       }
     },
-    [log, runPhase1, runPhase2, linkOriginals],
+    [log, runPhase1, runPhase2, applyVocalSupport, linkOriginals],
   );
 
   const retryFile = useCallback(

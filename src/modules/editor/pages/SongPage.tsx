@@ -11,6 +11,8 @@ import {
   ChevronRight,
   RotateCcw,
   MoreHorizontal,
+  Mic,
+  Headphones,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as api from "@/core/api/mainEndpoints";
@@ -163,6 +165,11 @@ function ArtistSection({
     const ok = await form.save();
     if (ok) setConfirmOpen(false);
   };
+
+  const vocalNames = form.vocalists
+    .split("、")
+    .map((s) => s.trim())
+    .filter(Boolean);
   return (
     <>
       <Section title="艺人">
@@ -175,6 +182,36 @@ function ArtistSection({
             onProducersChange={form.setProducers}
             onSynthesizersChange={form.setSynthesizers}
           />
+          {vocalNames.length >= 2 && (
+            <div className="flex flex-wrap gap-1.5">
+              {vocalNames.map((name) => {
+                const isSupport = form.vocalSupport.has(name);
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => form.toggleVocalSupport(name)}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-all border cursor-pointer select-none",
+                      isSupport
+                        ? "bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-700"
+                        : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800",
+                    )}
+                  >
+                    {isSupport ? (
+                      <Headphones className="h-3 w-3" />
+                    ) : (
+                      <Mic className="h-3 w-3" />
+                    )}
+                    {name}
+                    <span className="opacity-60">
+                      {isSupport ? "和声" : "主唱"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
           {form.dirty && (
             <Btn
               variant="primary"

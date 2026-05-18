@@ -1,8 +1,8 @@
 // src/modules/editor/pages/AddPage.tsx
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Search, X, Loader2 } from "lucide-react";
+import { Search, X, Loader2, Mic, Headphones } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -55,6 +55,7 @@ export function AddPage() {
   const [proInput, setProInput] = useState("");
   const [synInput, setSynInput] = useState("");
   const [copyright, setCopyright] = useState(1);
+  const [vocalSupport, setVocalSupport] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -77,10 +78,36 @@ export function AddPage() {
 
   const split = (s: string) =>
     s
-      .split(/[、,，]/)
+      .split("、")
       .map((t) => t.trim())
       .filter(Boolean);
   const sLabel = (s: SongRef) => s.display_name?.trim() || s.name;
+
+  const vocalNames = useMemo(() => split(vocInput), [vocInput]);
+
+  const toggleVocalSupport = useCallback(
+    (name: string) => {
+      setVocalSupport((prev) => {
+        const next = new Set(prev);
+        if (next.has(name)) next.delete(name);
+        else next.add(name);
+        return new Set([...next].filter((n) => vocalNames.includes(n)));
+      });
+    },
+    [vocalNames],
+  );
+
+  const handleVocInputChange = useCallback((v: string) => {
+    setVocInput(v);
+    const names = v
+      .split("、")
+      .map((t) => t.trim())
+      .filter(Boolean);
+    setVocalSupport((prev) => {
+      const cleaned = new Set([...prev].filter((n) => names.includes(n)));
+      return cleaned.size !== prev.size ? cleaned : prev;
+    });
+  }, []);
 
   const fetchVideo = async () => {
     const id = bvid.trim();
@@ -109,9 +136,10 @@ export function AddPage() {
 
   useEffect(() => {
     if (subMode !== "existing" || topMode !== "collect" || !sq.trim()) {
-      setSr([]);
+      setSr([]); // eslint-disable-line react-hooks/set-state-in-effect
       return;
     }
+
     clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
       setSearching(true);
@@ -136,11 +164,17 @@ export function AddPage() {
 
   useEffect(() => {
     if (topMode === "reference") {
-      setSel(null);
-      setSq("");
-      setSr([]);
+      setSel(null); // eslint-disable-line react-hooks/set-state-in-effect
+      setSq(""); // eslint-disable-line react-hooks/set-state-in-effect
+      setSr([]); // eslint-disable-line react-hooks/set-state-in-effect
     }
   }, [topMode]);
+
+  const buildVocalistPayload = () =>
+    split(vocInput).map((n) => ({
+      name: n,
+      is_support: vocalSupport.has(n),
+    }));
 
   const handleCollectSubmit = async () => {
     if (!preview) return;
@@ -229,7 +263,7 @@ export function AddPage() {
           uploader_name: preview.owner?.name,
           duration: preview.duration,
           view: preview.stat?.view || 0,
-          vocalist_names: split(vocInput),
+          vocalists: buildVocalistPayload(),
           producer_names: split(proInput),
           synthesizer_names: split(synInput),
         });
@@ -284,7 +318,7 @@ export function AddPage() {
         name: name.trim(),
         display_name: displayName.trim() || undefined,
         type: songType,
-        vocalist_names: split(vocInput),
+        vocalists: buildVocalistPayload(),
         producer_names: split(proInput),
         synthesizer_names: split(synInput),
       };
@@ -357,6 +391,35 @@ export function AddPage() {
 
   const isRef = topMode === "reference";
 
+  const vocalSupportPills = vocalNames.length >= 2 && (
+    <div className="flex flex-wrap gap-1.5 mt-1">
+      {vocalNames.map((vn) => {
+        const isSupport = vocalSupport.has(vn);
+        return (
+          <button
+            key={vn}
+            type="button"
+            onClick={() => toggleVocalSupport(vn)}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-all border cursor-pointer select-none",
+              isSupport
+                ? "bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-700"
+                : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800",
+            )}
+          >
+            {isSupport ? (
+              <Headphones className="h-3 w-3" />
+            ) : (
+              <Mic className="h-3 w-3" />
+            )}
+            {vn}
+            <span className="opacity-60">{isSupport ? "和声" : "主唱"}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="space-y-5">
       {!presetSongId && (
@@ -427,10 +490,11 @@ export function AddPage() {
                 <Field label="歌手">
                   <TagEditor
                     value={vocInput}
-                    onChange={setVocInput}
+                    onChange={handleVocInputChange}
                     onInputChange={() => {}}
                     searchType="vocalist"
                   />
+                  {vocalSupportPills}
                 </Field>
                 <Field label="作者">
                   <TagEditor
@@ -703,10 +767,11 @@ export function AddPage() {
                       <Field label="歌手 *" error={!vocInput.trim()}>
                         <TagEditor
                           value={vocInput}
-                          onChange={setVocInput}
+                          onChange={handleVocInputChange}
                           onInputChange={() => {}}
                           searchType="vocalist"
                         />
+                        {vocalSupportPills}
                       </Field>
                       <Field label="作者 *" error={!proInput.trim()}>
                         <TagEditor

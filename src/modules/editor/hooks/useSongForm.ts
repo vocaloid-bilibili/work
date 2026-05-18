@@ -1,5 +1,5 @@
 // src/modules/editor/hooks/useSongForm.ts
-import { useState, useRef, useMemo, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import * as api from "@/core/api/mainEndpoints";
 import { logEdit } from "@/core/api/collabEndpoints";
@@ -12,6 +12,16 @@ function split(s: string) {
     .filter(Boolean);
 }
 
+function setToSorted(s: Set<string>): string[] {
+  return [...s].sort();
+}
+
+function setsEqual(a: Set<string>, b: Set<string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const v of a) if (!b.has(v)) return false;
+  return true;
+}
+
 interface Snap {
   displayName: string;
   type: SongType;
@@ -19,71 +29,114 @@ interface Snap {
   vocalists: string;
   producers: string;
   synthesizers: string;
+  vocalSupport: Set<string>;
+}
+
+function deriveSnap(song: Song): Snap {
+  return {
+    displayName: song.display_name ?? "",
+    type: song.type,
+    collected: song.collected ?? true,
+    vocalists: (song.vocalists ?? []).map((a) => a.name).join("、"),
+    producers: (song.producers ?? []).map((a) => a.name).join("、"),
+    synthesizers: (song.synthesizers ?? []).map((a) => a.name).join("、"),
+    vocalSupport: new Set(
+      (song.vocalists ?? []).filter((a) => a.is_support).map((a) => a.name),
+    ),
+  };
 }
 
 export function useSongForm(song: Song) {
-  const snap = useRef<Snap | null>(null);
-  const [displayName, setDisplayName] = useState("");
-  const [type, setType] = useState<SongType>("原创");
-  const [collected, setCollected] = useState(true);
-  const [vocalists, setVocalists] = useState("");
-  const [producers, setProducers] = useState("");
-  const [synthesizers, setSynthesizers] = useState("");
+  const [snap, setSnap] = useState(() => deriveSnap(song));
+  const [displayName, setDisplayName] = useState(() => snap.displayName);
+  const [type, setType] = useState<SongType>(() => snap.type);
+  const [collected, setCollected] = useState(() => snap.collected);
+  const [vocalists, setVocalists] = useState(() => snap.vocalists);
+  const [producers, setProducers] = useState(() => snap.producers);
+  const [synthesizers, setSynthesizers] = useState(() => snap.synthesizers);
+  const [vocalSupport, setVocalSupport] = useState(() => snap.vocalSupport);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    const s: Snap = {
-      displayName: song.display_name ?? "",
-      type: song.type,
-      collected: song.collected ?? true,
-      vocalists: (song.vocalists ?? []).map((a) => a.name).join("、"),
-      producers: (song.producers ?? []).map((a) => a.name).join("、"),
-      synthesizers: (song.synthesizers ?? []).map((a) => a.name).join("、"),
-    };
-    snap.current = s;
+  // song 变化时重置（render-time state adjustment）
+  const [prevSongId, setPrevSongId] = useState(song.id);
+  if (prevSongId !== song.id) {
+    setPrevSongId(song.id);
+    const s = deriveSnap(song);
+    setSnap(s);
     setDisplayName(s.displayName);
     setType(s.type);
     setCollected(s.collected);
     setVocalists(s.vocalists);
     setProducers(s.producers);
     setSynthesizers(s.synthesizers);
-  }, [song]);
+    setVocalSupport(s.vocalSupport);
+  }
 
-  const dirty = useMemo(() => {
-    const s = snap.current;
-    if (!s) return false;
-    return (
-      displayName !== s.displayName ||
-      type !== s.type ||
-      collected !== s.collected ||
-      vocalists !== s.vocalists ||
-      producers !== s.producers ||
-      synthesizers !== s.synthesizers
-    );
-  }, [displayName, type, collected, vocalists, producers, synthesizers]);
+  const toggleVocalSupport = useCallback(
+    (name: string) => {
+      setVocalSupport((prev) => {
+        const next = new Set(prev);
+        if (next.has(name)) next.delete(name);
+        else next.add(name);
+        const currentNames = split(vocalists);
+        return new Set([...next].filter((n) => currentNames.includes(n)));
+      });
+    },
+    [vocalists],
+  );
+
+  const dirty = useMemo(
+    () =>
+      displayName !== snap.displayName ||
+      type !== snap.type ||
+      collected !== snap.collected ||
+      vocalists !== snap.vocalists ||
+      producers !== snap.producers ||
+      synthesizers !== snap.synthesizers ||
+      !setsEqual(vocalSupport, snap.vocalSupport),
+    [
+      snap,
+      displayName,
+      type,
+      collected,
+      vocalists,
+      producers,
+      synthesizers,
+      vocalSupport,
+    ],
+  );
 
   const diff = () => {
-    const s = snap.current;
-    if (!s) return {};
     const c: Record<string, { old: string; new: string }> = {};
-    if (displayName !== s.displayName)
+    if (displayName !== snap.displayName)
       c["显示名称"] = {
-        old: s.displayName || "（空）",
+        old: snap.displayName || "（空）",
         new: displayName || "（空）",
       };
-    if (type !== s.type) c["类型"] = { old: s.type, new: type };
-    if (collected !== s.collected)
+    if (type !== snap.type) c["类型"] = { old: snap.type, new: type };
+    if (collected !== snap.collected)
       c["收录状态"] = {
-        old: s.collected ? "收录" : "参考",
+        old: snap.collected ? "收录" : "参考",
         new: collected ? "收录" : "参考",
       };
-    if (vocalists !== s.vocalists)
-      c["歌手"] = { old: s.vocalists || "（空）", new: vocalists || "（空）" };
-    if (producers !== s.producers)
-      c["作者"] = { old: s.producers || "（空）", new: producers || "（空）" };
-    if (synthesizers !== s.synthesizers)
+    if (vocalists !== snap.vocalists)
+      c["歌手"] = {
+        old: snap.vocalists || "（空）",
+        new: vocalists || "（空）",
+      };
+    if (!setsEqual(vocalSupport, snap.vocalSupport)) {
+      const oldSupport = setToSorted(snap.vocalSupport).join("、") || "（无）";
+      const newSupport = setToSorted(vocalSupport).join("、") || "（无）";
+      c["和声"] = { old: oldSupport, new: newSupport };
+    }
+    if (producers !== snap.producers)
+      c["作者"] = {
+        old: snap.producers || "（空）",
+        new: producers || "（空）",
+      };
+    if (synthesizers !== snap.synthesizers)
       c["引擎"] = {
-        old: s.synthesizers || "（空）",
+        old: snap.synthesizers || "（空）",
         new: synthesizers || "（空）",
       };
     return c;
@@ -103,12 +156,18 @@ export function useSongForm(song: Song) {
           ? api.resolveArtists("synthesizer", split(synthesizers))
           : { data: [] },
       ]);
+
+      const vocalistPayload = v.data.map((a) => ({
+        id: a.id,
+        is_support: vocalSupport.has(a.name),
+      }));
+
       const res = await api.editSong({
         id: song.id,
         display_name: displayName,
         type,
         collected,
-        vocalist_ids: v.data.map((a) => a.id),
+        vocalists: vocalistPayload,
         producer_ids: p.data.map((a) => a.id),
         synthesizer_ids: s.data.map((a) => a.id),
       });
@@ -117,27 +176,29 @@ export function useSongForm(song: Song) {
         string,
         { old: string | boolean; new: string | boolean }
       > = {};
-      const sc = snap.current;
-      if (sc) {
-        if (displayName !== sc.displayName)
-          rawDiff.display_name = { old: sc.displayName, new: displayName };
-        if (type !== sc.type) rawDiff.type = { old: sc.type, new: type };
-        if (collected !== sc.collected)
-          rawDiff.collected = { old: sc.collected, new: collected };
-        if (vocalists !== sc.vocalists)
-          rawDiff.vocal = { old: sc.vocalists, new: vocalists };
-        if (producers !== sc.producers)
-          rawDiff.author = { old: sc.producers, new: producers };
-        if (synthesizers !== sc.synthesizers)
-          rawDiff.synthesizer = { old: sc.synthesizers, new: synthesizers };
-      }
+      if (displayName !== snap.displayName)
+        rawDiff.display_name = { old: snap.displayName, new: displayName };
+      if (type !== snap.type) rawDiff.type = { old: snap.type, new: type };
+      if (collected !== snap.collected)
+        rawDiff.collected = { old: snap.collected, new: collected };
+      if (vocalists !== snap.vocalists)
+        rawDiff.vocal = { old: snap.vocalists, new: vocalists };
+      if (!setsEqual(vocalSupport, snap.vocalSupport))
+        rawDiff.vocal_support = {
+          old: setToSorted(snap.vocalSupport).join("、"),
+          new: setToSorted(vocalSupport).join("、"),
+        };
+      if (producers !== snap.producers)
+        rawDiff.author = { old: snap.producers, new: producers };
+      if (synthesizers !== snap.synthesizers)
+        rawDiff.synthesizer = { old: snap.synthesizers, new: synthesizers };
 
       const detail: Record<string, unknown> = {
         songId: song.id,
         songName: song.name,
         bvids: (song.videos ?? [])
-          .filter((v) => !v.disabled)
-          .map((v) => v.bvid),
+          .filter((vid) => !vid.disabled)
+          .map((vid) => vid.bvid),
         changes: rawDiff,
       };
       if (res.collected_rows) detail.collectedRows = res.collected_rows;
@@ -148,14 +209,15 @@ export function useSongForm(song: Song) {
         action: "edit_song",
         detail,
       });
-      snap.current = {
+      setSnap({
         displayName,
         type,
         collected,
         vocalists,
         producers,
         synthesizers,
-      };
+        vocalSupport: new Set(vocalSupport),
+      });
       toast.success("歌曲信息已更新");
       return true;
     } catch (e: unknown) {
@@ -183,6 +245,8 @@ export function useSongForm(song: Song) {
     setProducers,
     synthesizers,
     setSynthesizers,
+    vocalSupport,
+    toggleVocalSupport,
     dirty,
     saving,
     save,

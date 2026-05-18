@@ -9,6 +9,13 @@ export interface Artist {
   vocadb_id?: number | null;
 }
 
+export interface Vocalist {
+  id: number;
+  name: string;
+  is_support: boolean;
+  vocadb_id?: number | null;
+}
+
 export interface UploaderRef {
   id: number;
   name: string;
@@ -35,7 +42,7 @@ export interface Song {
   type: SongType;
   vocadb_id?: number | null;
   collected?: boolean;
-  vocalists?: Artist[];
+  vocalists?: Vocalist[];
   producers?: Artist[];
   synthesizers?: Artist[];
   videos?: VideoSummary[];

@@ -70,7 +70,7 @@ export const editSong = (data: {
   display_name?: string;
   type?: string;
   collected?: boolean;
-  vocalist_ids?: number[];
+  vocalists?: { id: number; is_support: boolean }[];
   producer_ids?: number[];
   synthesizer_ids?: number[];
 }) =>
@@ -232,7 +232,7 @@ export const getSongRelations = (songId: number) =>
           type?: string;
           thumbnail?: string | null;
           producers?: { id: number; name: string }[];
-          vocalists?: { id: number; name: string }[];
+          vocalists?: { id: number; name: string; is_support: boolean }[];
         }>;
         derivatives: Array<{
           id: number;
@@ -241,7 +241,7 @@ export const getSongRelations = (songId: number) =>
           type?: string;
           thumbnail?: string | null;
           producers?: { id: number; name: string }[];
-          vocalists?: { id: number; name: string }[];
+          vocalists?: { id: number; name: string; is_support: boolean }[];
         }>;
       },
   );
@@ -353,7 +353,7 @@ export const addNewSong = (data: {
   uploader_name?: string;
   duration?: number;
   view: number;
-  vocalist_names: string[];
+  vocalists: { name: string; is_support: boolean }[];
   producer_names: string[];
   synthesizer_names: string[];
 }) =>
@@ -370,7 +370,7 @@ export const addReferenceSong = (data: {
   name: string;
   display_name?: string;
   type?: string;
-  vocalist_names?: string[];
+  vocalists?: { name: string; is_support: boolean }[];
   producer_names?: string[];
   synthesizer_names?: string[];
   bvid?: string;

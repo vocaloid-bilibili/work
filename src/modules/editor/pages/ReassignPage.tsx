@@ -1,7 +1,8 @@
 // src/modules/editor/pages/ReassignPage.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { Mic, Headphones } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -14,6 +15,7 @@ import { logEdit } from "@/core/api/collabEndpoints";
 import { SONG_TYPES } from "@/core/types/constants";
 import EntityPicker from "@/shared/ui/EntityPicker";
 import TagEditor from "@/shared/ui/TagEditor";
+import { cn } from "@/ui/cn";
 import { Section } from "../components/Section";
 import { SongCard } from "../components/SongCard";
 import { Field } from "../components/Field";
@@ -44,11 +46,13 @@ export function ReassignPage() {
   const [voc, setVoc] = useState("");
   const [pro, setPro] = useState("");
   const [syn, setSyn] = useState("");
+  const [vocalSupport, setVocalSupport] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (!bvid) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     api
       .selectVideo(bvid)
@@ -77,11 +81,44 @@ export function ReassignPage() {
 
   useEffect(() => {
     if (!parent) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setType(parent.type as SongType);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVoc((parent.vocalists ?? []).map((a) => a.name).join("、"));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPro((parent.producers ?? []).map((a) => a.name).join("、"));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSyn((parent.synthesizers ?? []).map((a) => a.name).join("、"));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVocalSupport(
+      new Set(
+        (parent.vocalists ?? []).filter((a) => a.is_support).map((a) => a.name),
+      ),
+    );
   }, [parent]);
+
+  const vocalNames = useMemo(() => tags(voc), [voc]);
+
+  const handleVocChange = useCallback((v: string) => {
+    setVoc(v);
+    const names = tags(v);
+    setVocalSupport((prev) => {
+      const cleaned = new Set([...prev].filter((n) => names.includes(n)));
+      return cleaned.size !== prev.size ? cleaned : prev;
+    });
+  }, []);
+
+  const toggleVocalSupport = useCallback(
+    (n: string) => {
+      setVocalSupport((prev) => {
+        const next = new Set(prev);
+        if (next.has(n)) next.delete(n);
+        else next.add(n);
+        return new Set([...next].filter((x) => vocalNames.includes(x)));
+      });
+    },
+    [vocalNames],
+  );
 
   if (loading) return <div>加载中...</div>;
   if (!bvid) return <div>视频不存在</div>;
@@ -115,7 +152,10 @@ export function ReassignPage() {
           await api.editSong({
             id: r.new_song_id,
             type,
-            vocalist_ids: v.data.map((a) => a.id),
+            vocalists: v.data.map((a) => ({
+              id: a.id,
+              is_support: vocalSupport.has(a.name),
+            })),
             producer_ids: p.data.map((a) => a.id),
             synthesizer_ids: s.data.map((a) => a.id),
           });
@@ -228,10 +268,40 @@ export function ReassignPage() {
               <Field label="歌手">
                 <TagEditor
                   value={voc}
-                  onChange={setVoc}
+                  onChange={handleVocChange}
                   onInputChange={() => {}}
                   searchType="vocalist"
                 />
+                {vocalNames.length >= 2 && (
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {vocalNames.map((vn) => {
+                      const isSupport = vocalSupport.has(vn);
+                      return (
+                        <button
+                          key={vn}
+                          type="button"
+                          onClick={() => toggleVocalSupport(vn)}
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-all border cursor-pointer select-none",
+                            isSupport
+                              ? "bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-700"
+                              : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800",
+                          )}
+                        >
+                          {isSupport ? (
+                            <Headphones className="h-3 w-3" />
+                          ) : (
+                            <Mic className="h-3 w-3" />
+                          )}
+                          {vn}
+                          <span className="opacity-60">
+                            {isSupport ? "和声" : "主唱"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </Field>
               <Field label="作者">
                 <TagEditor
